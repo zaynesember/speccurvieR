@@ -46,11 +46,11 @@
 #'
 #' @examples
 #' sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"), data=bottles,
-#'     progressBar=TRUE, parallel=FALSE)
+#'     progressBar=TRUE, parallel=FALSE);
 #' sca(y="Salnty", x="T_degC", c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-#'     progressBar=T, parallel=TRUE, workers=2)
+#'     progressBar=T, parallel=TRUE, workers=2);
 #' sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat*NO3um"), data=bottles,
-#'     progressBar=T, parallel=FALSE, returnFormulae=T)
+#'     progressBar=T, parallel=FALSE, returnFormulae=T);
 sca <- function(y, x, controls, data, family="linear", link=NULL,
                 fixedEffects=NULL, returnFormulae=F,
                 progressBar=T, parallel=FALSE, workers=2){
@@ -280,20 +280,40 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
 
 }
 
-# TODO: Documentation and testing
-#' Title
+#' Plots a specification curve.
 #'
-#' @param sca_data
-#' @param title
-#' @param showIndex
-#' @param plotVars
-#' @param ylab
-#' @param plotSE
+#' @param sca_data A data frame output by `sca()` containing model estimates.
+#' @param title A string to use as the plot title. Defaults to an empty string,
+#'              `""`.
+#' @param showIndex A boolean indicating whether to label the model index on the
+#'                  the x-axis. Defaults to `TRUE`.
+#' @param plotVars A boolean indicating whether to include a panel on the plot
+#'                 showing which variables are present in each model. Defaults
+#'                 to `TRUE`.
+#' @param ylab A string to be used as the y-axis label. Defaults to
+#'             `"Coefficient"`.
+#' @param plotSE A string indicating whether to display standard errors as
+#'               bars or plots. For bars `plotSE = "bar"`, for ribbons
+#'               `plotSE = "ribbon"`. If any other value is supplied then no
+#'               standard errors are included. Defaults to `"bar"`.
 #'
-#' @return
-#' @export
+#' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
+#'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
 #'
 #' @examples
+#' plotCurve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
+#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#'                      title = "Salinity and Temperature Models",
+#'                      showIndex = TRUE, plotVars = TRUE,
+#'                      ylab = "Coefficient value", plotSE = "ribbon");
+#' plotCurve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
+#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
+#'                      showIndex = TRUE, plotVars = TRUE,
+#'                      plotSE = "ribbon");
+#' plotCurve(sca_data = sca(y="Salnty", x="T_degC",
+#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
+#'                          progressBar=T, parallel=TRUE, workers=2),
+#'           plotSE="");
 plotCurve <- function(sca_data, title="", showIndex=T, plotVars=T,
                          ylab="Coefficient", plotSE="bar"){
 
@@ -303,7 +323,7 @@ plotCurve <- function(sca_data, title="", showIndex=T, plotVars=T,
 
   pointSize <- -.25*(ncol(sca_data)-7)+(13/4)
 
-  if(plotSE=="ribbon"){
+  if(tolower(plotSE)=="ribbon"){
     sca_data <- sca_data %>%
       mutate(ribbon.group = cumsum(sig.level != lag(sig.level,
                                                     def = first(sig.level))))
@@ -318,13 +338,13 @@ plotCurve <- function(sca_data, title="", showIndex=T, plotVars=T,
                                            group=factor(ribbon.group),
                                            fill=factor(sig.level)),
                                        alpha=.4)} +
-    {if(plotSE=="bar") geom_errorbar(aes(ymin=coef-se, ymax=coef+se,
+    {if(tolower(plotSE)=="bar") geom_errorbar(aes(ymin=coef-se, ymax=coef+se,
                                           color=factor(sig.level)),
                                       width=0.25)} +
-    {if(!plotSE %in% c("ribbon",
+    {if(!tolower(plotSE) %in% c("ribbon",
                        "bar")) geom_point(aes(color=as.factor(sig.level)),
                                           size=pointSize)} +
-    {if(plotSE %in% c("ribbon",
+    {if(tolwoer(plotSE) %in% c("ribbon",
                       "bar")) geom_point(color="black",size=pointSize)} +
     labs(title=title, x="", y=ylab) +
     theme_bw() +
@@ -353,7 +373,27 @@ plotCurve <- function(sca_data, title="", showIndex=T, plotVars=T,
   }
 }
 
-# TODO: Documentation and testing
+#' Plots the variables included in each model specification in order of model
+#' index.
+#'
+#' @param sca_data A data frame output by `sca()` containing model estimates.
+#' @param title A string to use as the plot title. Defaults to an empty string,
+#'              `""`.
+#' @param colorControls A boolean indicating whether to give each variable a
+#'                      color to improve readability. Defaults to `FALSE`.
+#'
+#' @return A ggplot object.
+#'
+#' @examples
+#' plotVars(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
+#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#'                      title = "Model Variable Specifications");
+#' plotVars(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
+#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
+#'                      colorControls =  TRUE);
+#' plotVars(sca_data = sca(y="Salnty", x="T_degC",
+#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
+#'                          progressBar=T, parallel=TRUE, workers=2));
 plotVars <- function(sca_data, title="", colorControls=F){
 
   if("control_coefs" %in% names(sca_data)){
@@ -400,7 +440,31 @@ plotVars <- function(sca_data, title="", colorControls=F){
   return(sc)
 }
 
-# TODO: Documentation and testing
+#' Plots the root mean square error across model specifications. Only available
+#' for linear regression models.
+#'
+#' @param sca_data A data frame output by `sca()` containing model estimates.
+#' @param title A string to use as the plot title. Defaults to an empty string,
+#'              `""`.
+#' @param showIndex A boolean indicating whether to label the model index on the
+#'                  the x-axis. Defaults to `TRUE`.
+#' @param plotVars A boolean indicating whether to include a panel on the plot
+#'                 showing which variables are present in each model. Defaults
+#'                 to `TRUE`.
+#'
+#' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
+#'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#'
+#' @examples
+#' plotRMSE(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
+#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#'                      title = "RMSE");
+#' plotRMSE(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
+#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
+#'                      showIndex = FALSE, plotVars = FALSE);
+#' plotRMSE(sca_data = sca(y="Salnty", x="T_degC",
+#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
+#'                          progressBar=T, parallel=TRUE, workers=2));
 plotRMSE <- function(sca_data, title="", showIndex=T, plotVars=T){
 
   if(!"RMSE" %in% colnames(sca_data)){
@@ -440,7 +504,31 @@ plotRMSE <- function(sca_data, title="", showIndex=T, plotVars=T){
   }
 }
 
-# TODO: Documentation and testing
+#' Plots the adjusted R-squared across model specifications. Only available
+#' for linear regression models.
+#'
+#' @param sca_data A data frame output by `sca()` containing model estimates.
+#' @param title A string to use as the plot title. Defaults to an empty string,
+#'              `""`.
+#' @param showIndex A boolean indicating whether to label the model index on the
+#'                  the x-axis. Defaults to `TRUE`.
+#' @param plotVars A boolean indicating whether to include a panel on the plot
+#'                 showing which variables are present in each model. Defaults
+#'                 to `TRUE`.
+#'
+#' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
+#'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#'
+#' @examples
+#' plotR2Adj(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
+#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#'                      title = "Adjusted R^2");
+#' plotR2Adj(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
+#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
+#'                      showIndex = FALSE, plotVars = FALSE);
+#' plotR2Adj(sca_data = sca(y="Salnty", x="T_degC",
+#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
+#'                          progressBar=T, parallel=TRUE, workers=2));
 plotR2Adj <- function(sca_data, title="", showIndex=T, plotVars=T){
 
   if(!"adjR" %in% colnames(sca_data)){
@@ -480,7 +568,31 @@ plotR2Adj <- function(sca_data, title="", showIndex=T, plotVars=T){
   }
 }
 
-# TODO: Documentation and testing
+#' Plots the Akaike information criterion across model specifications. Only
+#' available for nonlinear regression models.
+#'
+#' @param sca_data A data frame output by `sca()` containing model estimates.
+#' @param title A string to use as the plot title. Defaults to an empty string,
+#'              `""`.
+#' @param showIndex A boolean indicating whether to label the model index on the
+#'                  the x-axis. Defaults to `TRUE`.
+#' @param plotVars A boolean indicating whether to include a panel on the plot
+#'                 showing which variables are present in each model. Defaults
+#'                 to `TRUE`.
+#'
+#' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
+#'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#'
+#' @examples
+#' plotAIC(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
+#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#'                      title = "AIC");
+#' plotAIC(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
+#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
+#'                      showIndex = FALSE, plotVars = FALSE);
+#' plotAIC(sca_data = sca(y="Salnty", x="T_degC",
+#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
+#'                          progressBar=T, parallel=TRUE, workers=2));
 plotAIC <- function(sca_data, title="", showIndex=T, plotVars=T){
 
   if(!"AIC" %in% colnames(sca_data)){
@@ -520,7 +632,31 @@ plotAIC <- function(sca_data, title="", showIndex=T, plotVars=T){
   }
 }
 
-# TODO: Documentation and testing
+#' Plots the deviance of residuals across model specifications. Only available
+#' for linear regression models.
+#'
+#' @param sca_data A data frame output by `sca()` containing model estimates.
+#' @param title A string to use as the plot title. Defaults to an empty string,
+#'              `""`.
+#' @param showIndex A boolean indicating whether to label the model index on the
+#'                  the x-axis. Defaults to `TRUE`.
+#' @param plotVars A boolean indicating whether to include a panel on the plot
+#'                 showing which variables are present in each model. Defaults
+#'                 to `TRUE`.
+#'
+#' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
+#'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#'
+#' @examples
+#' plotDeviance(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
+#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#'                      title = "Model Deviance");
+#' plotDeviance(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
+#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
+#'                      showIndex = FALSE, plotVars = FALSE);
+#' plotDeviance(sca_data = sca(y="Salnty", x="T_degC",
+#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
+#'                          progressBar=T, parallel=TRUE, workers=2));
 plotDeviance <- function(sca_data, title="", showIndex=T, plotVars=T){
 
   if(!"deviance" %in% colnames(sca_data)){
@@ -561,7 +697,34 @@ plotDeviance <- function(sca_data, title="", showIndex=T, plotVars=T){
   }
 }
 
-# TODO: Documentation
+#' Plots the distribution of coefficients for each control variable included in
+#' the model specifications.
+#'
+#' @param sca_data A data frame output by `sca()` containing model estimates.
+#' @param title A string to use as the plot title. Defaults to an empty string,
+#'              `""`.
+#' @param type A string indicating what type of distribution plot to produce.
+#'             When `type = "density"` density plots are produced. When
+#'             `type = "hist"` or `type = "histogram"` histograms are produced.
+#'             Defaults to `"density"`.
+#'
+#' @return A ggplot object.
+#'
+#' @examples
+#' plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",
+#'                                     c("ChlorA", "O2Sat"),
+#'                                     data=bottles,
+#'                                     progressBar=TRUE, parallel=FALSE),
+#'                          title = "Control Variable Distributions")
+#' plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",
+#'                                     c("ChlorA*O2Sat"), data=bottles,
+#'                                     progressBar=FALSE, parallel=FALSE),
+#'                          type = "hist")
+#' plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",
+#'                                     c("ChlorA*NO3uM", "O2Sat*NO3um"),
+#'                                     data=bottles, progressBar=T,
+#'                                     parallel=TRUE, workers=2),
+#'                          type = "density")
 plotControlDistributions <- function(sca_data, title="", type="density"){
 
   histData <- bind_rows(unAsIs(sca_data$control_coefs)) %>%
@@ -576,8 +739,8 @@ plotControlDistributions <- function(sca_data, title="", type="density"){
 
   sc1 <- histData %>%
     ggplot(aes(x=coef, fill=factor(term))) +
-      {if(type=="hist" | type=="histogram") geom_histogram()
-       else if (type=="density") geom_density()} +
+      {if(tolower(type)=="hist" | tolower(type)=="histogram") geom_histogram()
+       else if (tolower(type)=="density") geom_density()} +
       labs(x="", y="", title=title) +
       theme_bw() +
       theme(
@@ -593,16 +756,3 @@ plotControlDistributions <- function(sca_data, title="", type="density"){
       facet_wrap(~factor(term), scales="free", labeller = label_parsed)
   return(sc1)
 }
-
-# TODO: AIC and Deviance plots
-# TODO: Add support for grouping models
-# TODO: Swap lm() for glm() and ensure support for all glm() models
-# TODO: Add other measures of model fit (AIC, BIC, Log. Likelihood)
-# TODO: Add support for IV via felm
-# TODO: Add support random effects
-# TODO: Add support for clustered SEs
-# TODO: Add support for robust SEs
-# TODO: Add support for comparison between SE types
-# TODO: Add plot of number of observations across models
-#       Maybe add some kind of power analysis?
-# TODO: Compare model estimation speed to specR

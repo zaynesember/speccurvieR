@@ -5,11 +5,11 @@ Version: 0.1.0
 Authors@R: person("Zayne", "Sember", email = "zsember@ucsd.edu",
   role = c("aut", "cre"))
 Description: speccurvieR is an R package aimed at making specification curve 
-analysis easy, fast, and pretty. It improves upon existing offerings with
-additional features and tidyverse integration. Users can easily visualize and
-evaluate how their models behave under different specifications with a high
-degree of customization.
-License: use_mit_license()
+  analysis easy, fast, and pretty. It improves upon existing offerings with
+  additional features and tidyverse integration. Users can easily visualize and
+  evaluate how their models behave under different specifications with a high
+  degree of customization.
+License: `use_mit_license()`
 Encoding: UTF-8
 LazyData: true
 Imports:
@@ -18,3 +18,4 @@ Imports:
   lfe,
   pbapply,
   parallel,
+RoxygenNote: 7.2.3

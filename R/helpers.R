@@ -8,8 +8,9 @@
 #' @returns A string concatenating independent and control variables separated
 #'          by '+'.
 #'
-#' @example
-#' paste_factory(c("control1", "control2"), "independentVariable");
+#' @examples
+#' paste_factory(controls = c("control1", "control2"),
+#'               x = "independentVariable");
 paste_factory <- function(controls, x){
   if(T %in% str_detect(controls, x)){
     return(paste(controls, collapse=" + "))
@@ -25,8 +26,9 @@ paste_factory <- function(controls, x){
 #'
 #' @return A vector of strings containing control variable names
 #'
-#' @example
-#' duplicate_remover(c("control1", "control2*control3"), "independentVariable");
+#' @examples
+#' duplicate_remover(controls = c("control1", "control2*control3"),
+#'                   x = "independentVariable");
 duplicate_remover <- function(controls, x){
   # Check for interactions
   if(T %in% str_detect(controls, "\\*")){
@@ -128,7 +130,7 @@ controlExtractor <- function(model, x){
 #' @return An object without the `AsIs` class attribute.
 #'
 #' @examples
-#' unAsIs(I(c(1:4)))
+#' unAsIs(x = I(c(1:4)))
 unAsIs <- function(x) {
   if("AsIs" %in% class(x)) {
     class(x) <- class(x)[-match("AsIs", class(x))]
@@ -155,7 +157,7 @@ unAsIs <- function(x) {
 #'
 #' @examples
 #' scp(sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"), data=bottles,
-#'     progressBar=T, parallel=FALSE))
+#'     progressBar=TRUE, parallel=FALSE));
 scp <- function(spec_data){
   df <- spec_data %>%
     select(-terms, -coef, -se, -statistic, -p, -sig.level) %>%
