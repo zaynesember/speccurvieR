@@ -19,5 +19,11 @@ A dataframe with two columns, `term` contains the name of the control
 Extracts the control variable names and coefficients from a model summary.
 }
 \examples{
-controlExtractor(summary(lm(y ~ x + control1 + control2, data)), "x");
+m <- summary(lm(Salnty ~ STheta + T_degC, bottles))
+controlExtractor(model = m,
+                 x = "STheta");
+
+m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
+controlExtractor(model = m,
+                 x = "STheta");
 }

@@ -2,12 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{sca}
 \alias{sca}
-\title{The workhorse function of the package--this estimates models with every
-possible combination of the controls supplied and returns a dataframe
-where each row contains the pertinent information and parameters for a
-given model by default. Alternatively, if `returnFormulae` is `TRUE`, it
-returns a list of formula objects with every possible combination of
-controls.}
+\title{Perform specification curve analysis}
 \usage{
 sca(
   y,
@@ -73,12 +68,13 @@ When `returnFormulae` is `FALSE`, a dataframe where each row contains
         fit.
 }
 \description{
-The workhorse function of the package--this estimates models with every
-possible combination of the controls supplied and returns a dataframe
+`sca()` is the workhorse function of the package--this estimates models with every
+possible combination of the controls supplied and returns a data frame
 where each row contains the pertinent information and parameters for a
-given model by default. Alternatively, if `returnFormulae` is `TRUE`, it
-returns a list of formula objects with every possible combination of
-controls.
+given model by default. This data frame can then be input to `plotCurve`
+or any other plotting function in the package. Alternatively, if
+`returnFormulae = TRUE`, it returns a list of formula objects with every
+possible combination of controls.
 }
 \examples{
 sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"), data=bottles,

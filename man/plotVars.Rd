@@ -2,13 +2,13 @@
 % Please edit documentation in R/functions.R
 \name{plotVars}
 \alias{plotVars}
-\title{Plots the variables included in each model specification in order of model
-index.}
+\title{Plots the variables in each model.}
 \usage{
 plotVars(sca_data, title = "", colorControls = F)
 }
 \arguments{
-\item{sca_data}{A data frame output by `sca()` containing model estimates.}
+\item{sca_data}{A data frame returned by `sca()` containing model estimates
+from the specification curve analysis.}
 
 \item{title}{A string to use as the plot title. Defaults to an empty string,
 `""`.}
@@ -21,7 +21,9 @@ A ggplot object.
 }
 \description{
 Plots the variables included in each model specification in order of model
-index.
+index. Returns a ggplot object that can then be combined with the output
+of other functions like `plotRMSE` if further customization of each plot
+is desired.
 }
 \examples{
 plotVars(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),

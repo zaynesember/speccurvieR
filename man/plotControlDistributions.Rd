@@ -2,13 +2,13 @@
 % Please edit documentation in R/functions.R
 \name{plotControlDistributions}
 \alias{plotControlDistributions}
-\title{Plots the distribution of coefficients for each control variable included in
-the model specifications.}
+\title{Plots control variable distributions.}
 \usage{
 plotControlDistributions(sca_data, title = "", type = "density")
 }
 \arguments{
-\item{sca_data}{A data frame output by `sca()` containing model estimates.}
+\item{sca_data}{A data frame returned by `sca()` containing model estimates
+from the specification curve analysis.}
 
 \item{title}{A string to use as the plot title. Defaults to an empty string,
 `""`.}

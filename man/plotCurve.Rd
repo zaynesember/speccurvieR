@@ -14,7 +14,8 @@ plotCurve(
 )
 }
 \arguments{
-\item{sca_data}{A data frame output by `sca()` containing model estimates.}
+\item{sca_data}{A data frame returned by `sca()` containing model estimates
+from the specification curve analysis.}
 
 \item{title}{A string to use as the plot title. Defaults to an empty string,
 `""`.}
@@ -39,7 +40,12 @@ If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
 }
 \description{
-Plots a specification curve.
+`plotCurve` takes the data frame output of `sca()` and produces a ggplot of
+the independent variable's coefficient (as indicated in the call to `sca()`)
+across model specifications. By default a panel is added showing which
+control variables are present in each model. Note that the ggplot output by
+this function can only be further customized when `plotVars = FAlSE`, i.e.
+when the control variable panel is not included.
 }
 \examples{
 plotCurve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),

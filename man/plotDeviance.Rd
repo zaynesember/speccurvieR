@@ -2,13 +2,13 @@
 % Please edit documentation in R/functions.R
 \name{plotDeviance}
 \alias{plotDeviance}
-\title{Plots the deviance of residuals across model specifications. Only available
-for linear regression models.}
+\title{Plots the deviance of residuals across model specifications.}
 \usage{
 plotDeviance(sca_data, title = "", showIndex = T, plotVars = T)
 }
 \arguments{
-\item{sca_data}{A data frame output by `sca()` containing model estimates.}
+\item{sca_data}{A data frame returned by `sca()` containing model estimates
+from the specification curve analysis.}
 
 \item{title}{A string to use as the plot title. Defaults to an empty string,
 `""`.}
