@@ -109,9 +109,14 @@ formula_builder <- function(y, x, controls, fixedEffects=NA, cluster=NA){
 #'         and `coef` contains the coefficient estimate.
 #'
 #' @examples
-#' controlExtractor(summary(lm(y ~ x + control1 + control2, data)), "x");
+#' m <- summary(lm(Salnty ~ STheta + T_degC, bottles))
+#' controlExtractor(model = m,
+#'                  x = "STheta");
+#'
+#' m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
+#' controlExtractor(model = m,
+#'                  x = "STheta");
 controlExtractor <- function(model, x){
-
   r <- as.data.frame(model$coefficients[,1]) %>%
     mutate(term=row.names(.)) %>%
     filter(!row.names(.) %in% c("(Intercept)", x))

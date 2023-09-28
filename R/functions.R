@@ -1,11 +1,15 @@
 # User-facing functions---------------------------------------------------------
 
-#' The workhorse function of the package--this estimates models with every
-#' possible combination of the controls supplied and returns a dataframe
+#' Perform specification curve analysis
+#'
+#' @description
+#' `sca()` is the workhorse function of the package--this estimates models with every
+#' possible combination of the controls supplied and returns a data frame
 #' where each row contains the pertinent information and parameters for a
-#' given model by default. Alternatively, if `returnFormulae` is `TRUE`, it
-#' returns a list of formula objects with every possible combination of
-#' controls.
+#' given model by default. This data frame can then be input to `plotCurve`
+#' or any other plotting function in the package. Alternatively, if
+#' `returnFormulae = TRUE`, it returns a list of formula objects with every
+#' possible combination of controls.
 #'
 #' @param y A string containing the column name of the dependent variable in
 #'          data.
@@ -43,6 +47,8 @@
 #'         the independent variable coefficient estimate, standard error,
 #'         test statistic, p-value, model specification, and measures of model
 #'         fit.
+#'
+#' @export
 #'
 #' @examples
 #' sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"), data=bottles,
@@ -282,7 +288,16 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
 
 #' Plots a specification curve.
 #'
-#' @param sca_data A data frame output by `sca()` containing model estimates.
+#' @description
+#' `plotCurve` takes the data frame output of `sca()` and produces a ggplot of
+#' the independent variable's coefficient (as indicated in the call to `sca()`)
+#' across model specifications. By default a panel is added showing which
+#' control variables are present in each model. Note that the ggplot output by
+#' this function can only be further customized when `plotVars = FAlSE`, i.e.
+#' when the control variable panel is not included.
+#'
+#' @param sca_data A data frame returned by `sca()` containing model estimates
+#'                 from the specification curve analysis.
 #' @param title A string to use as the plot title. Defaults to an empty string,
 #'              `""`.
 #' @param showIndex A boolean indicating whether to label the model index on the
@@ -299,6 +314,8 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
 #'
 #' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
 #'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#'
+#' @export
 #'
 #' @examples
 #' plotCurve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
@@ -344,7 +361,7 @@ plotCurve <- function(sca_data, title="", showIndex=T, plotVars=T,
     {if(!tolower(plotSE) %in% c("ribbon",
                        "bar")) geom_point(aes(color=as.factor(sig.level)),
                                           size=pointSize)} +
-    {if(tolwoer(plotSE) %in% c("ribbon",
+    {if(tolower(plotSE) %in% c("ribbon",
                       "bar")) geom_point(color="black",size=pointSize)} +
     labs(title=title, x="", y=ylab) +
     theme_bw() +
@@ -373,16 +390,21 @@ plotCurve <- function(sca_data, title="", showIndex=T, plotVars=T,
   }
 }
 
-#' Plots the variables included in each model specification in order of model
-#' index.
+#' Plots the variables in each model.
 #'
-#' @param sca_data A data frame output by `sca()` containing model estimates.
-#' @param title A string to use as the plot title. Defaults to an empty string,
-#'              `""`.
+#' @description
+#' Plots the variables included in each model specification in order of model
+#' index. Returns a ggplot object that can then be combined with the output
+#' of other functions like `plotRMSE` if further customization of each plot
+#' is desired.
+#'
+#' @inheritParams plotCurve
 #' @param colorControls A boolean indicating whether to give each variable a
 #'                      color to improve readability. Defaults to `FALSE`.
 #'
 #' @return A ggplot object.
+#'
+#' @export
 #'
 #' @examples
 #' plotVars(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
@@ -440,12 +462,13 @@ plotVars <- function(sca_data, title="", colorControls=F){
   return(sc)
 }
 
+#' Plots RMSE across model specifications.
+#'
+#' @description
 #' Plots the root mean square error across model specifications. Only available
 #' for linear regression models.
 #'
-#' @param sca_data A data frame output by `sca()` containing model estimates.
-#' @param title A string to use as the plot title. Defaults to an empty string,
-#'              `""`.
+#' @inheritParams plotCurve
 #' @param showIndex A boolean indicating whether to label the model index on the
 #'                  the x-axis. Defaults to `TRUE`.
 #' @param plotVars A boolean indicating whether to include a panel on the plot
@@ -454,6 +477,8 @@ plotVars <- function(sca_data, title="", colorControls=F){
 #'
 #' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
 #'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#'
+#' @export
 #'
 #' @examples
 #' plotRMSE(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
@@ -504,20 +529,18 @@ plotRMSE <- function(sca_data, title="", showIndex=T, plotVars=T){
   }
 }
 
+#' Plots the adj. R-squared across model specifications.
+#'
+#' @description
 #' Plots the adjusted R-squared across model specifications. Only available
 #' for linear regression models.
 #'
-#' @param sca_data A data frame output by `sca()` containing model estimates.
-#' @param title A string to use as the plot title. Defaults to an empty string,
-#'              `""`.
-#' @param showIndex A boolean indicating whether to label the model index on the
-#'                  the x-axis. Defaults to `TRUE`.
-#' @param plotVars A boolean indicating whether to include a panel on the plot
-#'                 showing which variables are present in each model. Defaults
-#'                 to `TRUE`.
+#' @inheritParams plotRMSE
 #'
 #' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
 #'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#'
+#' @export
 #'
 #' @examples
 #' plotR2Adj(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
@@ -568,20 +591,18 @@ plotR2Adj <- function(sca_data, title="", showIndex=T, plotVars=T){
   }
 }
 
+#' Plots the AIC across model specifications.
+#'
+#' @description
 #' Plots the Akaike information criterion across model specifications. Only
 #' available for nonlinear regression models.
 #'
-#' @param sca_data A data frame output by `sca()` containing model estimates.
-#' @param title A string to use as the plot title. Defaults to an empty string,
-#'              `""`.
-#' @param showIndex A boolean indicating whether to label the model index on the
-#'                  the x-axis. Defaults to `TRUE`.
-#' @param plotVars A boolean indicating whether to include a panel on the plot
-#'                 showing which variables are present in each model. Defaults
-#'                 to `TRUE`.
+#' @inheritParams plotRMSE
 #'
 #' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
 #'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#'
+#' @export
 #'
 #' @examples
 #' plotAIC(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
@@ -632,20 +653,18 @@ plotAIC <- function(sca_data, title="", showIndex=T, plotVars=T){
   }
 }
 
+#' Plots the deviance of residuals across model specifications.
+#'
+#' @description
 #' Plots the deviance of residuals across model specifications. Only available
 #' for linear regression models.
 #'
-#' @param sca_data A data frame output by `sca()` containing model estimates.
-#' @param title A string to use as the plot title. Defaults to an empty string,
-#'              `""`.
-#' @param showIndex A boolean indicating whether to label the model index on the
-#'                  the x-axis. Defaults to `TRUE`.
-#' @param plotVars A boolean indicating whether to include a panel on the plot
-#'                 showing which variables are present in each model. Defaults
-#'                 to `TRUE`.
+#' @inheritParams plotRMSE
 #'
 #' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
 #'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#'
+#' @export
 #'
 #' @examples
 #' plotDeviance(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
@@ -697,18 +716,21 @@ plotDeviance <- function(sca_data, title="", showIndex=T, plotVars=T){
   }
 }
 
+#' Plots control variable distributions.
+#'
+#' @description
 #' Plots the distribution of coefficients for each control variable included in
 #' the model specifications.
 #'
-#' @param sca_data A data frame output by `sca()` containing model estimates.
-#' @param title A string to use as the plot title. Defaults to an empty string,
-#'              `""`.
+#' @inheritParams plotRMSE
 #' @param type A string indicating what type of distribution plot to produce.
 #'             When `type = "density"` density plots are produced. When
 #'             `type = "hist"` or `type = "histogram"` histograms are produced.
 #'             Defaults to `"density"`.
 #'
 #' @return A ggplot object.
+#'
+#' @export
 #'
 #' @examples
 #' plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",

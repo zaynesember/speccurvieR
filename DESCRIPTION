@@ -9,13 +9,17 @@ Description: speccurvieR is an R package aimed at making specification curve
   additional features and tidyverse integration. Users can easily visualize and
   evaluate how their models behave under different specifications with a high
   degree of customization.
-License: `use_mit_license()`
 Encoding: UTF-8
 LazyData: true
 Imports:
-  tidyverse,
+  ggplot2,
+  magrittr,
+  tidyr,
+  dplyr,
+  stringr,
   combinat,
   lfe,
   pbapply,
-  parallel,
+  parallel
 RoxygenNote: 7.2.3
+License: MIT + file LICENSE
