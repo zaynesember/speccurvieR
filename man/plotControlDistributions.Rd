@@ -22,22 +22,24 @@ Defaults to `"density"`.}
 A ggplot object.
 }
 \description{
-Plots the distribution of coefficients for each control variable included in
-the model specifications.
+plotControlDistributions() plots the distribution of coefficients for each
+control variable included in the model specifications.
 }
 \examples{
 plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",
-                                    c("ChlorA", "O2Sat"),
-                                    data=bottles,
-                                    progressBar=TRUE, parallel=FALSE),
+                                    controls = c("ChlorA", "O2Sat"),
+                                    data = bottles,
+                                    progressBar = TRUE, parallel = FALSE),
                          title = "Control Variable Distributions")
-plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",
-                                    c("ChlorA*O2Sat"), data=bottles,
-                                    progressBar=FALSE, parallel=FALSE),
+plotControlDistributions(sca_data = sca(y = "Salnty", x="T_degC",
+                                    controls = c("ChlorA*O2Sat"),
+                                    data = bottles,
+                                    progressBar = FALSE, parallel = FALSE),
                          type = "hist")
-plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",
-                                    c("ChlorA*NO3uM", "O2Sat*NO3um"),
-                                    data=bottles, progressBar=T,
-                                    parallel=TRUE, workers=2),
+plotControlDistributions(sca_data = sca(y = "Salnty", x = "T_degC",
+                                    controls = c("ChlorA*NO3uM",
+                                                 "O2Sat*NO3uM"),
+                                    data = bottles, progressBar = TRUE,
+                                    parallel = TRUE, workers = 2),
                          type = "density")
 }

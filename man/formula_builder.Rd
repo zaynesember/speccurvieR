@@ -4,7 +4,7 @@
 \alias{formula_builder}
 \title{Builds models formulae with every combination of control variables possible.}
 \usage{
-formula_builder(y, x, controls, fixedEffects = NA, cluster = NA)
+formula_builder(y, x, controls, fixedEffects = NA)
 }
 \arguments{
 \item{y}{A string containing the dependent variable name.}
@@ -16,10 +16,6 @@ formula_builder(y, x, controls, fixedEffects = NA, cluster = NA)
 \item{fixedEffects}{A string containing the name of a variable to use for
 fixed effects, defaults to `NA` indicating no fixed
 effects desired.}
-
-\item{cluster}{A string containing the name of a variable to use for
-clustered standard errors, defaults to `NA` indicating no
-clustering.}
 }
 \value{
 A vector of formula objects using every possible combination of
@@ -33,6 +29,4 @@ formula_builder("dependentVariable", "independentVariable",
                 c("control1", "control2"));
 formula_builder("dependentVariable", "independentVariable",
                 c("control1*control2"), fixedEffects="month");
-formula_builder("dependentVariable", "independentVariable",
-                c("control1*control2", "control3"), cluster="village");
 }

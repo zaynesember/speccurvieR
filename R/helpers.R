@@ -1,12 +1,63 @@
 # Helper functions--------------------------------------------------------------
 
+#' Builds models formulae with every combination of control variables possible.
+#'
+#' @param y A string containing the dependent variable name.
+#' @param x A string containing the independent variable name.
+#' @param controls A vector of strings containing control variable names.
+#' @param fixedEffects A string containing the name of a variable to use for
+#'                     fixed effects, defaults to `NA` indicating no fixed
+#'                     effects desired.
+#'
+#' @return A vector of formula objects using every possible combination of
+#'         controls.
+#'
+#' @export
+#'
+#' @examples
+#' formula_builder("dependentVariable", "independentVariable",
+#'                 c("control1", "control2"));
+#' formula_builder("dependentVariable", "independentVariable",
+#'                 c("control1*control2"), fixedEffects="month");
+formula_builder <- function(y, x, controls, fixedEffects=NA){
+
+  # Get all combinations of controls
+  powerset <- unlist(lapply(1:length(controls),
+                            combinat::combn,
+                            x = controls,
+                            simplify = FALSE),
+                     recursive=F)
+
+  # Remove duplicate controls that are already in the interaction
+  powerset <- unique(sapply(X=powerset, FUN=duplicate_remover, x=x))
+
+  # Build right hand side of the formulae
+  if(is.na(fixedEffects)){
+    RHS <- unique(sapply(powerset, paste_factory, x))
+  }
+  else{
+    RHS <- paste(unique(sapply(powerset, paste_factory, x)), fixedEffects,
+                 sep=" | ")
+  }
+  # Build formulae
+  formulae <- sapply(paste(y, RHS, sep=" ~ "), formula)
+
+  return(formulae)
+}
+
 #' Paste together controls and independent variable
 #'
-#' @param controls A vector of strings containing control variable names.
-#' @param x A string containing the independent variable name.
+#' @description
+#' `paste_factory()` constructs the right hand side of the regression as a
+#' a string i.e. "x + control1 + control2".
+#'
+#'
+#' @inheritParams formula_builder
 #'
 #' @returns A string concatenating independent and control variables separated
 #'          by '+'.
+#'
+#' @export
 #'
 #' @examples
 #' paste_factory(controls = c("control1", "control2"),
@@ -19,12 +70,16 @@ paste_factory <- function(controls, x){
 }
 
 
-#' Removes duplicate control variables from user input
+#' Removes duplicate control variables
 #'
-#' @param controls A vector of strings containing control variable names.
-#' @param x A string containing the independent variable name.
+#' @description
+#' Removes duplicate control variables from user input.
+#'
+#' @inheritParams formula_builder
 #'
 #' @return A vector of strings containing control variable names
+#'
+#' @export
 #'
 #' @examples
 #' duplicate_remover(controls = c("control1", "control2*control3"),
@@ -47,75 +102,26 @@ duplicate_remover <- function(controls, x){
 }
 
 
-#' Builds models formulae with every combination of control variables possible.
-#'
-#' @param y A string containing the dependent variable name.
-#' @param x A string containing the independent variable name.
-#' @param controls A vector of strings containing control variable names.
-#' @param fixedEffects A string containing the name of a variable to use for
-#'                     fixed effects, defaults to `NA` indicating no fixed
-#'                     effects desired.
-#' @param cluster A string containing the name of a variable to use for
-#'                clustered standard errors, defaults to `NA` indicating no
-#'                clustering.
-#'
-#' @return A vector of formula objects using every possible combination of
-#'         controls.
-#'
-#' @examples
-#' formula_builder("dependentVariable", "independentVariable",
-#'                 c("control1", "control2"));
-#' formula_builder("dependentVariable", "independentVariable",
-#'                 c("control1*control2"), fixedEffects="month");
-#' formula_builder("dependentVariable", "independentVariable",
-#'                 c("control1*control2", "control3"), cluster="village");
-formula_builder <- function(y, x, controls, fixedEffects=NA, cluster=NA){
-
-  # Get all combinations of controls
-  powerset <- unlist(lapply(1:length(controls),
-                            combinat::combn,
-                            x = controls,
-                            simplify = FALSE),
-                     recursive=F)
-
-  # Remove duplicate controls that are already in the interaction
-  powerset <- unique(sapply(X=powerset, FUN=duplicate_remover, x=x))
-
-  # Build right hand side of the formulae
-  if(is.na(fixedEffects)){
-    if(is.na(cluster)) RHS <- unique(sapply(powerset, paste_factory, x))
-    else RHS <- paste(unique(sapply(powerset, paste_factory, x)), "",
-                      cluster, sep=" | ")
-  }
-  else{
-    if(is.na(cluster)) RHS <- paste(unique(sapply(powerset, paste_factory, x)),
-                                    fixedEffects, sep=" | ")
-    else RHS <- paste(unique(sapply(powerset, paste_factory, x)), fixedEffects,
-                      cluster, sep=" | ")
-  }
-  # Build formulae
-  formulae <- sapply(paste(y, RHS, sep=" ~ "), formula)
-
-  return(formulae)
-}
-
-
 #' Extracts the control variable names and coefficients from a model summary.
 #'
+#' @description
+#' Extracts the control variable names and coefficients from a model summary.
+#'
+#'
 #' @param model A model summary object.
-#' @param x A string containing the independent variable name.
+#' @inheritParams formula_builder
 #'
 #' @return A dataframe with two columns, `term` contains the name of the control
 #'         and `coef` contains the coefficient estimate.
 #'
+#' @export
+#'
 #' @examples
 #' m <- summary(lm(Salnty ~ STheta + T_degC, bottles))
-#' controlExtractor(model = m,
-#'                  x = "STheta");
+#' controlExtractor(model = m, x = "STheta");
 #'
 #' m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
-#' controlExtractor(model = m,
-#'                  x = "STheta");
+#' controlExtractor(model = m, x = "STheta");
 controlExtractor <- function(model, x){
   r <- as.data.frame(model$coefficients[,1]) %>%
     mutate(term=row.names(.)) %>%
@@ -127,15 +133,20 @@ controlExtractor <- function(model, x){
 }
 
 
+#' Removes the `AsIs` class attribute from the input.
+#'
+#' @description
 #' Removes the `AsIs` class attribute from the input. Taken from:
-#' https://stackoverflow.com/a/12866609
+#' <https://stackoverflow.com/a/12866609>
 #'
 #' @param x An object with the `AsIs` class attribute.
 #'
 #' @return An object without the `AsIs` class attribute.
 #'
+#' @export
+#'
 #' @examples
-#' unAsIs(x = I(c(1:4)))
+#' unAsIs(x = I(c(1:4)));
 unAsIs <- function(x) {
   if("AsIs" %in% class(x)) {
     class(x) <- class(x)[-match("AsIs", class(x))]
@@ -144,32 +155,49 @@ unAsIs <- function(x) {
 }
 
 
-# Takes in the output of sca() and returns a list with the dataframe and
+# Takes in the output of `sca()` and returns a list with the dataframe and
 # labels to make a plot to visualize the controls included in each spec curve
 # model
 # Arguments:
 #   spec_data = dataframe object with output from `sca()`
 # Returns: list containing dataframe, controls, and control IDs
 
-#' Takes in the output of `sca` and returns a list with the data frame and
-#' labels to make a plot to visualize the controls included in each spec curve
-#' model.
+#' Prepares the output of `sca()` for plotting.
+#'
+#' @description
+#' Takes in the data frame output by `sca()` and returns a list with the data
+#' frame and labels to make a plot to visualize the controls included in each
+#' spec curve model.
 #'
 #' @param spec_data A data frame output by `sca`.
 #'
 #' @return A list containing a data frame, control coefficients, and control
 #'         names.
 #'
+#' @export
+#'
 #' @examples
-#' scp(sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"), data=bottles,
-#'     progressBar=TRUE, parallel=FALSE));
+#' scp(sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
+#'         data = bottles, progressBar=TRUE, parallel=FALSE));
 scp <- function(spec_data){
-  df <- spec_data %>%
-    select(-terms, -coef, -se, -statistic, -p, -sig.level) %>%
-    pivot_longer(!index, names_to="control", values_to="value") %>%
-    filter(value==1) %>%
-    mutate(controlID = with(.,match(control, unique(control)))) %>%
-    select(-value)
+  if("control_coefs" %in% names(spec_data)){
+    df <- spec_data %>%
+      select(-terms, -coef, -se, -statistic, -p, -sig.level) %>%
+      pivot_longer(-c(index, control_coefs),
+                   names_to="control", values_to="value") %>%
+      filter(value==1) %>%
+      mutate(controlID = with(.,match(control, unique(control)))) %>%
+      select(-value)
+  }
+  else{
+    df <- spec_data %>%
+      select(-terms, -coef, -se, -statistic, -p, -sig.level) %>%
+      pivot_longer(-index,
+                   names_to="control", values_to="value") %>%
+      filter(value==1) %>%
+      mutate(controlID = with(.,match(control, unique(control)))) %>%
+      select(-value)
+  }
 
   df_labels <- df %>% select(control, controlID) %>% unique()
 

@@ -2,7 +2,7 @@
 % Please edit documentation in R/helpers.R
 \name{duplicate_remover}
 \alias{duplicate_remover}
-\title{Removes duplicate control variables from user input}
+\title{Removes duplicate control variables}
 \usage{
 duplicate_remover(controls, x)
 }
@@ -15,7 +15,7 @@ duplicate_remover(controls, x)
 A vector of strings containing control variable names
 }
 \description{
-Removes duplicate control variables from user input
+Removes duplicate control variables from user input.
 }
 \examples{
 duplicate_remover(controls = c("control1", "control2*control3"),

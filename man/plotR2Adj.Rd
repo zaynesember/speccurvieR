@@ -4,7 +4,7 @@
 \alias{plotR2Adj}
 \title{Plots the adj. R-squared across model specifications.}
 \usage{
-plotR2Adj(sca_data, title = "", showIndex = T, plotVars = T)
+plotR2Adj(sca_data, title = "", showIndex = TRUE, plotVars = TRUE)
 }
 \arguments{
 \item{sca_data}{A data frame returned by `sca()` containing model estimates
@@ -25,17 +25,22 @@ If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
 }
 \description{
-Plots the adjusted R-squared across model specifications. Only available
-for linear regression models.
+plotR2Adj() plots the adjusted R-squared across model specifications. Only
+available for linear regression models.
 }
 \examples{
-plotR2Adj(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
-                         data=bottles, progressBar=TRUE, parallel=FALSE),
+plotR2Adj(sca_data = sca(y = "Salnty", x = "T_degC",
+                         controls = c("ChlorA", "O2Sat"),
+                         data = bottles, progressBar = TRUE,
+                         parallel = FALSE),
                      title = "Adjusted R^2");
-plotR2Adj(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
-                         data=bottles, progressBar=FALSE, parallel=FALSE),
-                     showIndex = FALSE, plotVars = FALSE);
 plotR2Adj(sca_data = sca(y="Salnty", x="T_degC",
-                         c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-                         progressBar=T, parallel=TRUE, workers=2));
+                         controls = c("ChlorA*O2Sat"),
+                         data = bottles, progressBar = FALSE,
+                         parallel = FALSE),
+                     showIndex = FALSE, plotVars = FALSE);
+plotR2Adj(sca_data = sca(y = "Salnty", x = "T_degC",
+                         controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
+                         data = bottles,
+                         progressBar = TRUE, parallel = TRUE, workers = 2));
 }

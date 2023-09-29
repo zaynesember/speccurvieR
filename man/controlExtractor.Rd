@@ -20,10 +20,8 @@ Extracts the control variable names and coefficients from a model summary.
 }
 \examples{
 m <- summary(lm(Salnty ~ STheta + T_degC, bottles))
-controlExtractor(model = m,
-                 x = "STheta");
+controlExtractor(model = m, x = "STheta");
 
 m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
-controlExtractor(model = m,
-                 x = "STheta");
+controlExtractor(model = m, x = "STheta");
 }

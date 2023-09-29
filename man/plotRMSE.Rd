@@ -4,7 +4,7 @@
 \alias{plotRMSE}
 \title{Plots RMSE across model specifications.}
 \usage{
-plotRMSE(sca_data, title = "", showIndex = T, plotVars = T)
+plotRMSE(sca_data, title = "", showIndex = TRUE, plotVars = TRUE)
 }
 \arguments{
 \item{sca_data}{A data frame returned by `sca()` containing model estimates
@@ -25,8 +25,8 @@ If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
 }
 \description{
-Plots the root mean square error across model specifications. Only available
-for linear regression models.
+plotRMSE() plots the root mean square error across model specifications. Only
+available for linear regression models.
 }
 \examples{
 plotRMSE(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
@@ -36,6 +36,6 @@ plotRMSE(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
                          data=bottles, progressBar=FALSE, parallel=FALSE),
                      showIndex = FALSE, plotVars = FALSE);
 plotRMSE(sca_data = sca(y="Salnty", x="T_degC",
-                         c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-                         progressBar=T, parallel=TRUE, workers=2));
+                         c("ChlorA*NO3uM", "O2Sat*NO3uM"), data=bottles,
+                         progressBar = TRUE, parallel=TRUE, workers=2));
 }

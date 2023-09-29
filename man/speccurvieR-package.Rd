@@ -9,7 +9,7 @@
 speccurvieR is an R package aimed at making specification curve analysis easy, fast, and pretty. It improves upon existing offerings with additional features and tidyverse integration. Users can easily visualize and evaluate how their models behave under different specifications with a high degree of customization.
 }
 \author{
-\strong{Maintainer}: Zayne Sember \email{zsember@ucsd.edu}
+\strong{Maintainer}: Zayne Sember \email{zsember@ucsd.edu} [copyright holder]
 
 }
 \keyword{internal}

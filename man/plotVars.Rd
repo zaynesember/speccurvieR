@@ -4,7 +4,7 @@
 \alias{plotVars}
 \title{Plots the variables in each model.}
 \usage{
-plotVars(sca_data, title = "", colorControls = F)
+plotVars(sca_data, title = "", colorControls = FALSE)
 }
 \arguments{
 \item{sca_data}{A data frame returned by `sca()` containing model estimates
@@ -20,19 +20,24 @@ color to improve readability. Defaults to `FALSE`.}
 A ggplot object.
 }
 \description{
-Plots the variables included in each model specification in order of model
-index. Returns a ggplot object that can then be combined with the output
-of other functions like `plotRMSE` if further customization of each plot
-is desired.
+plotVars() plots the variables included in each model specification in order
+of model index. Returns a ggplot object that can then be combined with the
+output of other functions like plotRMSE() if further customization of each
+plot is desired.
 }
 \examples{
-plotVars(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
-                         data=bottles, progressBar=TRUE, parallel=FALSE),
+plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
+                        controls = c("ChlorA", "O2Sat"),
+                        data = bottles, progressBar = TRUE,
+                        parallel = FALSE),
                      title = "Model Variable Specifications");
-plotVars(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
-                         data=bottles, progressBar=FALSE, parallel=FALSE),
-                     colorControls =  TRUE);
-plotVars(sca_data = sca(y="Salnty", x="T_degC",
-                         c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-                         progressBar=T, parallel=TRUE, workers=2));
+plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
+                        controls = c("ChlorA*O2Sat"),
+                        data = bottles, progressBar = FALSE,
+                        parallel = FALSE),
+                     colorControls = TRUE);
+plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
+                        controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
+                        data = bottles,
+                        progressBar = TRUE, parallel = TRUE, workers = 2));
 }

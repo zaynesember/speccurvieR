@@ -2,8 +2,7 @@
 % Please edit documentation in R/helpers.R
 \name{unAsIs}
 \alias{unAsIs}
-\title{Removes the `AsIs` class attribute from the input. Taken from:
-https://stackoverflow.com/a/12866609}
+\title{Removes the `AsIs` class attribute from the input.}
 \usage{
 unAsIs(x)
 }
@@ -15,8 +14,8 @@ An object without the `AsIs` class attribute.
 }
 \description{
 Removes the `AsIs` class attribute from the input. Taken from:
-https://stackoverflow.com/a/12866609
+<https://stackoverflow.com/a/12866609>
 }
 \examples{
-unAsIs(x = I(c(1:4)))
+unAsIs(x = I(c(1:4)));
 }

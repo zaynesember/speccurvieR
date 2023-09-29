@@ -2,9 +2,7 @@
 % Please edit documentation in R/helpers.R
 \name{scp}
 \alias{scp}
-\title{Takes in the output of `sca` and returns a list with the data frame and
-labels to make a plot to visualize the controls included in each spec curve
-model.}
+\title{Prepares the output of `sca()` for plotting.}
 \usage{
 scp(spec_data)
 }
@@ -16,11 +14,11 @@ A list containing a data frame, control coefficients, and control
         names.
 }
 \description{
-Takes in the output of `sca` and returns a list with the data frame and
-labels to make a plot to visualize the controls included in each spec curve
-model.
+Takes in the data frame output by `sca()` and returns a list with the data
+frame and labels to make a plot to visualize the controls included in each
+spec curve model.
 }
 \examples{
-scp(sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"), data=bottles,
-    progressBar=TRUE, parallel=FALSE));
+scp(sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
+        data = bottles, progressBar=TRUE, parallel=FALSE));
 }

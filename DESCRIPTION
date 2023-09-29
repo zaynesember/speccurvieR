@@ -3,7 +3,7 @@ Type: Package
 Title: Easy, Fast, and Pretty Specification Curve Analysis
 Version: 0.1.0
 Authors@R: person("Zayne", "Sember", email = "zsember@ucsd.edu",
-  role = c("aut", "cre"))
+  role = c("aut", "cre", "cph"))
 Description: speccurvieR is an R package aimed at making specification curve 
   analysis easy, fast, and pretty. It improves upon existing offerings with
   additional features and tidyverse integration. Users can easily visualize and

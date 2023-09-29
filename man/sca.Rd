@@ -12,8 +12,8 @@ sca(
   family = "linear",
   link = NULL,
   fixedEffects = NULL,
-  returnFormulae = F,
-  progressBar = T,
+  returnFormulae = FALSE,
+  progressBar = TRUE,
   parallel = FALSE,
   workers = 2
 )
@@ -68,19 +68,20 @@ When `returnFormulae` is `FALSE`, a dataframe where each row contains
         fit.
 }
 \description{
-`sca()` is the workhorse function of the package--this estimates models with every
+sca() is the workhorse function of the package--this estimates models with every
 possible combination of the controls supplied and returns a data frame
 where each row contains the pertinent information and parameters for a
-given model by default. This data frame can then be input to `plotCurve`
+given model by default. This data frame can then be input to plotCurve()
 or any other plotting function in the package. Alternatively, if
 `returnFormulae = TRUE`, it returns a list of formula objects with every
 possible combination of controls.
 }
 \examples{
-sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"), data=bottles,
-    progressBar=TRUE, parallel=FALSE);
-sca(y="Salnty", x="T_degC", c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-    progressBar=T, parallel=TRUE, workers=2);
-sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat*NO3um"), data=bottles,
-    progressBar=T, parallel=FALSE, returnFormulae=T);
+sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
+    data = bottles, progressBar = TRUE, parallel = FALSE);
+sca(y = "Salnty", x = "T_degC", controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
+    data = bottles, progressBar = TRUE, parallel = TRUE, workers = 2);
+sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat*NO3uM"),
+    data = bottles, progressBar = TRUE, parallel = FALSE,
+    returnFormulae = TRUE);
 }

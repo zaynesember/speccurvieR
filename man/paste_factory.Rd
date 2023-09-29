@@ -16,7 +16,8 @@ A string concatenating independent and control variables separated
          by '+'.
 }
 \description{
-Paste together controls and independent variable
+`paste_factory()` constructs the right hand side of the regression as a
+a string i.e. "x + control1 + control2".
 }
 \examples{
 paste_factory(controls = c("control1", "control2"),

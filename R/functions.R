@@ -3,10 +3,10 @@
 #' Perform specification curve analysis
 #'
 #' @description
-#' `sca()` is the workhorse function of the package--this estimates models with every
+#' sca() is the workhorse function of the package--this estimates models with every
 #' possible combination of the controls supplied and returns a data frame
 #' where each row contains the pertinent information and parameters for a
-#' given model by default. This data frame can then be input to `plotCurve`
+#' given model by default. This data frame can then be input to plotCurve()
 #' or any other plotting function in the package. Alternatively, if
 #' `returnFormulae = TRUE`, it returns a list of formula objects with every
 #' possible combination of controls.
@@ -51,15 +51,16 @@
 #' @export
 #'
 #' @examples
-#' sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"), data=bottles,
-#'     progressBar=TRUE, parallel=FALSE);
-#' sca(y="Salnty", x="T_degC", c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-#'     progressBar=T, parallel=TRUE, workers=2);
-#' sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat*NO3um"), data=bottles,
-#'     progressBar=T, parallel=FALSE, returnFormulae=T);
+#' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
+#'     data = bottles, progressBar = TRUE, parallel = FALSE);
+#' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
+#'     data = bottles, progressBar = TRUE, parallel = TRUE, workers = 2);
+#' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat*NO3uM"),
+#'     data = bottles, progressBar = TRUE, parallel = FALSE,
+#'     returnFormulae = TRUE);
 sca <- function(y, x, controls, data, family="linear", link=NULL,
-                fixedEffects=NULL, returnFormulae=F,
-                progressBar=T, parallel=FALSE, workers=2){
+                fixedEffects=NULL, returnFormulae=FALSE,
+                progressBar=TRUE, parallel=FALSE, workers=2){
 
   if(family!="linear" & !is.null(fixedEffects))
     {
@@ -289,11 +290,11 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
 #' Plots a specification curve.
 #'
 #' @description
-#' `plotCurve` takes the data frame output of `sca()` and produces a ggplot of
-#' the independent variable's coefficient (as indicated in the call to `sca()`)
+#' plotCurve() takes the data frame output of sca() and produces a ggplot of
+#' the independent variable's coefficient (as indicated in the call to sca())
 #' across model specifications. By default a panel is added showing which
 #' control variables are present in each model. Note that the ggplot output by
-#' this function can only be further customized when `plotVars = FAlSE`, i.e.
+#' this function can only be further customized when `plotVars = FALSE`, i.e.
 #' when the control variable panel is not included.
 #'
 #' @param sca_data A data frame returned by `sca()` containing model estimates
@@ -328,10 +329,10 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
 #'                      showIndex = TRUE, plotVars = TRUE,
 #'                      plotSE = "ribbon");
 #' plotCurve(sca_data = sca(y="Salnty", x="T_degC",
-#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-#'                          progressBar=T, parallel=TRUE, workers=2),
+#'                          c("ChlorA*NO3uM", "O2Sat*NO3uM"), data=bottles,
+#'                          progressBar = TRUE, parallel = TRUE, workers=2),
 #'           plotSE="");
-plotCurve <- function(sca_data, title="", showIndex=T, plotVars=T,
+plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
                          ylab="Coefficient", plotSE="bar"){
 
   if("control_coefs" %in% names(sca_data)){
@@ -342,7 +343,7 @@ plotCurve <- function(sca_data, title="", showIndex=T, plotVars=T,
 
   if(tolower(plotSE)=="ribbon"){
     sca_data <- sca_data %>%
-      mutate(ribbon.group = cumsum(sig.level != lag(sig.level,
+      mutate(ribbon.group = cumsum(sig.level != stats::lag(sig.level,
                                                     def = first(sig.level))))
   }
 
@@ -393,10 +394,10 @@ plotCurve <- function(sca_data, title="", showIndex=T, plotVars=T,
 #' Plots the variables in each model.
 #'
 #' @description
-#' Plots the variables included in each model specification in order of model
-#' index. Returns a ggplot object that can then be combined with the output
-#' of other functions like `plotRMSE` if further customization of each plot
-#' is desired.
+#' plotVars() plots the variables included in each model specification in order
+#' of model index. Returns a ggplot object that can then be combined with the
+#' output of other functions like plotRMSE() if further customization of each
+#' plot is desired.
 #'
 #' @inheritParams plotCurve
 #' @param colorControls A boolean indicating whether to give each variable a
@@ -407,16 +408,21 @@ plotCurve <- function(sca_data, title="", showIndex=T, plotVars=T,
 #' @export
 #'
 #' @examples
-#' plotVars(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
-#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#' plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                         controls = c("ChlorA", "O2Sat"),
+#'                         data = bottles, progressBar = TRUE,
+#'                         parallel = FALSE),
 #'                      title = "Model Variable Specifications");
-#' plotVars(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
-#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
-#'                      colorControls =  TRUE);
-#' plotVars(sca_data = sca(y="Salnty", x="T_degC",
-#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-#'                          progressBar=T, parallel=TRUE, workers=2));
-plotVars <- function(sca_data, title="", colorControls=F){
+#' plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                         controls = c("ChlorA*O2Sat"),
+#'                         data = bottles, progressBar = FALSE,
+#'                         parallel = FALSE),
+#'                      colorControls = TRUE);
+#' plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                         controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
+#'                         data = bottles,
+#'                         progressBar = TRUE, parallel = TRUE, workers = 2));
+plotVars <- function(sca_data, title="", colorControls=FALSE){
 
   if("control_coefs" %in% names(sca_data)){
     sca_data <- sca_data %>% select(-control_coefs)
@@ -465,8 +471,8 @@ plotVars <- function(sca_data, title="", colorControls=F){
 #' Plots RMSE across model specifications.
 #'
 #' @description
-#' Plots the root mean square error across model specifications. Only available
-#' for linear regression models.
+#' plotRMSE() plots the root mean square error across model specifications. Only
+#' available for linear regression models.
 #'
 #' @inheritParams plotCurve
 #' @param showIndex A boolean indicating whether to label the model index on the
@@ -488,9 +494,9 @@ plotVars <- function(sca_data, title="", colorControls=F){
 #'                          data=bottles, progressBar=FALSE, parallel=FALSE),
 #'                      showIndex = FALSE, plotVars = FALSE);
 #' plotRMSE(sca_data = sca(y="Salnty", x="T_degC",
-#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-#'                          progressBar=T, parallel=TRUE, workers=2));
-plotRMSE <- function(sca_data, title="", showIndex=T, plotVars=T){
+#'                          c("ChlorA*NO3uM", "O2Sat*NO3uM"), data=bottles,
+#'                          progressBar = TRUE, parallel=TRUE, workers=2));
+plotRMSE <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 
   if(!"RMSE" %in% colnames(sca_data)){
     message(paste0("RMSE not found. Are your models nonlinear? ",
@@ -532,8 +538,8 @@ plotRMSE <- function(sca_data, title="", showIndex=T, plotVars=T){
 #' Plots the adj. R-squared across model specifications.
 #'
 #' @description
-#' Plots the adjusted R-squared across model specifications. Only available
-#' for linear regression models.
+#' plotR2Adj() plots the adjusted R-squared across model specifications. Only
+#' available for linear regression models.
 #'
 #' @inheritParams plotRMSE
 #'
@@ -543,16 +549,21 @@ plotRMSE <- function(sca_data, title="", showIndex=T, plotVars=T){
 #' @export
 #'
 #' @examples
-#' plotR2Adj(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
-#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#' plotR2Adj(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                          controls = c("ChlorA", "O2Sat"),
+#'                          data = bottles, progressBar = TRUE,
+#'                          parallel = FALSE),
 #'                      title = "Adjusted R^2");
-#' plotR2Adj(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
-#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
-#'                      showIndex = FALSE, plotVars = FALSE);
 #' plotR2Adj(sca_data = sca(y="Salnty", x="T_degC",
-#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-#'                          progressBar=T, parallel=TRUE, workers=2));
-plotR2Adj <- function(sca_data, title="", showIndex=T, plotVars=T){
+#'                          controls = c("ChlorA*O2Sat"),
+#'                          data = bottles, progressBar = FALSE,
+#'                          parallel = FALSE),
+#'                      showIndex = FALSE, plotVars = FALSE);
+#' plotR2Adj(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                          controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
+#'                          data = bottles,
+#'                          progressBar = TRUE, parallel = TRUE, workers = 2));
+plotR2Adj <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 
   if(!"adjR" %in% colnames(sca_data)){
     message(paste0("Adj. R^2 not found. Are your models nonlinear? ",
@@ -594,8 +605,8 @@ plotR2Adj <- function(sca_data, title="", showIndex=T, plotVars=T){
 #' Plots the AIC across model specifications.
 #'
 #' @description
-#' Plots the Akaike information criterion across model specifications. Only
-#' available for nonlinear regression models.
+#' plotAIC() plots the Akaike information criterion across model specifications.
+#' Only available for nonlinear regression models.
 #'
 #' @inheritParams plotRMSE
 #'
@@ -605,16 +616,20 @@ plotR2Adj <- function(sca_data, title="", showIndex=T, plotVars=T){
 #' @export
 #'
 #' @examples
-#' plotAIC(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
-#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#' plotAIC(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                        controls = c("ChlorA", "O2Sat"),
+#'                        data = bottles, progressBar = TRUE, parallel = FALSE),
 #'                      title = "AIC");
-#' plotAIC(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
-#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
-#'                      showIndex = FALSE, plotVars = FALSE);
-#' plotAIC(sca_data = sca(y="Salnty", x="T_degC",
-#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-#'                          progressBar=T, parallel=TRUE, workers=2));
-plotAIC <- function(sca_data, title="", showIndex=T, plotVars=T){
+#' plotAIC(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                        controls = c("ChlorA*O2Sat"),
+#'                        data = bottles, progressBar = FALSE,
+#'                        parallel = FALSE),
+#'                        showIndex = FALSE, plotVars = FALSE);
+#' plotAIC(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                          controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
+#'                          data = bottles,
+#'                          progressBar = TRUE, parallel = TRUE, workers = 2));
+plotAIC <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 
   if(!"AIC" %in% colnames(sca_data)){
     message(paste0("AIC not found. Are your models linear? ",
@@ -656,8 +671,8 @@ plotAIC <- function(sca_data, title="", showIndex=T, plotVars=T){
 #' Plots the deviance of residuals across model specifications.
 #'
 #' @description
-#' Plots the deviance of residuals across model specifications. Only available
-#' for linear regression models.
+#' plotDeviance() plots the deviance of residuals across model specifications.
+#' Only available for linear regression models.
 #'
 #' @inheritParams plotRMSE
 #'
@@ -667,16 +682,21 @@ plotAIC <- function(sca_data, title="", showIndex=T, plotVars=T){
 #' @export
 #'
 #' @examples
-#' plotDeviance(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
-#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#' plotDeviance(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                             controls = c("ChlorA", "O2Sat"),
+#'                             data = bottles, progressBar = TRUE,
+#'                             parallel = FALSE),
 #'                      title = "Model Deviance");
-#' plotDeviance(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
-#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
+#' plotDeviance(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                             controls = c("ChlorA*O2Sat"),
+#'                             data = bottles, progressBar = FALSE,
+#'                             parallel = FALSE),
 #'                      showIndex = FALSE, plotVars = FALSE);
-#' plotDeviance(sca_data = sca(y="Salnty", x="T_degC",
-#'                          c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-#'                          progressBar=T, parallel=TRUE, workers=2));
-plotDeviance <- function(sca_data, title="", showIndex=T, plotVars=T){
+#' plotDeviance(sca_data = sca(y = "Salnty", x="T_degC",
+#'                          controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
+#'                          data = bottles, progressBar = TRUE, parallel = TRUE,
+#'                          workers = 2));
+plotDeviance <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 
   if(!"deviance" %in% colnames(sca_data)){
     message(paste0("Deviance of residuals not found. ",
@@ -719,8 +739,8 @@ plotDeviance <- function(sca_data, title="", showIndex=T, plotVars=T){
 #' Plots control variable distributions.
 #'
 #' @description
-#' Plots the distribution of coefficients for each control variable included in
-#' the model specifications.
+#' plotControlDistributions() plots the distribution of coefficients for each
+#' control variable included in the model specifications.
 #'
 #' @inheritParams plotRMSE
 #' @param type A string indicating what type of distribution plot to produce.
@@ -734,18 +754,20 @@ plotDeviance <- function(sca_data, title="", showIndex=T, plotVars=T){
 #'
 #' @examples
 #' plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",
-#'                                     c("ChlorA", "O2Sat"),
-#'                                     data=bottles,
-#'                                     progressBar=TRUE, parallel=FALSE),
+#'                                     controls = c("ChlorA", "O2Sat"),
+#'                                     data = bottles,
+#'                                     progressBar = TRUE, parallel = FALSE),
 #'                          title = "Control Variable Distributions")
-#' plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",
-#'                                     c("ChlorA*O2Sat"), data=bottles,
-#'                                     progressBar=FALSE, parallel=FALSE),
+#' plotControlDistributions(sca_data = sca(y = "Salnty", x="T_degC",
+#'                                     controls = c("ChlorA*O2Sat"),
+#'                                     data = bottles,
+#'                                     progressBar = FALSE, parallel = FALSE),
 #'                          type = "hist")
-#' plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",
-#'                                     c("ChlorA*NO3uM", "O2Sat*NO3um"),
-#'                                     data=bottles, progressBar=T,
-#'                                     parallel=TRUE, workers=2),
+#' plotControlDistributions(sca_data = sca(y = "Salnty", x = "T_degC",
+#'                                     controls = c("ChlorA*NO3uM",
+#'                                                  "O2Sat*NO3uM"),
+#'                                     data = bottles, progressBar = TRUE,
+#'                                     parallel = TRUE, workers = 2),
 #'                          type = "density")
 plotControlDistributions <- function(sca_data, title="", type="density"){
 

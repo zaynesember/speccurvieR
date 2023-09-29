@@ -7,8 +7,8 @@
 plotCurve(
   sca_data,
   title = "",
-  showIndex = T,
-  plotVars = T,
+  showIndex = TRUE,
+  plotVars = TRUE,
   ylab = "Coefficient",
   plotSE = "bar"
 )
@@ -40,11 +40,11 @@ If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
 }
 \description{
-`plotCurve` takes the data frame output of `sca()` and produces a ggplot of
-the independent variable's coefficient (as indicated in the call to `sca()`)
+plotCurve() takes the data frame output of sca() and produces a ggplot of
+the independent variable's coefficient (as indicated in the call to sca())
 across model specifications. By default a panel is added showing which
 control variables are present in each model. Note that the ggplot output by
-this function can only be further customized when `plotVars = FAlSE`, i.e.
+this function can only be further customized when `plotVars = FALSE`, i.e.
 when the control variable panel is not included.
 }
 \examples{
@@ -58,7 +58,7 @@ plotCurve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
                      showIndex = TRUE, plotVars = TRUE,
                      plotSE = "ribbon");
 plotCurve(sca_data = sca(y="Salnty", x="T_degC",
-                         c("ChlorA*NO3uM", "O2Sat*NO3um"), data=bottles,
-                         progressBar=T, parallel=TRUE, workers=2),
+                         c("ChlorA*NO3uM", "O2Sat*NO3uM"), data=bottles,
+                         progressBar = TRUE, parallel = TRUE, workers=2),
           plotSE="");
 }
