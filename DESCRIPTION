@@ -5,7 +5,7 @@ Version: 0.1.0
 Authors@R: person("Zayne", "Sember", email = "zsember@ucsd.edu",
   role = c("aut", "cre", "cph"))
 Description: Making specification curve analysis easy, fast, and pretty. It 
-  improves upon existing offerings with additional features and tidyverse 
+  improves upon existing offerings with additional features and 'tidyverse' 
   integration. Users can easily visualize and evaluate how their models behave 
   under different specifications with a high degree of customization. For a 
   description and applications of specification curve analysis see Simonsohn, 
