@@ -19,7 +19,7 @@ Imports:
   dplyr,
   stringr,
   combinat,
-  lfe,
+  fixest,
   pbapply,
   parallel
 RoxygenNote: 7.2.3

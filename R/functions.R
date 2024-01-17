@@ -24,7 +24,7 @@
 #'               supported by `glm()`.
 #' @param link A string specifying the link function to be used for the model.
 #'             Defaults to `NULL` for OLS regression using `lm()` or
-#'             `lfe::felm()` depending on whether fixed effects are supplied.
+#'             `fixest::feols()` depending on whether fixed effects are supplied.
 #'             Supports all link functions supported by the family parameter of
 #'             `glm()`.
 #' @param fixedEffects A string containing the column name of the variable
@@ -65,7 +65,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
   if(family!="linear" & !is.null(fixedEffects))
     {
     warning(paste0("Fixed effects unsupported for models other than OLS ",
-                   "regression. Ignoring fixed effects"))
+                   "regression. Ignoring fixed effects."))
   }
 
   # General family argument for glm
@@ -144,12 +144,12 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
                             "models in parallel with",
                     workers, "workers"))
         system.time(models <- pbsapply(formulae,
-                                       function(x2) summary(felm(x2,data=data)),
+                                       function(x2) summary(feols(x2,data=data)),
                                        cl=cl))
       }
       else{
         models <- parSapply(cl, formulae,
-                            function(x2) summary(felm(x2, data=data)))
+                            function(x2) summary(feols(x2, data=data)))
       }
     }
   }
@@ -193,10 +193,10 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
       if(progressBar){
         print.noquote(paste("Estimating", length(formulae), "models"))
         system.time(models <- pbsapply(
-          X=formulae, function(x2) summary(felm(x2, data=data))))
+          X=formulae, function(x2) summary(feols(x2, data=data))))
       }
       else{
-        models <- sapply(X=formulae, function(x2) summary(felm(x2, data=data)))
+        models <- sapply(X=formulae, function(x2) summary(feols(x2, data=data)))
       }
     }
   }
@@ -205,21 +205,48 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
   if(parallel) stopCluster(cl=cl)
 
   if(family=="linear"){
-    # Extract results for IV
-    vals <- apply(X=models, MARGIN=2,
-                   FUN=function(x2) list(x2$coefficients[x,],
-                                         sqrt(mean(x2$residuals^2)),
-                                         x2$adj.r.squared,
-                                         controlExtractor(x2, x)))
-    # Get each value of interest across models
-    coef <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 1))
-    se <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 2))
-    statistic <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 3))
-    p <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 4))
-    terms <- names(apply(X=models, MARGIN=2, FUN=function(x2) x2$terms[[1]]))
-    RMSE <- unlist(lapply(lapply(vals, `[[`, 2), `[[`, 1))
-    adjR <- unlist(lapply(lapply(vals, `[[`, 3), `[[`, 1))
-    control_coefs <- lapply(vals, `[[`, 4)
+
+    # No fixed effects
+    if(is.null(fixedEffects)){
+
+      # Extract results for IV
+      vals <- apply(X=models, MARGIN=2,
+                     FUN=function(x2) list(x2$coefficients[x,],
+                                           sqrt(mean(x2$residuals^2)),
+                                           x2$adj.r.squared,
+                                           controlExtractor(x2, x)))
+
+      # Get each value of interest across models
+      coef <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 1))
+      se <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 2))
+      statistic <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 3))
+      p <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 4))
+      terms <- names(apply(X=models, MARGIN=2, FUN=function(x2) x2$terms[[1]]))
+      RMSE <- unlist(lapply(lapply(vals, `[[`, 2), `[[`, 1))
+      adjR <- unlist(lapply(lapply(vals, `[[`, 3), `[[`, 1))
+      control_coefs <- lapply(vals, `[[`, 4)
+
+    }
+    # Fixed effects
+    else{
+      saveRDS(models, "testing_models.RDS")
+      # Extract results for IV
+      vals <- apply(X=models, MARGIN=2,
+                    FUN=function(x2) list(x2$coefficients[x],
+                                          sqrt(mean(x2$residuals^2)),
+                                          r2(x2, type="ar2"),
+                                          controlExtractor(x2, x)))
+
+      # Get each value of interest across models
+      coef <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 1))
+      se <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 2))
+      statistic <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 3))
+      p <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 4))
+      terms <- names(apply(X=models, MARGIN=2, FUN=function(x2) x2$terms[[1]]))
+      RMSE <- unlist(lapply(lapply(vals, `[[`, 2), `[[`, 1))
+      adjR <- unlist(lapply(lapply(vals, `[[`, 3), `[[`, 1))
+      control_coefs <- lapply(vals, `[[`, 4)
+    }
 
 
     # Put into a dataframe
