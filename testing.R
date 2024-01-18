@@ -8,7 +8,8 @@ felm_model <- felm(T_degC ~ Salnty + Depthm | O2Sat, data=bottles)
 felm_summary <- summary(felm_model)
 
 library(fixest)
-feols_model <- feols(T_degC ~ Salnty + ChlorA + STheta | Depthm, data=bottles)
+#load("data/bottles.Rdata")
+feols_model <- feols(T_degC ~ Salnty + ChlorA + STheta | Depthm + RecInd, data=bottles)
 
 
 feols_summary <- summary(feols_model)
@@ -36,13 +37,48 @@ adj_r2_fixest <- function(x){
   tss <- sum((y_actual-mean(y_actual))^2)
 
   r2 <- 1 - (x$ssr/tss)
-
-  adj_r2 <- 1 - (((1-r2)*(x$nobs-1))/(x$nobs-length(x$coefficients)))
+  print(r2) # this is slight off from r2(x, type="r2")
+  N <- x$nobs
+  print(N)
+  L <- length(x$fixef_vars)
+  print(L)
+  K <- length(x$coefficients)
+  print(K)
+  adj_r2 <- 1 - (1-r2) * (N - L)/(N - L - K)
+  #adj_r2 <- 1 - (((1-r2)*(x$nobs-length(x$fixef_vars)))/(x$nobs-length(x$fixef_vars)-length(x$coefficients)))
 
   return(adj_r2)
 }
 
 adj_r2_fixest(feols_summary)
+
+r2(feols_model, type="all")
+
+
+
+#' Extracts adjusted R^2 from `fixest::feols` model summaries.
+#'
+#' @description
+#' `fixest` model summaries once unlisted do not contain model fit measures.
+#' This function captures the output
+#'
+#' @param fixest_model_summary
+#'
+#' @return
+#' @export
+#'
+#' @examples
+fixestAdjR2Extractor <- function(fixest_model_summary){
+  temp <- capture.output(fixest_model_summary)[[11]]
+  adjR2 <- as.numeric(
+    strsplit(
+      unlist(
+        regmatches(temp,
+                   gregexpr("[ ][-]{0,1}[[:digit:]]+\\.{0,1}[[:digit:]]*[ ]",
+                            capture.output(feols_summary)[[11]]))), " ")[[2]][[2]])
+
+  return(adjR2)
+}
 
 
 # Cases to fix:

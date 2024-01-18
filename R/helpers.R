@@ -155,6 +155,31 @@ unAsIs <- function(x) {
 }
 
 
+#' Extracts adjusted R^2 from `fixest::feols` model summaries.
+#'
+#' @description
+#' `fixest` model summaries once unlisted do not contain model fit measures.
+#' This function captures the output
+#'
+#' @param fixest_model_summary
+#'
+#' @return
+#' @export
+#'
+#' @examples
+fixestAdjR2Extractor <- function(fixest_model_summary){
+  temp <- capture.output(fixest_model_summary)[[11]]
+  adjR2 <- as.numeric(
+    strsplit(
+      unlist(
+        regmatches(temp,
+                    gregexpr("[ ][-]{0,1}[[:digit:]]+\\.{0,1}[[:digit:]]*[ ]",
+                    capture.output(feols_summary)[[11]]))), " ")[[2]][[2]])
+
+  return(adjR2)
+}
+
+
 # Takes in the output of `sca()` and returns a list with the dataframe and
 # labels to make a plot to visualize the controls included in each spec curve
 # model
