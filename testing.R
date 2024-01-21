@@ -23,8 +23,8 @@ felm_summary
 
 feols_summary$coefficients["Salnty"]
 
-models_test <- readRDS("testing_models.RDS")
-
+models_test <- readRDS("models_test.RDS")
+vals_test <- readRDS("vals_test.RDS")
 
 # to get adj r2
 r2(unlist(models_test[,1]), type="ar2")
@@ -37,15 +37,22 @@ adj_r2_fixest <- function(x){
   tss <- sum((y_actual-mean(y_actual))^2)
 
   r2 <- 1 - (x$ssr/tss)
-  print(r2) # this is slight off from r2(x, type="r2")
+
   N <- x$nobs
-  print(N)
+
   L <- length(x$fixef_vars)
-  print(L)
+
   K <- length(x$coefficients)
-  print(K)
-  adj_r2 <- 1 - (1-r2) * (N - L)/(N - L - K)
-  #adj_r2 <- 1 - (((1-r2)*(x$nobs-length(x$fixef_vars)))/(x$nobs-length(x$fixef_vars)-length(x$coefficients)))
+
+  #adj_r2 <- 1 - (1-r2) * (N - L)/(N - L - K)
+
+  # from bard
+  # mse <- mean((y_actual-x$fitted.values)^2)
+  # adj_r2 <- 1 - ((N-1-K)*mse/tss)
+
+  # from bing for within r2 (NOT ADJUSTED)
+  tss_demeaned <- sum(((y_actual-mean(y_actual))-mean(y_actual-mean(y_actual)))^2)
+  adj_r2 <- 1 - (x$ssr/tss_demeaned)
 
   return(adj_r2)
 }

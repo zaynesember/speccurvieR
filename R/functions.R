@@ -192,11 +192,11 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
 
       if(progressBar){
         print.noquote(paste("Estimating", length(formulae), "models"))
-        system.time(models <- pbsapply(
+        system.time(models <- pblapply(
           X=formulae, function(x2) summary(feols(x2, data=data))))
       }
       else{
-        models <- sapply(X=formulae, function(x2) summary(feols(x2, data=data)))
+        models <- lapply(X=formulae, function(x2) summary(feols(x2, data=data)))
       }
     }
   }
@@ -229,29 +229,28 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
     }
     # Fixed effects
     else{
-      saveRDS(models, "testing_models.RDS")
-      # Extract results for IV
-      vals <- apply(X=models, MARGIN=2,
-                    FUN=function(x2) list(x2$coefficients[x],
-                                          sqrt(mean(x2$residuals^2)),
-                                          r2(x2, type="ar2"),
-                                          controlExtractor(x2, x)))
-
       # Get each value of interest across models
-      coef <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 1))
-      se <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 2))
-      statistic <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 3))
-      p <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 4))
-      terms <- names(apply(X=models, MARGIN=2, FUN=function(x2) x2$terms[[1]]))
-      RMSE <- unlist(lapply(lapply(vals, `[[`, 2), `[[`, 1))
-      adjR <- unlist(lapply(lapply(vals, `[[`, 3), `[[`, 1))
-      control_coefs <- lapply(vals, `[[`, 4)
+      coef <- lapply(X=models, function(x2) x2$coeftable[,1])
+      se <- lapply(X=models, function(x2) x2$coeftable[,2])
+      statistic <- lapply(X=models, function(x2) x2$coeftable[,3])
+      p <- lapply(X=models, function(x2) x2$coeftable[,4])
+      terms <- lapply(X=models, FUN=function(x2) names(x2$coefficients))
+      RMSE <- lapply(X=models, FUN=function(x2) fitstat(x2, type="rmse",
+                                                        verbose=F)[[1]])
+      adjR <- lapply(X=models, FUN=function(x2) fitstat(x2, type="war2",
+                                                        verbose=F)[[1]])
+      control_coefs <- lapply(X=models, FUN=function(x2, x3) controlExtractorFixest(x2,x)$term, x3=x)
     }
 
+    # Get the number of rows needed for each model
+    list_lengths <- lapply(coef, length)
 
-    # Put into a dataframe
-    retVal <- data.frame(terms, coef, se, statistic, p, RMSE,
-                         adjR, control_coefs=I(control_coefs)) %>%
+    # Store values in a data frame to be returned
+    retVal <- data.frame(terms=unlist(terms),
+                         coef=unlist(coef), se=unlist(se),
+                         statistic=unlist(statistic), p=unlist(p),
+                         RMSE=rep(unlist(RMSE), times=list_lengths),
+                         adjR=rep(unlist(adjR), times=list_lengths)) %>%
       mutate(
         sig.level=case_when(
           p < .005 ~ "p < .005",
@@ -262,6 +261,9 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
         )) %>%
       arrange(coef) %>%
       mutate(index=row_number())
+
+    retVal$control_coefs <- rep(control_coefs, times=list_lengths)
+
   }
   else{
     # Extract results for IV
@@ -566,7 +568,9 @@ plotRMSE <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'
 #' @description
 #' plotR2Adj() plots the adjusted R-squared across model specifications. Only
-#' available for linear regression models.
+#' available for linear regression models. Note when fixed effects are
+#' are specified the within adjusted R-squared is used (i.e. `fixest::r2()`
+#' with `type="war2"`).
 #'
 #' @inheritParams plotRMSE
 #'
