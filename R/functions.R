@@ -108,7 +108,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
                     workers, "workers"))
 
         if(family=="linear"){
-          system.time(models <- pbsapply(
+          system.time(models <- pblapply(
             formulae, function(x2) summary(lm(x2, data=data)), cl=cl))
         }
         else{
@@ -120,7 +120,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
       }
       else{
         if(family=="linear"){
-          models <- parSapply(
+          models <- parLapply(
             cl, formulae, function(x2) summary(lm(x2, data=data)))
         }
         else{
@@ -143,12 +143,12 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
         print.noquote(paste("Estimating", length(formulae),
                             "models in parallel with",
                     workers, "workers"))
-        system.time(models <- pbsapply(formulae,
+        system.time(models <- pblapply(formulae,
                                        function(x2) summary(feols(x2,data=data)),
                                        cl=cl))
       }
       else{
-        models <- parSapply(cl, formulae,
+        models <- parLapply(cl, formulae,
                             function(x2) summary(feols(x2, data=data)))
       }
     }
@@ -163,7 +163,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
       if(progressBar){
         print.noquote(paste("Estimating", length(formulae), "models"))
         if(family=="linear"){
-          system.time(models <- pbsapply(
+          system.time(models <- pblapply(
             formulae, function(x2) summary(lm(x2, data=data))))
         }
         else{
@@ -174,7 +174,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
       }
       else{
         if(family=="linear"){
-          models <- sapply(formulae, function(x2) summary(lm(x2, data=data)))
+          models <- lapply(formulae, function(x2) summary(lm(x2, data=data)))
         }
         else{
           models <- sapply(formulae,
@@ -209,22 +209,34 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
     # No fixed effects
     if(is.null(fixedEffects)){
 
-      # Extract results for IV
-      vals <- apply(X=models, MARGIN=2,
-                     FUN=function(x2) list(x2$coefficients[x,],
-                                           sqrt(mean(x2$residuals^2)),
-                                           x2$adj.r.squared,
-                                           controlExtractor(x2, x)))
+      # # Extract results for IV
+      # vals <- apply(X=models, MARGIN=2,
+      #                FUN=function(x2) list(x2$coefficients[x,],
+      #                                      sqrt(mean(x2$residuals^2)),
+      #                                      x2$adj.r.squared,
+      #                                      controlExtractor(x2, x)))
+      #
+      # # Get each value of interest across models
+      # coef <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 1))
+      # se <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 2))
+      # statistic <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 3))
+      # p <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 4))
+      # terms <- names(apply(X=models, MARGIN=2, FUN=function(x2) x2$terms[[1]]))
+      # RMSE <- unlist(lapply(lapply(vals, `[[`, 2), `[[`, 1))
+      # adjR <- unlist(lapply(lapply(vals, `[[`, 3), `[[`, 1))
+      # control_coefs <- lapply(vals, `[[`, 4)
 
       # Get each value of interest across models
-      coef <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 1))
-      se <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 2))
-      statistic <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 3))
-      p <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 4))
-      terms <- names(apply(X=models, MARGIN=2, FUN=function(x2) x2$terms[[1]]))
-      RMSE <- unlist(lapply(lapply(vals, `[[`, 2), `[[`, 1))
-      adjR <- unlist(lapply(lapply(vals, `[[`, 3), `[[`, 1))
-      control_coefs <- lapply(vals, `[[`, 4)
+      coef <- lapply(X=models, function(x2) x2$coefficients[,1])
+      se <- lapply(X=models, function(x2) x2$coefficients[,2])
+      statistic <- lapply(X=models, function(x2) x2$coefficients[,3])
+      p <- lapply(X=models, function(x2) x2$coefficients[,4])
+      terms <- lapply(X=models, FUN=function(x2) row.names(x2$coefficients))
+      RMSE <- lapply(X=models, FUN=function(x2) sqrt(mean(x2$residuals^2)))
+      adjR <- lapply(X=models, function(x2) x2$adj.r.squared)
+      control_coefs <- lapply(X=models,
+                              FUN=function(x2, x3) controlExtractor(x2,x)$terms,
+                              x3=x)
 
     }
     # Fixed effects
@@ -239,7 +251,9 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
                                                         verbose=F)[[1]])
       adjR <- lapply(X=models, FUN=function(x2) fitstat(x2, type="war2",
                                                         verbose=F)[[1]])
-      control_coefs <- lapply(X=models, FUN=function(x2, x3) controlExtractorFixest(x2,x)$term, x3=x)
+      control_coefs <- lapply(X=models,
+                              FUN=function(x2, x3) controlExtractor(x2,x)$term,
+                              x3=x)
     }
 
     # Get the number of rows needed for each model

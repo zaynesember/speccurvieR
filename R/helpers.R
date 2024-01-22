@@ -124,37 +124,6 @@ duplicate_remover <- function(controls, x){
 #' m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
 #' controlExtractor(model = m, x = "STheta");
 controlExtractor <- function(model, x){
-  r <- as.data.frame(model$coefficients[,1]) %>%
-    mutate(term=row.names(.)) %>%
-    filter(!row.names(.) %in% c("(Intercept)", x))
-
-  names(r) <- c("term", "coef")
-
-  return(r)
-}
-
-#' Extracts the control variable names and coefficients from a fixest::feols
-#'  model summary.
-#'
-#' @description
-#' Extracts the control variable names and coefficients from a model summary.
-#'
-#'
-#' @param model A model summary object.
-#' @inheritParams formula_builder
-#'
-#' @return A dataframe with two columns, `term` contains the name of the control
-#'         and `coef` contains the coefficient estimate.
-#'
-#' @export
-#'
-#' @examples
-#' m <- summary(lm(Salnty ~ STheta + T_degC, bottles))
-#' controlExtractor(model = m, x = "STheta");
-#'
-#' m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
-#' controlExtractor(model = m, x = "STheta");
-controlExtractorFixest <- function(model, x){
   r <- as.data.frame(model$coefficients) %>%
     mutate(term=row.names(.)) %>%
     filter(!row.names(.) %in% c("(Intercept)", x))
