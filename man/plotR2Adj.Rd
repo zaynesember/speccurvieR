@@ -26,7 +26,9 @@ If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
 }
 \description{
 plotR2Adj() plots the adjusted R-squared across model specifications. Only
-available for linear regression models.
+available for linear regression models. Note when fixed effects are
+are specified the within adjusted R-squared is used (i.e. `fixest::r2()`
+with `type="war2"`).
 }
 \examples{
 plotR2Adj(sca_data = sca(y = "Salnty", x = "T_degC",

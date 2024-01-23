@@ -7,7 +7,7 @@
 #' @import pbapply
 #' @rawNamespace import(dplyr, except = "lag")
 #' @import tidyr
-#' @import lfe
+#' @import fixest
 #' @importFrom stats AIC coef deviance formula glm lag lm setNames terms
 #' @importFrom magrittr %>%
 #' @importFrom stringr str_detect

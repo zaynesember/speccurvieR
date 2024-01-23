@@ -2,7 +2,8 @@
 % Please edit documentation in R/helpers.R
 \name{controlExtractor}
 \alias{controlExtractor}
-\title{Extracts the control variable names and coefficients from a model summary.}
+\title{Extracts the control variable names and coefficients from an lm model
+summary.}
 \usage{
 controlExtractor(model, x)
 }

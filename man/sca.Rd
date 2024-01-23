@@ -37,7 +37,7 @@ supported by `glm()`.}
 
 \item{link}{A string specifying the link function to be used for the model.
 Defaults to `NULL` for OLS regression using `lm()` or
-`lfe::felm()` depending on whether fixed effects are supplied.
+`fixest::feols()` depending on whether fixed effects are supplied.
 Supports all link functions supported by the family parameter of
 `glm()`.}
 

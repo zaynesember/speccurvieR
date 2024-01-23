@@ -124,11 +124,12 @@ duplicate_remover <- function(controls, x){
 #' m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
 #' controlExtractor(model = m, x = "STheta");
 controlExtractor <- function(model, x){
-  r <- as.data.frame(model$coefficients) %>%
+  r <- as.data.frame(model$coefficients[,1]) %>%
     mutate(term=row.names(.)) %>%
     filter(!row.names(.) %in% c("(Intercept)", x))
 
   names(r) <- c("coef", "term")
+  print(r)
   return(r)
 }
 
@@ -152,31 +153,6 @@ unAsIs <- function(x) {
     class(x) <- class(x)[-match("AsIs", class(x))]
   }
   return(x)
-}
-
-
-#' Extracts adjusted R^2 from `fixest::feols` model summaries.
-#'
-#' @description
-#' `fixest` model summaries once unlisted do not contain model fit measures.
-#' This function captures the output
-#'
-#' @param fixest_model_summary
-#'
-#' @return
-#' @export
-#'
-#' @examples
-fixestAdjR2Extractor <- function(fixest_model_summary){
-  temp <- capture.output(fixest_model_summary)[[11]]
-  adjR2 <- as.numeric(
-    strsplit(
-      unlist(
-        regmatches(temp,
-                    gregexpr("[ ][-]{0,1}[[:digit:]]+\\.{0,1}[[:digit:]]*[ ]",
-                    capture.output(feols_summary)[[11]]))), " ")[[2]][[2]])
-
-  return(adjR2)
 }
 
 

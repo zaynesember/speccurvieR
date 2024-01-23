@@ -90,7 +90,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
     cl <- makePSOCKcluster(rep("localhost", workers))
 
     # Load needed package into each cluster
-    clusterEvalQ(cl, library(lfe))
+    clusterEvalQ(cl, library(fixest))
 
     # No fixed effects specified
     if(is.null(fixedEffects)){
@@ -112,7 +112,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
             formulae, function(x2) summary(lm(x2, data=data)), cl=cl))
         }
         else{
-          system.time(models <- pbsapply(
+          system.time(models <- pblapply(
             formulae, function(x2) summary(
               glm(x2, data=data, family=eval(parse(text=family_link)))),
                                          cl=cl))
@@ -124,7 +124,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
             cl, formulae, function(x2) summary(lm(x2, data=data)))
         }
         else{
-          models <- parSapply(
+          models <- parLapply(
             cl, formulae, function(x2) summary(
               glm(x2, data=data, family=eval(parse(text=family_link)))))
         }
@@ -167,7 +167,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
             formulae, function(x2) summary(lm(x2, data=data))))
         }
         else{
-          system.time(models <- pbsapply(
+          system.time(models <- pblapply(
             formulae, function(x2) summary(
               glm(x2, data=data, family=eval(parse(text=family_link))))))
         }
@@ -177,7 +177,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
           models <- lapply(formulae, function(x2) summary(lm(x2, data=data)))
         }
         else{
-          models <- sapply(formulae,
+          models <- lapply(formulae,
                            function(x2) summary(
                              glm(x2, data=data,
                                  family=eval(parse(text=family_link)))))
@@ -209,23 +209,6 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
     # No fixed effects
     if(is.null(fixedEffects)){
 
-      # # Extract results for IV
-      # vals <- apply(X=models, MARGIN=2,
-      #                FUN=function(x2) list(x2$coefficients[x,],
-      #                                      sqrt(mean(x2$residuals^2)),
-      #                                      x2$adj.r.squared,
-      #                                      controlExtractor(x2, x)))
-      #
-      # # Get each value of interest across models
-      # coef <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 1))
-      # se <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 2))
-      # statistic <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 3))
-      # p <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 4))
-      # terms <- names(apply(X=models, MARGIN=2, FUN=function(x2) x2$terms[[1]]))
-      # RMSE <- unlist(lapply(lapply(vals, `[[`, 2), `[[`, 1))
-      # adjR <- unlist(lapply(lapply(vals, `[[`, 3), `[[`, 1))
-      # control_coefs <- lapply(vals, `[[`, 4)
-
       # Get each value of interest across models
       coef <- lapply(X=models, function(x2) x2$coefficients[,1])
       se <- lapply(X=models, function(x2) x2$coefficients[,2])
@@ -235,7 +218,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
       RMSE <- lapply(X=models, FUN=function(x2) sqrt(mean(x2$residuals^2)))
       adjR <- lapply(X=models, function(x2) x2$adj.r.squared)
       control_coefs <- lapply(X=models,
-                              FUN=function(x2, x3) controlExtractor(x2,x)$terms,
+                              FUN=function(x2, x3) controlExtractor(x2,x3)$terms,
                               x3=x)
 
     }
@@ -246,13 +229,13 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
       se <- lapply(X=models, function(x2) x2$coeftable[,2])
       statistic <- lapply(X=models, function(x2) x2$coeftable[,3])
       p <- lapply(X=models, function(x2) x2$coeftable[,4])
-      terms <- lapply(X=models, FUN=function(x2) names(x2$coefficients))
+      terms <- lapply(X=models, FUN=function(x2) row.names(x2$coeftable))
       RMSE <- lapply(X=models, FUN=function(x2) fitstat(x2, type="rmse",
                                                         verbose=F)[[1]])
       adjR <- lapply(X=models, FUN=function(x2) fitstat(x2, type="war2",
                                                         verbose=F)[[1]])
       control_coefs <- lapply(X=models,
-                              FUN=function(x2, x3) controlExtractor(x2,x)$term,
+                              FUN=function(x2, x3) controlExtractor(x2,x3)$term,
                               x3=x)
     }
 
@@ -279,27 +262,30 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
     retVal$control_coefs <- rep(control_coefs, times=list_lengths)
 
   }
+  # glm models
   else{
-    # Extract results for IV
-    vals <- apply(X=models, MARGIN=2,
-                  FUN=function(x2) list(x2$coefficients[x,],
-                                        x2$aic,
-                                        x2$deviance,
-                                        controlExtractor(x2, x)))
     # Get each value of interest across models
-    coef <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 1))
-    se <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 2))
-    statistic <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 3))
-    p <- unlist(lapply(lapply(vals, `[[`, 1), `[[`, 4))
-    terms <- names(apply(X=models, MARGIN=2, FUN=function(x2) x2$terms[[1]]))
-    AIC <- unlist(lapply(lapply(vals, `[[`, 2), `[[`, 1))
-    deviance <- unlist(lapply(lapply(vals, `[[`, 3), `[[`, 1))
-    control_coefs <- lapply(vals, `[[`, 4)
+    coef <- lapply(X=models, function(x2) x2$coefficients[,1])
+    se <- lapply(X=models, function(x2) x2$coefficients[,2])
+    statistic <- lapply(X=models, function(x2) x2$coefficients[,3])
+    p <- lapply(X=models, function(x2) x2$coefficients[,4])
+    terms <- lapply(X=models, FUN=function(x2) row.names(x2$coefficients))
+    AIC <- lapply(X=models, FUN=function(x2) x2$aic)
+    deviance <- lapply(X=models, FUN=function(x2) x2$deviance)
+    control_coefs <- lapply(X=models,
+                      FUN=function(x2,x3,
+                           x4) controlExtractor(x2,x3)$term,x3=x)
 
 
-    # Put into a dataframe
-    retVal <- data.frame(terms, coef, se, statistic, p, AIC, deviance,
-                         control_coefs=I(control_coefs)) %>%
+    # Get the number of rows needed for each model
+    list_lengths <- lapply(coef, length)
+
+    # Store values in a data frame to be returned
+    retVal <- data.frame(terms=unlist(terms),
+                         coef=unlist(coef), se=unlist(se),
+                         statistic=unlist(statistic), p=unlist(p),
+                         AIC=rep(unlist(AIC), times=list_lengths),
+                         deviance=rep(unlist(deviance), times=list_lengths)) %>%
       mutate(
         sig.level=case_when(
           p < .005 ~ "p < .005",
@@ -310,6 +296,8 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
         )) %>%
       arrange(coef) %>%
       mutate(index=row_number())
+
+    retVal$control_coefs <- rep(control_coefs, times=list_lengths)
   }
 
   # Build dummy columns for terms present in each model for visualization
