@@ -213,10 +213,10 @@ customize it like any other `ggplot` object)
 
 # Other features
 
-## Fixed effects with `lfe::felm()`
+## Fixed effects with `fixest::feols`
 
 Pass the name of your fixed effects variable(s) when calling `sca()` and
-all models will be run with `felm()` from the `lfe` package!
+all models will be run with `feols()` from the `fixest` package!
 
 ## Parallel computing
 

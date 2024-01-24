@@ -53,12 +53,14 @@ plotCurve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
                      title = "Salinity and Temperature Models",
                      showIndex = TRUE, plotVars = TRUE,
                      ylab = "Coefficient value", plotSE = "ribbon");
-plotCurve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
+plotCurve(sca_data = sca(y="Salnty", x="T_degC",
+                         c("ChlorA*O2Sat", "ChlorA", "O2Sat"),
                          data=bottles, progressBar=FALSE, parallel=FALSE),
                      showIndex = TRUE, plotVars = TRUE,
                      plotSE = "ribbon");
 plotCurve(sca_data = sca(y="Salnty", x="T_degC",
-                         c("ChlorA*NO3uM", "O2Sat*NO3uM"), data=bottles,
+                         c("ChlorA*NO3uM", "O2Sat", "ChlorA", "NO3uM"),
+                         data=bottles,
                          progressBar = TRUE, parallel = TRUE, workers=2),
           plotSE="");
 }

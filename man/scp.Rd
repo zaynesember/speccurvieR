@@ -4,10 +4,10 @@
 \alias{scp}
 \title{Prepares the output of `sca()` for plotting.}
 \usage{
-scp(spec_data)
+scp(sca_data)
 }
 \arguments{
-\item{spec_data}{A data frame output by `sca`.}
+\item{sca_data}{A data frame output by `sca`.}
 }
 \value{
 A list containing a data frame, control coefficients, and control
