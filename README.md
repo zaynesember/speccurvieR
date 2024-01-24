@@ -5,7 +5,7 @@ analysis easy, fast, and pretty.
 
 # How do I install it?
 
-`speccurvieR` is available [via CRAN](https://cran.r-project.org/web/packages/speccurvieR/index.html), simply run the following and you’re
+`speccurvieR` is available [via CRAN](https://cran.r-project.org/package=speccurvieR), simply run the following and you’re
 good to go:
 
     install.packages("speccurvieR")

@@ -8,6 +8,14 @@
 \description{
 Making specification curve analysis easy, fast, and pretty. It improves upon existing offerings with additional features and 'tidyverse' integration. Users can easily visualize and evaluate how their models behave under different specifications with a high degree of customization. For a description and applications of specification curve analysis see Simonsohn, Simmons, and Nelson (2020) \doi{10.1038/s41562-020-0912-z}.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/zaynesember/speccurvieR}
+  \item Report bugs at \url{https://github.com/zaynesember/speccurvieR/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: Zayne Sember \email{zsember@ucsd.edu} [copyright holder]
 

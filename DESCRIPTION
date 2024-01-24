@@ -1,7 +1,7 @@
 Package: speccurvieR
 Type: Package
 Title: Easy, Fast, and Pretty Specification Curve Analysis
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: person("Zayne", "Sember", email = "zsember@ucsd.edu",
   role = c("aut", "cre", "cph"))
 Description: Making specification curve analysis easy, fast, and pretty. It 
