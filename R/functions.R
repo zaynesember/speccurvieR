@@ -305,11 +305,13 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
   # Build dummy columns for terms present in each model for visualization
   temp <- data.frame(matrix(ncol = length(controls), nrow = nrow(retVal)))
 
-  colnames(temp) <- controls
+  control_names <- str_replace(controls, fixed("*"), fixed(":"))
+
+  colnames(temp) <- control_names
 
   retVal <- cbind(retVal, temp)
 
-  for(c in controls){
+  for(c in control_names){
     # Hiding the following warning:
     # In stri_detect_fixed(string, pattern, negate = negate,
     # opts_fixed = opts(pattern)): argument is not an atomic vector; coercing

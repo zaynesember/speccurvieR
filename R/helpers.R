@@ -169,7 +169,7 @@ unAsIs <- function(x) {
 # labels to make a plot to visualize the controls included in each spec curve
 # model
 # Arguments:
-#   spec_data = dataframe object with output from `sca()`
+#   sca_data = dataframe object with output from `sca()`
 # Returns: list containing dataframe, controls, and control IDs
 
 #' Prepares the output of `sca()` for plotting.
@@ -179,7 +179,7 @@ unAsIs <- function(x) {
 #' frame and labels to make a plot to visualize the controls included in each
 #' spec curve model.
 #'
-#' @param spec_data A data frame output by `sca`.
+#' @param sca_data A data frame output by `sca`.
 #'
 #' @return A list containing a data frame, control coefficients, and control
 #'         names.
@@ -189,9 +189,9 @@ unAsIs <- function(x) {
 #' @examples
 #' scp(sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
 #'         data = bottles, progressBar=TRUE, parallel=FALSE));
-scp <- function(spec_data){
-  if("control_coefs" %in% names(spec_data)){
-    df <- spec_data %>%
+scp <- function(sca_data){
+  if("control_coefs" %in% names(sca_data)){
+    df <- sca_data %>%
       select(-terms, -coef, -se, -statistic, -p, -sig.level) %>%
       pivot_longer(-c(index, control_coefs),
                    names_to="control", values_to="value") %>%
@@ -200,7 +200,7 @@ scp <- function(spec_data){
       select(-value)
   }
   else{
-    df <- spec_data %>%
+    df <- sca_data %>%
       select(-terms, -coef, -se, -statistic, -p, -sig.level) %>%
       pivot_longer(-index,
                    names_to="control", values_to="value") %>%
