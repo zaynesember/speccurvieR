@@ -204,50 +204,54 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
   # Garbage collection for parallel connections
   if(parallel) stopCluster(cl=cl)
 
+  # OLS models
   if(family=="linear"){
 
     # No fixed effects
     if(is.null(fixedEffects)){
 
       # Get each value of interest across models
-      coef <- lapply(X=models, function(x2) x2$coefficients[,1])
-      se <- lapply(X=models, function(x2) x2$coefficients[,2])
-      statistic <- lapply(X=models, function(x2) x2$coefficients[,3])
-      p <- lapply(X=models, function(x2) x2$coefficients[,4])
+      coef <- lapply(X=models, function(x2) x2$coefficients[x,1])
+      se <- lapply(X=models, function(x2) x2$coefficients[x,2])
+      statistic <- lapply(X=models, function(x2) x2$coefficients[x,3])
+      p <- lapply(X=models, function(x2) x2$coefficients[x,4])
       terms <- lapply(X=models, FUN=function(x2) row.names(x2$coefficients))
       RMSE <- lapply(X=models, FUN=function(x2) sqrt(mean(x2$residuals^2)))
       adjR <- lapply(X=models, function(x2) x2$adj.r.squared)
       control_coefs <- lapply(X=models,
-                              FUN=function(x2, x3) controlExtractor(x2,x3)$terms,
+                              FUN=function(x2, x3) controlExtractor(x2,x3),
                               x3=x)
 
     }
     # Fixed effects
     else{
       # Get each value of interest across models
-      coef <- lapply(X=models, function(x2) x2$coeftable[,1])
-      se <- lapply(X=models, function(x2) x2$coeftable[,2])
-      statistic <- lapply(X=models, function(x2) x2$coeftable[,3])
-      p <- lapply(X=models, function(x2) x2$coeftable[,4])
+      coef <- lapply(X=models, function(x2) x2$coeftable[x,1])
+      se <- lapply(X=models, function(x2) x2$coeftable[x,2])
+      statistic <- lapply(X=models, function(x2) x2$coeftable[x,3])
+      p <- lapply(X=models, function(x2) x2$coeftable[x,4])
       terms <- lapply(X=models, FUN=function(x2) row.names(x2$coeftable))
       RMSE <- lapply(X=models, FUN=function(x2) fitstat(x2, type="rmse",
                                                         verbose=F)[[1]])
       adjR <- lapply(X=models, FUN=function(x2) fitstat(x2, type="war2",
                                                         verbose=F)[[1]])
       control_coefs <- lapply(X=models,
-                              FUN=function(x2, x3) controlExtractor(x2,x3)$term,
+                              FUN=function(x2,x3)
+                                controlExtractor(x2, x3, feols_model=T),
                               x3=x)
     }
 
-    # Get the number of rows needed for each model
-    list_lengths <- lapply(coef, length)
 
     # Store values in a data frame to be returned
-    retVal <- data.frame(terms=unlist(terms),
-                         coef=unlist(coef), se=unlist(se),
-                         statistic=unlist(statistic), p=unlist(p),
-                         RMSE=rep(unlist(RMSE), times=list_lengths),
-                         adjR=rep(unlist(adjR), times=list_lengths)) %>%
+    retVal <- data.frame(coef=unlist(coef), se=unlist(se),
+                         statistic=unlist(statistic),
+                         p=unlist(p), RMSE=unlist(RMSE), adjR=unlist(adjR))
+
+    # R doesn't like it when these kinds of objects are assigned above
+    retVal$terms <- terms
+    retVal$control_coefs <- control_coefs
+
+    retVal <- retVal %>%
       mutate(
         sig.level=case_when(
           p < .005 ~ "p < .005",
@@ -258,34 +262,34 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
         )) %>%
       arrange(coef) %>%
       mutate(index=row_number())
-
-    retVal$control_coefs <- rep(control_coefs, times=list_lengths)
 
   }
   # glm models
   else{
     # Get each value of interest across models
-    coef <- lapply(X=models, function(x2) x2$coefficients[,1])
-    se <- lapply(X=models, function(x2) x2$coefficients[,2])
-    statistic <- lapply(X=models, function(x2) x2$coefficients[,3])
-    p <- lapply(X=models, function(x2) x2$coefficients[,4])
+    coef <- lapply(X=models, function(x2) x2$coefficients[x,1])
+    se <- lapply(X=models, function(x2) x2$coefficients[x,2])
+    statistic <- lapply(X=models, function(x2) x2$coefficients[x,3])
+    p <- lapply(X=models, function(x2) x2$coefficients[x,4])
     terms <- lapply(X=models, FUN=function(x2) row.names(x2$coefficients))
     AIC <- lapply(X=models, FUN=function(x2) x2$aic)
     deviance <- lapply(X=models, FUN=function(x2) x2$deviance)
     control_coefs <- lapply(X=models,
                       FUN=function(x2,x3,
-                           x4) controlExtractor(x2,x3)$term,x3=x)
+                           x4) controlExtractor(x2,x3),x3=x)
 
-
-    # Get the number of rows needed for each model
-    list_lengths <- lapply(coef, length)
 
     # Store values in a data frame to be returned
-    retVal <- data.frame(terms=unlist(terms),
-                         coef=unlist(coef), se=unlist(se),
-                         statistic=unlist(statistic), p=unlist(p),
-                         AIC=rep(unlist(AIC), times=list_lengths),
-                         deviance=rep(unlist(deviance), times=list_lengths)) %>%
+    retVal <- data.frame(coef=unlist(coef), se=unlist(se),
+                         statistic=unlist(statistic),
+                         p=unlist(p), AIC=unlist(AIC),
+                         deviance=unlist(deviance))
+
+    # R doesn't like it when these kinds of objects are assigned above
+    retVal$terms <- terms
+    retVal$control_coefs <- control_coefs
+
+    retVal <- retVal %>%
       mutate(
         sig.level=case_when(
           p < .005 ~ "p < .005",
@@ -296,8 +300,6 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
         )) %>%
       arrange(coef) %>%
       mutate(index=row_number())
-
-    retVal$control_coefs <- rep(control_coefs, times=list_lengths)
   }
 
   # Build dummy columns for terms present in each model for visualization
@@ -308,7 +310,11 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
   retVal <- cbind(retVal, temp)
 
   for(c in controls){
-    retVal[c] <- ifelse(str_detect(retVal$terms, fixed(c)), 1, 0)
+    # Hiding the following warning:
+    # In stri_detect_fixed(string, pattern, negate = negate,
+    # opts_fixed = opts(pattern)): argument is not an atomic vector; coercing
+    suppressWarnings(retVal[c] <- ifelse(str_detect(retVal$terms, fixed(c)),
+                                         1, 0))
   }
 
   # Remove duplicate columns
@@ -355,12 +361,14 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
 #'                      title = "Salinity and Temperature Models",
 #'                      showIndex = TRUE, plotVars = TRUE,
 #'                      ylab = "Coefficient value", plotSE = "ribbon");
-#' plotCurve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
+#' plotCurve(sca_data = sca(y="Salnty", x="T_degC",
+#'                          c("ChlorA*O2Sat", "ChlorA", "O2Sat"),
 #'                          data=bottles, progressBar=FALSE, parallel=FALSE),
 #'                      showIndex = TRUE, plotVars = TRUE,
 #'                      plotSE = "ribbon");
 #' plotCurve(sca_data = sca(y="Salnty", x="T_degC",
-#'                          c("ChlorA*NO3uM", "O2Sat*NO3uM"), data=bottles,
+#'                          c("ChlorA*NO3uM", "O2Sat", "ChlorA", "NO3uM"),
+#'                          data=bottles,
 #'                          progressBar = TRUE, parallel = TRUE, workers=2),
 #'           plotSE="");
 plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
@@ -804,8 +812,7 @@ plotDeviance <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'                          type = "density")
 plotControlDistributions <- function(sca_data, title="", type="density"){
 
-  histData <- bind_rows(unAsIs(sca_data$control_coefs)) %>%
-    rename(term=coef, coef=term)
+  histData <- bind_rows(unAsIs(sca_data$control_coefs))
 
   rownames(histData) <- NULL
 

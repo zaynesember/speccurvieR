@@ -5,12 +5,15 @@
 \title{Extracts the control variable names and coefficients from an lm model
 summary.}
 \usage{
-controlExtractor(model, x)
+controlExtractor(model, x, feols_model = F)
 }
 \arguments{
 \item{model}{A model summary object.}
 
 \item{x}{A string containing the independent variable name.}
+
+\item{feols_model}{An indicator for whether `model` is a `fixest::feols()`
+model. Defaults to `FALSE`.}
 }
 \value{
 A dataframe with two columns, `term` contains the name of the control

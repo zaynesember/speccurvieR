@@ -110,6 +110,8 @@ duplicate_remover <- function(controls, x){
 #'
 #'
 #' @param model A model summary object.
+#' @param feols_model An indicator for whether `model` is a `fixest::feols()`
+#'        model. Defaults to `FALSE`.
 #' @inheritParams formula_builder
 #'
 #' @return A dataframe with two columns, `term` contains the name of the control
@@ -123,13 +125,20 @@ duplicate_remover <- function(controls, x){
 #'
 #' m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
 #' controlExtractor(model = m, x = "STheta");
-controlExtractor <- function(model, x){
-  r <- as.data.frame(model$coefficients[,1]) %>%
+controlExtractor <- function(model, x, feols_model=F){
+  if(feols_model){
+    input <- model$coeftable[,1]
+  }
+  else{
+    input <- model$coefficients[,1]
+  }
+
+  r <- as.data.frame(input) %>%
     mutate(term=row.names(.)) %>%
     filter(!row.names(.) %in% c("(Intercept)", x))
 
   names(r) <- c("coef", "term")
-  print(r)
+
   return(r)
 }
 
