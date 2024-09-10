@@ -60,6 +60,9 @@ se_compare <- function(formula, data, types="all", cluster=NULL,
                        timeSeries=FALSE, spatial=FALSE){
 
   ses_CL <- NULL
+  ses_HC <- NULL
+  ses_other <- NULL
+  ses <- NULL
 
   # If the formula contains a pipe then fixed effects are assumed to be
   # present and models are estimated with feols() rather than lm
@@ -115,23 +118,24 @@ se_compare <- function(formula, data, types="all", cluster=NULL,
   else{
     model <- lm(formula=as.formula(formula), data=data)
 
+    ses <- matrix(model$coefficients, ncol=1,
+                  dimnames=list(c(names(model$coefficients)), c("estimate")))
+
     if(!clusteredOnly){
       types_HC <- c("HC0", "HC1", "HC2", "HC3", "HC4", "HC5")
       types_other <- c("normal", "bootstrapped")
 
-      if(types!=c("all") | types != "all"){
+      if(!"all" %in% types){
+
+        if(length(setdiff(types, c(types_HC, types_other))!=0)){
+          warning(paste0(setdiff(types, c(types_HC, types_other)),
+                         " not a valid type for SEs, ignoring.", collapse="\n"))
+        }
 
         types_HC <- types[types %in% types_HC]
         types_other <- types[types %in% types_other]
 
-        if(length(setdiff(types, c(types_HC, types_other))!=0)){
-          warning(paste0(setdiff(types, c(types_HC, types_other)),
-                         " not valid type(s), ignoring."))
-        }
       }
-
-
-      ses_other <- matrix(nrow=length(model$coefficients), ncol=0)
 
       if("normal" %in% types_other){
         ses_other <- cbind(ses_other, "normal"=summary(model)$coefficients[,2])
@@ -139,6 +143,7 @@ se_compare <- function(formula, data, types="all", cluster=NULL,
 
       ses_HC <- sapply(types_HC,
                        function(x) coeftest(model, vcov=vcovHC, type=x)[,2])
+
 
       if("bootstrapped" %in% types_other){
         n_x <- length(model$coefficients)-1
@@ -158,52 +163,72 @@ se_compare <- function(formula, data, types="all", cluster=NULL,
 
           ses_other <- cbind(ses_other, boot)
         }
-
-        ses <- cbind(ses_other, ses_HC)
       }
 
+      ses <- cbind(ses, ses_other, ses_HC)
     }
-    # TODO: get clustered (no FE) case working
+
+    # clustered no FE case
     if(!is.null(cluster)){
-      print("here")
+
+      if(length(setdiff(cluster, colnames(data))!=0)){
+        warning(paste0(setdiff(cluster, colnames(data)),
+                       " not a valid clustering variable, ignoring.", collapse="\n"))
+
+        cluster <- cluster[cluster %in% colnames(data)]
+      }
+
       types_CL <- c("HC0", "HC1", "HC2", "HC3")
 
-      if(types != "all" | types != c("all")){
-        types_CL <- types[types %in% types_CL]
+      if(!"all" %in% types){
 
-        if(length(setdiff(types, types_CL))!=0){
-          warning(paste0(setdiff(types, types_CL),
-                         " not valid type(s), ignoring."))
+        if(length(setdiff(types[!types %in% c("bootstrapped", "normal")], types_CL))!=0){
+          warning(paste0(setdiff(setdiff(types, types_CL),c("bootstrapped", "normal")),
+                         " not a valid type for clustered SEs, ignoring.", collapse="\n"))
         }
+
+        types_CL <- types[types %in% types_CL]
       }
 
-      ses_CL <- sapply(types,
-                       function(x){
-                         coeftest(model, vcov=vcovCL, type=x, cluster=cluster)[,2]
-                       }
-      )
+      if(length(types_CL)>0){
+
+        ses_CL <- sapply(cluster, FUN=function(c, types){
+          sapply(types, function(x){
+            coeftest(model, vcov=vcovCL, type=x, cluster=data[c])[,2]
+          })
+        }, types=types_CL, simplify=F)
+
+        ses_CL <- do.call(cbind, ses_CL)
+
+        labs <- c()
+        for(c in cluster){
+          for(t in types_CL){
+            labs <- c(labs, paste0(t, "_", c))
+          }
+        }
+
+        colnames(ses_CL) <- labs
+      }
+
+      ses <- cbind(ses, ses_CL)
     }
   }
-  print(ses_CL)
-  if(!is.null(ses_CL)) ses <- cbind(ses, ses_CL)
 
-  return(cbind(Estimate=model$coefficients, ses))
+  return(ses)
 }
 
-# FIgure out
-se_compare(formula="Salnty ~ T_degC + ChlorA + O2Sat", data=bottles, types="all",
-           cluster="Sta_id",
+# Figure out FE models
+se_compare(formula="Salnty ~ T_degC + ChlorA + O2Sat", data=bottles, types=c("bootstrapped", "HC4", "white"),
+           cluster=c("Depth_ID", "Sta_ID"),
            bootSamples=c(4, 8), bootSampleSize=c(100))
 
 
-test <- c(50, 150)
-test2 <- c(100, 200, 300)
-samples <- rep(test, length(test2))
-sample_sizes <- sort(rep(test2, length(test)))
-
-paste(samples, "samples", sample_sizes, "samplesize", sep="_")
 
 temp <- coeftest(lm(Salnty ~ T_degC + ChlorA + O2Sat, bottles), vcov=vcovHC, type="HC1")
+
+test_model <- lm(Salnty ~ T_degC + ChlorA + O2Sat, bottles)
+
+coeftest(test_model, vcov=vcovCL, cluster=bottles["Depth_ID"])
 
 feols(Salnty ~ T_degC + ChlorA + O2Sat, bottles, vcov="cluster")
 feols(Salnty ~ T_degC + ChlorA + O2Sat, bottles, vcov="normal") # same as iid
