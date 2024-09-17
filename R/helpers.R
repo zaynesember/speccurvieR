@@ -235,7 +235,7 @@ scp <- function(sca_data){
 #' @param n_samples An integer indicating how many times the model should be
 #'                  estimated with a random subset of the data.
 #' @param sample_size An integer indicating how many observations are in each
-#'                    random subset of the data
+#'                    random subset of the data.
 #'
 #' @return A named list containing bootstrapped standard errors for each
 #'         coefficient.
