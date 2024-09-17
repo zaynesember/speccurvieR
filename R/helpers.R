@@ -164,14 +164,6 @@ unAsIs <- function(x) {
   return(x)
 }
 
-
-# Takes in the output of `sca()` and returns a list with the dataframe and
-# labels to make a plot to visualize the controls included in each spec curve
-# model
-# Arguments:
-#   sca_data = dataframe object with output from `sca()`
-# Returns: list containing dataframe, controls, and control IDs
-
 #' Prepares the output of `sca()` for plotting.
 #'
 #' @description
@@ -213,4 +205,128 @@ scp <- function(sca_data){
 
   return(list(df, setNames(as.character(df_labels$control),
                            df_labels$controlID)))
+}
+
+
+
+# This function takes the following arguments:
+#   data = a dataframe with our data
+#   formula = a formula object with our regression formula
+#   n_x = the number of x variables we have in the model
+#   n_samples = the number of times to estimate the model with a random subset
+#               of the data
+#   sample_size = the number of observations to include in the subset of data
+# It returns a list of bootstrapped standard errors
+
+
+#' Estimates bootstrapped standard errors for regression models
+#'
+#' @description
+#' Takes in a data frame, regression formula, and bootstrapping parameters and
+#' estimates bootstrapped standard errors for models with and without fixed
+#' effects.
+#'
+#'
+#' @param data A data frame containing the variables provided in `formula`.
+#' @param formula A string containing a regression formula, with or without
+#'                fixed effects.
+#' @param n_x An integer representing the number of independent variables in
+#'            the regression.
+#' @param n_samples An integer indicating how many times the model should be
+#'                  estimated with a random subset of the data.
+#' @param sample_size An integer indicating how many observations are in each
+#'                    random subset of the data
+#'
+#' @return A named list containing bootstrapped standard errors for each
+#'         coefficient.
+#' @export
+#'
+#' @examples
+#'
+#' se_boot(data = bottles, formula = "Salnty ~ T_degC + ChlorA + O2Sat",
+#'         n_x = 3, n_samples = 4, sample_size = 300)
+#'
+#' se_boot(data = data.frame(x1 = rnorm(50000, mean=4, sd=10),
+#'                           x2 = rnorm(50000, sd=50),
+#'                           ID = rep(1:100, 500),
+#'                           area = rep(1:50, 1000),
+#'                           y = rnorm(50000)),
+#'         formula = "y ~ x1 + x2 | ID",
+#'         n_x = 2, n_samples = 10, sample_size = 1000)
+#'
+se_boot <- function(data, formula, n_x, n_samples, sample_size){
+
+  # Check for fixed effects in the formula
+  FE <- ifelse(grepl("|", formula, fixed=T), T, F)
+
+  # Create a matrix to store the coefficient estimates, each row contains
+  # coefficients estimated from a different subset of the data
+  # ncol=n_x+1 when fixed FE aren't present because
+  # we are also storing the intercept estimate
+  # ncol=n_x when FE are present because feols() does not report the
+  # intercept
+  coefs <- matrix(nrow=n_samples, ncol=ifelse(FE, n_x, n_x+1))
+
+  # Loop n_samples times, i.e. how many times we want to re-estimate the model.
+  # In the future this should be vectorized.
+  for(i in 1:n_samples){
+    # Estimate the model with a random subset of the data
+    # sample_n is a function from the dplyr package that gives us random
+    # rows from a dataframe
+    model <- tryCatch(
+      {
+        if(FE){
+          suppressMessages(feols(as.formula(formula),
+                                 sample_n(data, sample_size)))
+        }
+        else{
+          suppressMessages(lm(as.formula(formula), sample_n(data, sample_size)))
+        }
+      },
+      error=function(cond){
+        message(paste0("Estimation failed during bootstrap with n_samples=",
+                       n_samples, " and sample_size=", sample_size,
+                       ".\nConsider respecifying bootstrap parameters or model.\n"))
+
+        return(NULL)
+      }
+    )
+    # If the model can't be estimated then return NULL
+    if(is.null(model)) return(NULL)
+    # Catch instances where coefficients aren't estimated due to
+    # collinearity. We can't in good conscience estimate bootstrapped SEs
+    # from different numbers of coefficients, it could bias the SEs.
+    else if(FE & length(model$coefficients) != n_x){
+
+      message(paste0("Estimation failed due to collinearity for ",
+                     paste(model$collin.var, collapse=", "),
+                     " during bootstrap with n_samples=",
+                     n_samples, " and sample_size=", sample_size,
+                     ".\nConsider respecifying bootstrap parameters.\n"))
+      return(NULL)
+    }
+    else if(!FE & length(model$coefficients) != n_x+1){
+
+      message(paste0("Estimation failed due to collinearity for ",
+                     paste(names(model$coefficients[is.na(model$coefficients)]),
+                           collapse=", "),
+                     " during bootstrap with n_samples=",
+                     n_samples, " and sample_size=", sample_size,
+                     ".\nConsider respecifying bootstrap parameters.\n"))
+      return(NULL)
+    }
+
+    # Store the coefficient estimates in row i of our matrix
+    coefs[i,] <- model$coefficients
+  }
+
+  # Use apply to get the std dev of each column in the matrix, i.e. our
+  # bootstrapped standard errors
+  retVal <- apply(coefs, FUN=sd, MARGIN=2)
+
+  names(retVal) <- names(model$coefficients)
+
+  if(FE) retVal <- c("(Intercept)"=NA, unlist(retVal))
+
+  return(retVal)
 }
