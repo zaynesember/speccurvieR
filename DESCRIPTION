@@ -21,8 +21,10 @@ Imports:
   combinat,
   fixest,
   pbapply,
-  parallel
-RoxygenNote: 7.2.3
+  parallel,
+  lmtest,
+  sandwich
+RoxygenNote: 7.3.1
 License: MIT + file LICENSE
 URL: https://github.com/zaynesember/speccurvieR
 BugReports: https://github.com/zaynesember/speccurvieR/issues

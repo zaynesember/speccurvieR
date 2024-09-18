@@ -284,9 +284,20 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size){
         }
       },
       error=function(cond){
-        message(paste0("Estimation failed during bootstrap with n_samples=",
+        if(FE){
+          message(paste0("Estimation failed during bootstrap for fixed effects
+                         model with n_samples=",
+                         n_samples, " and sample_size=", sample_size,
+                         ".\nConsider respecifying bootstrap parameters or model
+                         .\n"))
+        }
+        else{
+        message(paste0("Estimation failed during bootstrap for non-fixed effects
+                       model with n_samples=",
                        n_samples, " and sample_size=", sample_size,
-                       ".\nConsider respecifying bootstrap parameters or model.\n"))
+                       ".\nConsider respecifying bootstrap parameters or model
+                       .\n"))
+        }
 
         return(NULL)
       }
@@ -300,7 +311,7 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size){
 
       message(paste0("Estimation failed due to collinearity for ",
                      paste(model$collin.var, collapse=", "),
-                     " during bootstrap with n_samples=",
+                     " during bootstrap of fixed effects model with n_samples=",
                      n_samples, " and sample_size=", sample_size,
                      ".\nConsider respecifying bootstrap parameters.\n"))
       return(NULL)
@@ -310,7 +321,8 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size){
       message(paste0("Estimation failed due to collinearity for ",
                      paste(names(model$coefficients[is.na(model$coefficients)]),
                            collapse=", "),
-                     " during bootstrap with n_samples=",
+                     " during bootstrap of non-fixed effects model
+                     with n_samples=",
                      n_samples, " and sample_size=", sample_size,
                      ".\nConsider respecifying bootstrap parameters.\n"))
       return(NULL)

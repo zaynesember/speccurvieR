@@ -858,15 +858,20 @@ plotControlDistributions <- function(sca_data, title="", type="density"){
 #' @param data A data frame containing the variables provided in `formula` and
 #'             any clustering variables passed to `cluster`.
 #' @param types A string or vector of strings specifying what types of
-#'              standard errors are desired. Defaults to `"all"`.
+#'              standard errors are desired. Defaults to "all".
+#'
 #'              The following types are supported for non-fixed effects models:
-#'                With clustering: `"HC0`, `"HC1"`, `"HC2"`, `"HC3"`.
-#'                Without clustering: `"iid"` (i.e. normal standard errors),
-#'                                    `"HC0`, `"HC1"`, `"HC2"`, `"HC3"`,
-#'                                    `"HC4"`, `"HC4m"`, `"HC5"`,
-#'                                    `"bootstrapped"`.
+#'
+#'                With clustering: "HC0, "HC1", "HC2", "HC3".
+#'
+#'                Without clustering: "iid" (i.e. normal standard errors),
+#'                                    "HC0, "HC1", "HC2", "HC3",
+#'                                    "HC4", "HC4m", "HC5",
+#'                                    "bootstrapped".
+#'
 #'              The following types are supported for fixed effects models:
-#'                With clustering: `"CL_FE"` (clustered by fixed effects, i.e.
+#'
+#'                With clustering: "CL_FE" (clustered by fixed effects, i.e.
 #'                                 the default standard errors reported by
 #'                                 `feols()` if no clusters are supplied), if
 #'                                 clusters are supplied then the conventional
@@ -874,9 +879,10 @@ plotControlDistributions <- function(sca_data, title="", type="density"){
 #'                                 estimated for each clustering variable. Two-
 #'                                 way clustered standard errors are not
 #'                                 supported at this time.
-#'                Without clustering: `"HC0`, `"HC1"`, `"HC2"`, `"HC3"`,
-#'                                    `"HC4"`, `"HC4m"`, `"HC5"`,
-#'                                    `"bootstrapped"`.
+#'
+#'                Without clustering: "HC0, "HC1", "HC2", "HC3",
+#'                                    "HC4", "HC4m", "HC5",
+#'                                    "bootstrapped".
 #' @param cluster A string or vector of strings specifying variables present in
 #'                `data` to be used for clustering standard errors.
 #' @param clusteredOnly A boolean indicating whether only standard errors with
@@ -899,17 +905,24 @@ plotControlDistributions <- function(sca_data, title="", type="density"){
 #'         non-fixed effects model and column `"estimate_FE"` for fixed effects
 #'         models). Columns are automatically named to specify the standard
 #'         error type.
+#'
 #'         Some examples:
-#'          `"iid"` = normal standard errors, i.e. assuming homoskedasticity
-#'          `"CL_FE"` = standard errors clustered by fixed effects
-#'          `"bootstrap_k8n300_FE"` =  bootstrapped standard errors for a fixed
+#'
+#'          "iid" = normal standard errors, i.e. assuming homoskedasticity
+#'
+#'          "CL_FE" = standard errors clustered by fixed effects
+#'
+#'          "bootstrap_k8n300_FE" =  bootstrapped standard errors for a fixed
 #'                                   effects model where `bootSamples = 8` and
 #'                                   `bootSampleSize = 300`
-#'          `"CL_Depth_ID_FE"` = standard errors clustered by the variable
-#'                               `"Depth_ID"` for a model with fixed effects
-#'          `"HC0_Sta_ID`" = HC0 standard errors clustered by the variable
-#'                           `"Sta_ID"`
-#'          Note: for fixed effects models the `"(Intercept)"` row will be all
+#'
+#'          "CL_Depth_ID_FE" = standard errors clustered by the variable
+#'                               "Depth_ID" for a model with fixed effects
+#'
+#'          "HC0_Sta_ID" = HC0 standard errors clustered by the variable
+#'                           "Sta_ID"
+#'
+#'          Note: for fixed effects models the "(Intercept)" row will be all
 #'          `NA` because the intercept is not reported by `feols()` when fixed
 #'          effects are present.
 #'
@@ -919,7 +932,7 @@ plotControlDistributions <- function(sca_data, title="", type="density"){
 #'
 #' se_compare(formula = "Salnty ~ T_degC + ChlorA + O2Sat | Sta_ID",
 #'            data = bottles, types = "all", cluster = c("Depth_ID", "Sta_ID"),
-#'            fixedEffectsOnly = F, bootSamples=c(4, 8, 10),
+#'            fixedEffectsOnly = FALSE, bootSamples=c(4, 8, 10),
 #'            bootSampleSize=c(300, 500))
 #'
 #' se_compare(formula = "Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
@@ -952,117 +965,123 @@ se_compare <- function(formula, data, types="all", cluster=NULL,
                            return(NULL)
                          })
 
-    if(is.null(model_fe)){
-      break;
-    }
+      if(is.null(model_fe)){
+        message("Fixed effects model estimation failed.")
+      }
+      else{
+      # Add FE model coefficients to the matrix
+      ses <- cbind(ses, matrix(c("(Intercept)"=NA, model_fe$coefficients), ncol=1,
+                               dimnames=list(c("(Intercept)",
+                                               names(model_fe$coefficients)),
+                                             c("estimate_FE"))))
 
-    # Add FE model coefficients to the matrix
-    ses <- cbind(ses, matrix(c("(Intercept)"=NA, model_fe$coefficients), ncol=1,
-                             dimnames=list(c("(Intercept)",
-                                             names(model_fe$coefficients)),
-                                           c("estimate_FE"))))
+      # Case when user wants to cluster by FEs (i.e. the default SEs reported
+      # by feols()) or bootstrap
+      if(!clusteredOnly){
+        types_other <- c("CL_FE","bootstrapped")
 
-    # Case when user wants to cluster by FEs (i.e. the default SEs reported
-    # by feols()) or bootstrap
-    if(!clusteredOnly){
-      types_other <- c("CL_FE","bootstrapped")
+        if(!"all" %in% types){
 
-      if(!"all" %in% types){
+          if(length(setdiff(types, types_other)!=0)){
+            warning(paste0(setdiff(types, types_other),
+                           " not a valid type for SEs in FE model, ignoring.",
+                           collapse="\n"))
+          }
 
-        if(length(setdiff(types, types_other)!=0)){
-          warning(paste0(setdiff(types, types_other),
-                         " not a valid type for SEs in FE model, ignoring.",
-                         collapse="\n"))
+          types_other <- types[types %in% types_other]
+
         }
 
-        types_other <- types[types %in% types_other]
+        # Get the default standard errors from feols() output
+        if("CL_FE" %in% types_other){
+          ses_other <- cbind(ses_other, "CL_FE"=c("(Intercept)"=NA,
+                                                  coeftable(model_fe)[,2]))
+        }
 
-      }
+        # Get bootstrapped SEs
+        if("bootstrapped" %in% types_other& !is.null(bootSamples) &
+           !is.null(bootSampleSize)){
 
-      # Get the default standard errors from feols() output
-      if("CL_FE" %in% types_other){
-        ses_other <- cbind(ses_other, "CL_FE"=c("(Intercept)"=NA,
-                                                coeftable(model_fe)[,2]))
-      }
+          n_x <- length(model_fe$coefficients)
 
-      # Get bootstrapped SEs
-      if("bootstrapped" %in% types_other){
-        n_x <- length(model_fe$coefficients)
+          if(length(bootSamples)==1 & length(bootSampleSize==1)){
 
-        if(length(bootSamples)==1 & length(bootSampleSize==1)){
+            samples <- bootSamples
+            sample_sizes <- bootSampleSize
 
-          boot <- se_boot(data=data, formula=formula, n_x=n_x,
-                          n_samples=bootSamples[[1]],
-                          sample_size=bootSampleSize[[1]])
+            boot <- se_boot(data=data, formula=formula, n_x=n_x,
+                            n_samples=bootSamples[[1]],
+                            sample_size=bootSampleSize[[1]])
 
-          if(!is.null(boot)){
-            ses_other <- cbind(ses_other, boot)
+            if(!is.null(boot)){
+              ses_other <- cbind(ses_other, boot)
 
-            colnames(ses_other)[ncol(ses_other)] <- paste("bootstrap_", "k",
-                                                          samples, "n",
-                                                          sample_sizes,
-                                                          "_FE", sep="")
+              colnames(ses_other)[ncol(ses_other)] <- paste("bootstrap_", "k",
+                                                            samples, "n",
+                                                            sample_sizes,
+                                                            "_FE", sep="")
+            }
+          }
+          else{
+            samples <- rep(bootSamples, length(bootSampleSize))
+            sample_sizes <- sort(rep(bootSampleSize, length(bootSamples)))
+
+            boot <- mapply(FUN=se_boot, n_samples=samples,
+                           sample_size=sample_sizes,
+                           MoreArgs=list(data=data, formula=formula, n_x=n_x))
+
+            if(!is.null(boot)){
+
+              colnames(boot) <- paste("bootstrap_", "k", samples, "n",
+                                      sample_sizes, "_FE", sep="")
+
+              ses_other <- cbind(ses_other, boot)
+            }
           }
         }
-        else{
-          samples <- rep(bootSamples, length(bootSampleSize))
-          sample_sizes <- sort(rep(bootSampleSize, length(bootSamples)))
+        # Attach bootstapped/default SEs to the object to be returned
+        ses <- cbind(ses, ses_other)
+      }
 
-          boot <- mapply(FUN=se_boot, n_samples=samples,
-                         sample_size=sample_sizes,
-                         MoreArgs=list(data=data, formula=formula, n_x=n_x))
+      # Estimate clustered standard errors for FE model for variables other than
+      # the FEs
+      if(!is.null(cluster)){
 
-          if(!is.null(boot)){
+        if(length(setdiff(cluster, colnames(data))!=0)){
+          warning(paste0(setdiff(cluster, colnames(data)),
+                         " not a valid clustering variable, ignoring.",
+                         collapse="\n"))
 
-            colnames(boot) <- paste("bootstrap_", "k", samples, "n",
-                                    sample_sizes, "_FE", sep="")
+          cluster <- cluster[cluster %in% colnames(data)]
+        }
 
-            ses_other <- cbind(ses_other, boot)
+        if(!"all" %in% types){
+          if(length(setdiff(types[!types %in% c("bootstrapped", "iid")],
+                            types_CL))!=0){
+            warning(paste0(setdiff(setdiff(types, types_CL),
+                                   c("bootstrapped", "iid")),
+                           " not a valid type for clustered SEs, ignoring.",
+                           collapse="\n"))
           }
         }
-      }
-      # Attach bootstapped/default SEs to the object to be returned
-      ses <- cbind(ses, ses_other)
-    }
 
-    # Estimate clustered standard errors for FE model for variables other than
-    # the FEs
-    if(!is.null(cluster)){
+        # Estimate standard errors clustered by each desired variable
+        ses_CL <- sapply(cluster, FUN=function(c){
+          (feols(as.formula(formula), data=data,
+                 cluster=data[c]))$coeftable[,2]})
 
-      if(length(setdiff(cluster, colnames(data))!=0)){
-        warning(paste0(setdiff(cluster, colnames(data)),
-                       " not a valid clustering variable, ignoring.",
-                       collapse="\n"))
-
-        cluster <- cluster[cluster %in% colnames(data)]
-      }
-
-      if(!"all" %in% types){
-        if(length(setdiff(types[!types %in% c("bootstrapped", "iid")],
-                          types_CL))!=0){
-          warning(paste0(setdiff(setdiff(types, types_CL),
-                                 c("bootstrapped", "iid")),
-                         " not a valid type for clustered SEs, ignoring.",
-                         collapse="\n"))
+        # Label them nicely
+        labs <- c()
+        for(c in cluster){
+          labs <- c(labs, paste0("CL", "_", c, "_FE"))
         }
+
+        colnames(ses_CL) <- labs
+
+        ses_CL <- rbind("(Intercept)"=NA, ses_CL)
+
+        ses <- cbind(ses, ses_CL)
       }
-
-      # Estimate standard errors clustered by each desired variable
-      ses_CL <- sapply(cluster, FUN=function(c){
-        (feols(as.formula(formula), data=data,
-               cluster=data[c]))$coeftable[,2]})
-
-      # Label them nicely
-      labs <- c()
-      for(c in cluster){
-        labs <- c(labs, paste0("CL", "_", c, "_FE"))
-      }
-
-      colnames(ses_CL) <- labs
-
-      ses_CL <- rbind("(Intercept)"=NA, ses_CL)
-
-      ses <- cbind(ses, ses_CL)
     }
 
   }
@@ -1108,17 +1127,29 @@ se_compare <- function(formula, data, types="all", cluster=NULL,
 
       # Get HC standard errors
       ses_HC <- sapply(types_HC,
-                       function(x) coeftest(model, vcov=vcovHC, type=x)[,2])
+                       function(x) coeftest(model, vcov.=vcovHC, type=x)[,2])
 
       # Get bootstrapped standard errors
-      if("bootstrapped" %in% types_other){
+      if("bootstrapped" %in% types_other & !is.null(bootSamples) &
+         !is.null(bootSampleSize)){
         n_x <- length(model$coefficients)-1
 
         if(length(bootSamples)==1 & length(bootSampleSize==1)){
 
+          samples <- bootSamples
+          sample_sizes <- bootSampleSize
+
           boot <- se_boot(data=data, formula=formula, n_x=n_x,
                           n_samples=bootSamples[[1]],
                           sample_size=bootSampleSize[[1]])
+
+          if(!is.null(boot)){
+            ses_other <- cbind(ses_other, boot)
+
+            colnames(ses_other)[ncol(ses_other)] <- paste("bootstrap_", "k",
+                                                          samples, "n",
+                                                          sample_sizes, sep="")
+          }
         }
         else{
           samples <- rep(bootSamples, length(bootSampleSize))
@@ -1127,14 +1158,15 @@ se_compare <- function(formula, data, types="all", cluster=NULL,
           boot <- mapply(FUN=se_boot, n_samples=samples,
                          sample_size=sample_sizes,
                          MoreArgs=list(data=data, formula=formula, n_x=n_x))
+
+          if(!is.null(boot)){
+            colnames(boot) <- paste("bootstrap_", "k", samples, "n",
+                                    sample_sizes, sep="")
+
+            ses_other <- cbind(ses_other, boot)
+          }
         }
 
-        if(!is.null(boot)){
-          colnames(boot) <- paste("bootstrap_", "k", samples, "n",
-                                  sample_sizes, sep="")
-
-          ses_other <- cbind(ses_other, boot)
-        }
       }
 
       # Attach SEs to the return object
@@ -1172,7 +1204,7 @@ se_compare <- function(formula, data, types="all", cluster=NULL,
 
         ses_CL <- sapply(cluster, FUN=function(c, types){
           sapply(types, function(x){
-            coeftest(model, vcov=vcovCL, type=x, cluster=data[c])[,2]
+            coeftest(model, vcov.=vcovCL, type=x, cluster=data[c])[,2]
           })
         }, types=types_CL, simplify=F)
 
@@ -1194,5 +1226,5 @@ se_compare <- function(formula, data, types="all", cluster=NULL,
   }
 
   # Coerce matrix to a data frame and return
-  return(as.data.frame(ses))
+  return(as.data.frame(apply(ses, FUN=unlist, MARGIN=2)))
 }
