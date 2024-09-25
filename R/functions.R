@@ -58,7 +58,8 @@
 #' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat*NO3uM"),
 #'     data = bottles, progressBar = TRUE, parallel = FALSE,
 #'     returnFormulae = TRUE);
-sca <- function(y, x, controls, data, family="linear", link=NULL,
+sca <- function(y, x, controls, data, weights=NULL,
+                family="linear", link=NULL,
                 fixedEffects=NULL, returnFormulae=FALSE,
                 progressBar=TRUE, parallel=FALSE, workers=2){
 
@@ -109,7 +110,10 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
 
         if(family=="linear"){
           system.time(models <- pblapply(
-            formulae, function(x2) summary(lm(x2, data=data)), cl=cl))
+            formulae, function(x2){
+              ifelse(is.null(weights), summary(lm(x2, data=data)),
+                     summary(lm(x2, data=data, weights=get(weights))))
+              }, cl=cl))
         }
         else{
           system.time(models <- pblapply(
@@ -121,12 +125,22 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
       else{
         if(family=="linear"){
           models <- parLapply(
-            cl, formulae, function(x2) summary(lm(x2, data=data)))
+            cl, formulae, function(x2){
+              ifelse(is.null(weights), summary(lm(x2, data=data)),
+                     summary(lm(x2, data=data, weights=get(weights))))
+              }
+            )
         }
         else{
           models <- parLapply(
-            cl, formulae, function(x2) summary(
-              glm(x2, data=data, family=eval(parse(text=family_link)))))
+            cl, formulae, function(x2){
+              ifelse(is.null(weights),
+                     summary(glm(x2, data=data,
+                                 family=eval(parse(text=family_link)))),
+                     summary(glm(x2, data=data, weights=get(weights),
+                                 family=eval(parse(text=family_link)))))
+            }
+          )
         }
       }
     }
@@ -144,12 +158,23 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
                             "models in parallel with",
                     workers, "workers"))
         system.time(models <- pblapply(formulae,
-                                       function(x2) summary(feols(x2,data=data)),
+                                       function(x2){
+                                         ifelse(is.null(weights),
+                                                summary(feols(x2,data=data)),
+                                                summary(feols(x2,data=data,
+                                                              weights=get(weights))))
+                                       },
                                        cl=cl))
       }
       else{
         models <- parLapply(cl, formulae,
-                            function(x2) summary(feols(x2, data=data)))
+                            function(x2){
+                              ifelse(is.null(weights),
+                                     summary(feols(x2, data=data)),
+                                     summary(feols(x2, data=data,
+                                                   weights=get(weights))))
+                            }
+        )
       }
     }
   }
@@ -164,23 +189,42 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
         print.noquote(paste("Estimating", length(formulae), "models"))
         if(family=="linear"){
           system.time(models <- pblapply(
-            formulae, function(x2) summary(lm(x2, data=data))))
+            formulae, function(x2){
+              ifelse(is.null(weights), summary(lm(x2, data=data)),
+                     summary(lm(x2, data=data, weights=get(weights))))
+              }
+            ))
         }
         else{
           system.time(models <- pblapply(
-            formulae, function(x2) summary(
-              glm(x2, data=data, family=eval(parse(text=family_link))))))
+            formulae, function(x2){
+              ifelse(is.null(weights),
+                     summary(glm(x2, data=data,
+                                 family=eval(parse(text=family_link)))),
+                     summary(glm(x2, data=data, weights=get(weights),
+                                 family=eval(parse(text=family_link)))))
+              }
+            ))
         }
       }
       else{
         if(family=="linear"){
-          models <- lapply(formulae, function(x2) summary(lm(x2, data=data)))
+          models <- lapply(formulae, function(x2){
+            ifelse(is.null(weights), summary(lm(x2, data=data)),
+                   summary(lm(x2, data=data, weights=get(weights))))
+          }
+          )
         }
         else{
           models <- lapply(formulae,
-                           function(x2) summary(
-                             glm(x2, data=data,
-                                 family=eval(parse(text=family_link)))))
+                           function(x2){
+                             ifelse(is.null(weights),
+                                    summary(glm(x2, data=data,
+                                                family=eval(parse(text=family_link)))),
+                                    summary(glm(x2, data=data, weights=get(weights),
+                                                family=eval(parse(text=family_link)))))
+                           }
+          )
         }
       }
     }
@@ -193,10 +237,18 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
       if(progressBar){
         print.noquote(paste("Estimating", length(formulae), "models"))
         system.time(models <- pblapply(
-          X=formulae, function(x2) summary(feols(x2, data=data))))
+          X=formulae, function(x2){
+            ifelse(is.null(weights), summary(feols(x2, data=data)),
+                   summary(feols(x2, data=data, weights=get(weights))))
+            }
+          ))
       }
       else{
-        models <- lapply(X=formulae, function(x2) summary(feols(x2, data=data)))
+        models <- lapply(X=formulae, function(x2){
+          ifelse(is.null(weights), summary(feols(x2, data=data)),
+                 summary(feols(x2, data=data, weights=get(weights))))
+        }
+        )
       }
     }
   }
@@ -218,6 +270,7 @@ sca <- function(y, x, controls, data, family="linear", link=NULL,
       terms <- lapply(X=models, FUN=function(x2) row.names(x2$coefficients))
       RMSE <- lapply(X=models, FUN=function(x2) sqrt(mean(x2$residuals^2)))
       adjR <- lapply(X=models, function(x2) x2$adj.r.squared)
+      # TODO:L ISSUE IS HERE SOMEWHERE
       control_coefs <- lapply(X=models,
                               FUN=function(x2, x3) controlExtractor(x2,x3),
                               x3=x)
