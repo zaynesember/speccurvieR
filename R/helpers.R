@@ -136,7 +136,7 @@ controlExtractor <- function(model, x, feols_model=F){
   r <- as.data.frame(input) %>%
     mutate(term=row.names(.)) %>%
     filter(!row.names(.) %in% c("(Intercept)", x))
-  print(model)
+
   names(r) <- c("coef", "term")
 
   return(r)

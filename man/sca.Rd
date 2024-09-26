@@ -9,6 +9,7 @@ sca(
   x,
   controls,
   data,
+  weights = NULL,
   family = "linear",
   link = NULL,
   fixedEffects = NULL,
@@ -30,6 +31,9 @@ control variables in data.}
 
 \item{data}{A dataframe containing y, x, controls, and (optionally) the
 variables to be used for fixed effects or clustering.}
+
+\item{weights}{Optional string with the column name in `data` that contains
+weights.}
 
 \item{family}{A string indicating the family of models to be used. Defaults
 to "linear" for OLS regression but supports all families

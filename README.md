@@ -290,13 +290,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            bootSamples=c(8, 10), bootSampleSize=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017       0.13805973       0.105485565
-#> T_degC      -0.0599783335 0.007428642       0.01121290       0.007877003
-#> ChlorA       0.0006514447 0.012449618       0.08969768       0.071652831
+#> (Intercept) 34.2940251811 0.097594017       0.15622103       0.118853774
+#> T_degC      -0.0599783335 0.007428642       0.01182771       0.009862705
+#> ChlorA       0.0006514447 0.012449618       0.06291394       0.048310059
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)      0.082322052       0.079972353
-#> T_degC           0.007223405       0.006789356
-#> ChlorA           0.034929318       0.051875581
+#> (Intercept)       0.12172942       0.107378252
+#> T_degC            0.01131272       0.008436476
+#> ChlorA            0.02692236       0.023803066
 ```
 
 Clustered standard errors are also supported:
@@ -362,31 +362,31 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x000001f953cd7008>
+#> <environment: 0x000001d4ba66cb20>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x000001f953cd7008>
+#> <environment: 0x000001d4ba66cb20>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x000001f953cd7008>
+#> <environment: 0x000001d4ba66cb20>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x000001f953cd7008>
+#> <environment: 0x000001d4ba66cb20>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x000001f953cd7008>
+#> <environment: 0x000001d4ba66cb20>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x000001f953cd7008>
+#> <environment: 0x000001d4ba66cb20>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x000001f953cd7008>
+#> <environment: 0x000001d4ba66cb20>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made

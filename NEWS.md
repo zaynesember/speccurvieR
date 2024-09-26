@@ -1,3 +1,7 @@
+# speccurvieR 0.4.1
+
+Added support for weights in sca().
+
 # speccurvieR 0.4.0
 
 * Added functionality to compare different types of standard error estimates.
