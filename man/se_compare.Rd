@@ -7,6 +7,7 @@
 se_compare(
   formula,
   data,
+  weights = NULL,
   types = "all",
   cluster = NULL,
   clusteredOnly = FALSE,
@@ -21,6 +22,9 @@ fixed effects.}
 
 \item{data}{A data frame containing the variables provided in `formula` and
 any clustering variables passed to `cluster`.}
+
+\item{weights}{Optional string with the column name in `data` that contains
+weights.}
 
 \item{types}{A string or vector of strings specifying what types of
              standard errors are desired. Defaults to "all".

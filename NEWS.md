@@ -1,3 +1,7 @@
+# speccurvieR 0.4.2
+
+Added support for weights in se_compare().
+
 # speccurvieR 0.4.1
 
 Added support for weights in sca().

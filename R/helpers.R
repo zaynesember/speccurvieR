@@ -236,6 +236,8 @@ scp <- function(sca_data){
 #'                  estimated with a random subset of the data.
 #' @param sample_size An integer indicating how many observations are in each
 #'                    random subset of the data.
+#' @param weights Optional string with the column name in `data` that contains
+#'                weights.
 #'
 #' @return A named list containing bootstrapped standard errors for each
 #'         coefficient.
@@ -254,7 +256,7 @@ scp <- function(sca_data){
 #'         formula = "y ~ x1 + x2 | ID",
 #'         n_x = 2, n_samples = 10, sample_size = 1000)
 #'
-se_boot <- function(data, formula, n_x, n_samples, sample_size){
+se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
 
   # Check for fixed effects in the formula
   FE <- ifelse(grepl("|", formula, fixed=T), T, F)
@@ -276,11 +278,26 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size){
     model <- tryCatch(
       {
         if(FE){
-          suppressMessages(feols(as.formula(formula),
-                                 sample_n(data, sample_size)))
+          if(is.null(weights)){
+            suppressMessages(feols(as.formula(formula),
+                                   sample_n(data, sample_size)))
+          }
+          else{
+            suppressMessages(feols(as.formula(formula),
+                                   sample_n(data, sample_size),
+                                   weights=eval(weights)))
+          }
         }
         else{
-          suppressMessages(lm(as.formula(formula), sample_n(data, sample_size)))
+          if(is.null(weights)){
+            suppressMessages(lm(as.formula(formula),
+                                sample_n(data, sample_size)))
+          }
+          else{
+            suppressMessages(lm(as.formula(formula),
+                                sample_n(data, sample_size),
+                                weights=eval(weights)))
+          }
         }
       },
       error=function(cond){

@@ -4,7 +4,7 @@
 \alias{se_boot}
 \title{Estimates bootstrapped standard errors for regression models}
 \usage{
-se_boot(data, formula, n_x, n_samples, sample_size)
+se_boot(data, formula, n_x, n_samples, sample_size, weights = NULL)
 }
 \arguments{
 \item{data}{A data frame containing the variables provided in `formula`.}
@@ -20,6 +20,9 @@ estimated with a random subset of the data.}
 
 \item{sample_size}{An integer indicating how many observations are in each
 random subset of the data.}
+
+\item{weights}{Optional string with the column name in `data` that contains
+weights.}
 }
 \value{
 A named list containing bootstrapped standard errors for each
