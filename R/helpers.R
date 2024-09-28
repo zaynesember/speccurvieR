@@ -261,6 +261,9 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
   # Check for fixed effects in the formula
   FE <- ifelse(grepl("|", formula, fixed=T), T, F)
 
+  # Create a list of NAs to return for cases when bootstrapping fails
+  fallback_list <- as.list(rep(NA, n_x + 1))
+
   # Create a matrix to store the coefficient estimates, each row contains
   # coefficients estimated from a different subset of the data
   # ncol=n_x+1 when fixed FE aren't present because
@@ -285,7 +288,7 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
           else{
             suppressMessages(feols(as.formula(formula),
                                    sample_n(data, sample_size),
-                                   weights=eval(weights)))
+                                   weights=data[[weights]]))
           }
         }
         else{
@@ -294,9 +297,11 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
                                 sample_n(data, sample_size)))
           }
           else{
-            suppressMessages(lm(as.formula(formula),
+            fmla <- as.formula(formula)
+            environment(fmla) <- environment()
+            suppressMessages(lm(fmla,
                                 sample_n(data, sample_size),
-                                weights=eval(weights)))
+                                weights=get(weights)))
           }
         }
       },
@@ -316,11 +321,11 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
                        .\n"))
         }
 
-        return(NULL)
+        return(fallback_list)
       }
     )
     # If the model can't be estimated then return NULL
-    if(is.null(model)) return(NULL)
+    if(is.null(model)) return(fallback_list)
     # Catch instances where coefficients aren't estimated due to
     # collinearity. We can't in good conscience estimate bootstrapped SEs
     # from different numbers of coefficients, it could bias the SEs.
@@ -331,7 +336,7 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
                      " during bootstrap of fixed effects model with n_samples=",
                      n_samples, " and sample_size=", sample_size,
                      ".\nConsider respecifying bootstrap parameters.\n"))
-      return(NULL)
+      return(fallback_list)
     }
     else if(!FE & length(model$coefficients) != n_x+1){
 
@@ -342,7 +347,7 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
                      with n_samples=",
                      n_samples, " and sample_size=", sample_size,
                      ".\nConsider respecifying bootstrap parameters.\n"))
-      return(NULL)
+      return(fallback_list)
     }
 
     # Store the coefficient estimates in row i of our matrix

@@ -117,8 +117,10 @@ sca <- function(y, x, controls, data, weights=NULL,
           }
           else{
             system.time(models <- pblapply(
-              formulae, function(x2) summary(lm(x2, data=data,
-                                                weights=eval(weights))), cl=cl))
+              formulae, function(x2){
+                environment(x2) <- environment()
+                summary(lm(x2, data=data, weights=get(weights)))},
+              cl=cl))
           }
         }
         else{
@@ -130,9 +132,10 @@ sca <- function(y, x, controls, data, weights=NULL,
           }
           else{
             system.time(models <- pblapply(
-              formulae, function(x2) summary(
-                glm(x2, data=data, weights=eval(weights),
-                    family=eval(parse(text=family_link)))),
+              formulae, function(x2){
+                environment(x2) <- environment()
+                summary(glm(x2, data=data, weights=get(weights),
+                    family=eval(parse(text=family_link))))},
               cl=cl))
           }
         }
@@ -145,8 +148,10 @@ sca <- function(y, x, controls, data, weights=NULL,
           }
           else{
             models <- parLapply(
-              cl, formulae, function(x2) summary(lm(x2, data=data,
-                                                    weights=eval(weights))))
+              cl, formulae, function(x2){
+                environment(x2) <- environment()
+                summary(lm(x2, data=data, weights=get(weights)))}
+              )
           }
         }
         else{
@@ -157,9 +162,11 @@ sca <- function(y, x, controls, data, weights=NULL,
           }
           else{
             models <- parLapply(
-              cl, formulae, function(x2) summary(
-                glm(x2, data=data, weights=eval(weights),
-                    family=eval(parse(text=family_link)))))
+              cl, formulae, function(x2){
+                environment(x2) <- environment()
+                summary(glm(x2, data=data, weights=get(weights),
+                    family=eval(parse(text=family_link))))}
+              )
           }
         }
       }
@@ -184,9 +191,9 @@ sca <- function(y, x, controls, data, weights=NULL,
         }
         else{
           system.time(models <- pblapply(formulae,
-                                         function(x2) summary(feols(x2,
-                                                                    data=data,
-                                                                    weights=eval(weights))),
+                                         function(x2){
+                                           summary(feols(x2, data=data,
+                                                         weights=data[[weights]]))},
                                          cl=cl))
         }
       }
@@ -197,8 +204,10 @@ sca <- function(y, x, controls, data, weights=NULL,
         }
         else{
           models <- parLapply(cl, formulae,
-                              function(x2) summary(feols(x2, data=data,
-                                                         weights=eval(weights))))
+                              function(x2){
+                                summary(feols(x2, data=data,
+                                              weights=data[[weights]]))}
+                              )
         }
       }
     }
@@ -218,9 +227,13 @@ sca <- function(y, x, controls, data, weights=NULL,
               formulae, function(x2) summary(lm(x2, data=data))))
           }
           else{
+
             system.time(models <- pblapply(
-              formulae, function(x2) summary(lm(x2, data=data,
-                                                weights=eval(weights)))))
+              formulae, function(x2){
+                environment(x2) <- environment()
+                summary(lm(x2, data=data, weights=get(weights)))
+                }
+              ))
           }
         }
         else{
@@ -231,9 +244,12 @@ sca <- function(y, x, controls, data, weights=NULL,
           }
           else{
             system.time(models <- pblapply(
-              formulae, function(x2) summary(
-                glm(x2, data=data, weights=eval(weights),
-                    family=eval(parse(text=family_link))))))
+              formulae, function(x2){
+                environment(x2) <- environment()
+                summary(
+                  glm(x2, data=data, weights=get(weights),
+                      family=eval(parse(text=family_link))))}
+              ))
           }
         }
       }
@@ -243,8 +259,10 @@ sca <- function(y, x, controls, data, weights=NULL,
             models <- lapply(formulae, function(x2) summary(lm(x2, data=data)))
           }
           else{
-            models <- lapply(formulae, function(x2) summary(lm(x2, data=data,
-                                                               weights=eval(weights))))
+            models <- lapply(formulae, function(x2){
+              environment(x2) <- environment()
+              summary(lm(x2, data=data, weights=get(weights)))}
+              )
           }
         }
         else{
@@ -256,9 +274,11 @@ sca <- function(y, x, controls, data, weights=NULL,
           }
           else{
             models <- lapply(formulae,
-                             function(x2) summary(
-                               glm(x2, data=data, weights=eval(weights),
-                                   family=eval(parse(text=family_link)))))
+                             function(x2){
+                               environment(x2) <- environment()
+                               summary(glm(x2, data=data, weights=get(weights),
+                                   family=eval(parse(text=family_link))))}
+                             )
           }
         }
       }
@@ -277,8 +297,9 @@ sca <- function(y, x, controls, data, weights=NULL,
         }
         else{
           system.time(models <- pblapply(
-            X=formulae, function(x2) summary(feols(x2, data=data,
-                                                   weights=eval(weights)))))
+            X=formulae, function(x2){
+              summary(feols(x2, data=data, weights=data[[weights]]))}
+            ))
         }
       }
       else{
@@ -286,8 +307,9 @@ sca <- function(y, x, controls, data, weights=NULL,
           models <- lapply(X=formulae, function(x2) summary(feols(x2, data=data)))
         }
         else{
-          models <- lapply(X=formulae, function(x2) summary(feols(x2, data=data,
-                                                                  weights=eval(weights))))
+          models <- lapply(X=formulae, function(x2){
+            summary(feols(x2, data=data, weights=data[[weights]]))}
+            )
         }
       }
     }
@@ -1062,8 +1084,8 @@ se_compare <- function(formula, data, weights=NULL,
                            })
     }
     else{
-      model_fe <- tryCatch(feols(as.formula(formula), data=data,
-                                 weights=eval(weights)),
+      model_fe <- tryCatch(
+        feols(as.formula(formula), data=data, weights=data[[weights]]),
                            error=function(cond){
                              message("Fixed effects model estimation failed.",
                                      cond)
@@ -1124,7 +1146,7 @@ se_compare <- function(formula, data, weights=NULL,
               boot <- se_boot(data=data, formula=formula, n_x=n_x,
                               n_samples=bootSamples[[1]],
                               sample_size=bootSampleSize[[1]],
-                              weights=eval(weights))
+                              weights=weights)
             }
 
             if(!is.null(boot)){
@@ -1149,11 +1171,11 @@ se_compare <- function(formula, data, weights=NULL,
               boot <- mapply(FUN=se_boot, n_samples=samples,
                              sample_size=sample_sizes,
                              MoreArgs=list(data=data, formula=formula, n_x=n_x,
-                                           weights=eval(weights)))
+                                           weights=weights))
             }
 
             if(!is.null(boot)){
-
+              print(boot)
               colnames(boot) <- paste("bootstrap_", "k", samples, "n",
                                       sample_sizes, "_FE", sep="")
 
@@ -1225,11 +1247,14 @@ se_compare <- function(formula, data, weights=NULL,
       model <- lm(formula=as.formula(formula), data=data)
     }
     else{
-      model <- lm(formula=as.formula(formula), data=data, weights=eval(weights))
+      fmla <- as.formula(formula)
+      environment(fmla) <- environment()
+      model <- lm(formula=fmla, data=data, weights=get(weights))
     }
 
     ses <- cbind(ses, matrix(model$coefficients, ncol=1,
-                             dimnames=list(c(names(model$coefficients)), c("estimate"))))
+                             dimnames=list(c(names(model$coefficients)),
+                                           c("estimate"))))
 
     # Parse the user's desired SE types
     if(!clusteredOnly){
@@ -1275,7 +1300,7 @@ se_compare <- function(formula, data, weights=NULL,
             boot <- se_boot(data=data, formula=formula, n_x=n_x,
                             n_samples=bootSamples[[1]],
                             sample_size=bootSampleSize[[1]],
-                            weights=eval(weights))
+                            weights=(weights))
           }
 
           if(!is.null(boot)){
@@ -1298,7 +1323,7 @@ se_compare <- function(formula, data, weights=NULL,
             boot <- mapply(FUN=se_boot, n_samples=samples,
                            sample_size=sample_sizes,
                            MoreArgs=list(data=data, formula=formula, n_x=n_x,
-                                         weights=eval(weights)))
+                                         weights=weights))
           }
 
           if(!is.null(boot)){
