@@ -420,7 +420,7 @@ summary(my_own_models[[1]])
 
 # What’s next?
 
-Feel free to contact me at <zsember@ucsd.edu> to let me know of features
+Feel free to contact me at <zaynesember@gmail.com> to let me know of features
 you would find useful. Currently, I hope to add the following:
 
 - Plotting different types of standard errors
