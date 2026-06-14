@@ -721,6 +721,55 @@ plotControlDistributions <- function(sca_data, title="", type="density"){
 }
 
 
+# Internal: bootstrapped SEs for se_compare(). Estimates one column per
+# (bootSamples, bootSampleSize) combination and returns a named matrix (rows =
+# coefficients), or NULL if no estimates were produced. `fe_suffix` tags the
+# column names for fixed-effects models.
+boot_ses <- function(data, formula, n_x, bootSamples, bootSampleSize,
+                     weights=NULL, fe_suffix=""){
+  if(length(bootSamples)==1 & length(bootSampleSize)==1){
+    samples <- bootSamples
+    sample_sizes <- bootSampleSize
+
+    if(is.null(weights)){
+      boot <- se_boot(data=data, formula=formula, n_x=n_x,
+                      n_samples=bootSamples[[1]],
+                      sample_size=bootSampleSize[[1]])
+    }
+    else{
+      boot <- se_boot(data=data, formula=formula, n_x=n_x,
+                      n_samples=bootSamples[[1]],
+                      sample_size=bootSampleSize[[1]],
+                      weights=weights)
+    }
+
+    if(is.null(boot)) return(NULL)
+    boot <- matrix(boot, ncol=1, dimnames=list(names(boot), NULL))
+  }
+  else{
+    samples <- rep(bootSamples, length(bootSampleSize))
+    sample_sizes <- sort(rep(bootSampleSize, length(bootSamples)))
+
+    if(is.null(weights)){
+      boot <- mapply(FUN=se_boot, n_samples=samples,
+                     sample_size=sample_sizes,
+                     MoreArgs=list(data=data, formula=formula, n_x=n_x))
+    }
+    else{
+      boot <- mapply(FUN=se_boot, n_samples=samples,
+                     sample_size=sample_sizes,
+                     MoreArgs=list(data=data, formula=formula, n_x=n_x,
+                                   weights=weights))
+    }
+
+    if(is.null(boot)) return(NULL)
+  }
+
+  colnames(boot) <- paste("bootstrap_", "k", samples, "n", sample_sizes,
+                          fe_suffix, sep="")
+  boot
+}
+
 #' Compare different kinds of standard errors
 #'
 #' @description
@@ -896,59 +945,16 @@ se_compare <- function(formula, data, weights=NULL,
         }
 
         # Get bootstrapped SEs
-        if("bootstrapped" %in% types_other& !is.null(bootSamples) &
+        if("bootstrapped" %in% types_other & !is.null(bootSamples) &
            !is.null(bootSampleSize)){
 
-          n_x <- length(model_fe$coefficients)
+          boot <- boot_ses(data=data, formula=formula,
+                           n_x=length(model_fe$coefficients),
+                           bootSamples=bootSamples, bootSampleSize=bootSampleSize,
+                           weights=weights, fe_suffix="_FE")
 
-          if(length(bootSamples)==1 & length(bootSampleSize)==1){
-
-            samples <- bootSamples
-            sample_sizes <- bootSampleSize
-
-            if(is.null(weights)){
-              boot <- se_boot(data=data, formula=formula, n_x=n_x,
-                              n_samples=bootSamples[[1]],
-                              sample_size=bootSampleSize[[1]])
-            }
-            else{
-              boot <- se_boot(data=data, formula=formula, n_x=n_x,
-                              n_samples=bootSamples[[1]],
-                              sample_size=bootSampleSize[[1]],
-                              weights=weights)
-            }
-
-            if(!is.null(boot)){
-              ses_other <- cbind(ses_other, boot)
-
-              colnames(ses_other)[ncol(ses_other)] <- paste("bootstrap_", "k",
-                                                            samples, "n",
-                                                            sample_sizes,
-                                                            "_FE", sep="")
-            }
-          }
-          else{
-            samples <- rep(bootSamples, length(bootSampleSize))
-            sample_sizes <- sort(rep(bootSampleSize, length(bootSamples)))
-
-            if(is.null(weights)){
-              boot <- mapply(FUN=se_boot, n_samples=samples,
-                             sample_size=sample_sizes,
-                             MoreArgs=list(data=data, formula=formula, n_x=n_x))
-            }
-            else{
-              boot <- mapply(FUN=se_boot, n_samples=samples,
-                             sample_size=sample_sizes,
-                             MoreArgs=list(data=data, formula=formula, n_x=n_x,
-                                           weights=weights))
-            }
-
-            if(!is.null(boot)){
-              colnames(boot) <- paste("bootstrap_", "k", samples, "n",
-                                      sample_sizes, "_FE", sep="")
-
-              ses_other <- cbind(ses_other, boot)
-            }
+          if(!is.null(boot)){
+            ses_other <- cbind(ses_other, boot)
           }
         }
         # Attach bootstapped/default SEs to the object to be returned
@@ -1050,56 +1056,15 @@ se_compare <- function(formula, data, weights=NULL,
       # Get bootstrapped standard errors
       if("bootstrapped" %in% types_other & !is.null(bootSamples) &
          !is.null(bootSampleSize)){
-        n_x <- length(model$coefficients)-1
 
-        if(length(bootSamples)==1 & length(bootSampleSize)==1){
+        boot <- boot_ses(data=data, formula=formula,
+                         n_x=length(model$coefficients)-1,
+                         bootSamples=bootSamples, bootSampleSize=bootSampleSize,
+                         weights=weights, fe_suffix="")
 
-          samples <- bootSamples
-          sample_sizes <- bootSampleSize
-
-          if(is.null(weights)){
-            boot <- se_boot(data=data, formula=formula, n_x=n_x,
-                            n_samples=bootSamples[[1]],
-                            sample_size=bootSampleSize[[1]])
-          }
-          else{
-            boot <- se_boot(data=data, formula=formula, n_x=n_x,
-                            n_samples=bootSamples[[1]],
-                            sample_size=bootSampleSize[[1]],
-                            weights=(weights))
-          }
-
-          if(!is.null(boot)){
-            ses_other <- cbind(ses_other, boot)
-
-            colnames(ses_other)[ncol(ses_other)] <- paste("bootstrap_", "k",
-                                                          samples, "n",
-                                                          sample_sizes, sep="")
-          }
+        if(!is.null(boot)){
+          ses_other <- cbind(ses_other, boot)
         }
-        else{
-          samples <- rep(bootSamples, length(bootSampleSize))
-          sample_sizes <- sort(rep(bootSampleSize, length(bootSamples)))
-          if(is.null(weights)){
-            boot <- mapply(FUN=se_boot, n_samples=samples,
-                           sample_size=sample_sizes,
-                           MoreArgs=list(data=data, formula=formula, n_x=n_x))
-          }
-          else{
-            boot <- mapply(FUN=se_boot, n_samples=samples,
-                           sample_size=sample_sizes,
-                           MoreArgs=list(data=data, formula=formula, n_x=n_x,
-                                         weights=weights))
-          }
-
-          if(!is.null(boot)){
-            colnames(boot) <- paste("bootstrap_", "k", samples, "n",
-                                    sample_sizes, sep="")
-
-            ses_other <- cbind(ses_other, boot)
-          }
-        }
-
       }
 
       # Attach SEs to the return object
