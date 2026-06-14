@@ -55,8 +55,10 @@
 #' @examples
 #' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
 #'     data = bottles, progressBar = TRUE, parallel = FALSE);
+#' \donttest{
 #' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
 #'     data = bottles, progressBar = TRUE, parallel = TRUE, workers = 2);
+#' }
 #' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat*NO3uM"),
 #'     data = bottles, progressBar = TRUE, parallel = FALSE,
 #'     returnFormulae = TRUE);
@@ -342,11 +344,13 @@ sca <- function(y, x, controls, data, weights=NULL,
 #'                          data=bottles, progressBar=FALSE, parallel=FALSE),
 #'                      showIndex = TRUE, plotVars = TRUE,
 #'                      plotSE = "ribbon");
+#' \donttest{
 #' plotCurve(sca_data = sca(y="Salnty", x="T_degC",
 #'                          c("ChlorA*NO3uM", "O2Sat", "ChlorA", "NO3uM"),
 #'                          data=bottles,
 #'                          progressBar = TRUE, parallel = TRUE, workers=2),
 #'           plotSE="");
+#' }
 plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
                          ylab="Coefficient", plotSE="bar"){
 
@@ -433,10 +437,12 @@ plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
 #'                         data = bottles, progressBar = FALSE,
 #'                         parallel = FALSE),
 #'                      colorControls = TRUE);
+#' \donttest{
 #' plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                         controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
 #'                         data = bottles,
 #'                         progressBar = TRUE, parallel = TRUE, workers = 2));
+#' }
 plotVars <- function(sca_data, title="", colorControls=FALSE){
 
   if("control_coefs" %in% names(sca_data)){
@@ -556,9 +562,11 @@ plot_metric <- function(sca_data, metric, ylab, missing_message,
 #' plotRMSE(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
 #'                          data=bottles, progressBar=FALSE, parallel=FALSE),
 #'                      showIndex = FALSE, plotVars = FALSE);
+#' \donttest{
 #' plotRMSE(sca_data = sca(y="Salnty", x="T_degC",
 #'                          c("ChlorA*NO3uM", "O2Sat*NO3uM"), data=bottles,
 #'                          progressBar = TRUE, parallel=TRUE, workers=2));
+#' }
 plotRMSE <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
   plot_metric(sca_data, metric="RMSE", ylab="RMSE",
               missing_message=paste0("RMSE not found. Are your models nonlinear? ",
@@ -592,10 +600,12 @@ plotRMSE <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'                          data = bottles, progressBar = FALSE,
 #'                          parallel = FALSE),
 #'                      showIndex = FALSE, plotVars = FALSE);
+#' \donttest{
 #' plotR2Adj(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                          controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
 #'                          data = bottles,
 #'                          progressBar = TRUE, parallel = TRUE, workers = 2));
+#' }
 plotR2Adj <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
   plot_metric(sca_data, metric="adjR", ylab=bquote('Adj. R'^2),
               missing_message=paste0("Adj. R^2 not found. Are your models nonlinear? ",
@@ -626,10 +636,12 @@ plotR2Adj <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'                        data = bottles, progressBar = FALSE,
 #'                        parallel = FALSE),
 #'                        showIndex = FALSE, plotVars = FALSE);
+#' \donttest{
 #' plotAIC(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                          controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
 #'                          data = bottles,
 #'                          progressBar = TRUE, parallel = TRUE, workers = 2));
+#' }
 plotAIC <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
   plot_metric(sca_data, metric="AIC", ylab="AIC",
               missing_message=paste0("AIC not found. Are your models linear? ",
@@ -661,10 +673,12 @@ plotAIC <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'                             data = bottles, progressBar = FALSE,
 #'                             parallel = FALSE),
 #'                      showIndex = FALSE, plotVars = FALSE);
+#' \donttest{
 #' plotDeviance(sca_data = sca(y = "Salnty", x="T_degC",
 #'                          controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
 #'                          data = bottles, progressBar = TRUE, parallel = TRUE,
 #'                          workers = 2));
+#' }
 plotDeviance <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
   plot_metric(sca_data, metric="deviance", ylab="Deviance",
               missing_message=paste0("Deviance of residuals not found. ",
@@ -700,12 +714,14 @@ plotDeviance <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'                                     data = bottles,
 #'                                     progressBar = FALSE, parallel = FALSE),
 #'                          type = "hist")
+#' \donttest{
 #' plotControlDistributions(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                                     controls = c("ChlorA*NO3uM",
 #'                                                  "O2Sat*NO3uM"),
 #'                                     data = bottles, progressBar = TRUE,
 #'                                     parallel = TRUE, workers = 2),
 #'                          type = "density")
+#' }
 plotControlDistributions <- function(sca_data, title="", type="density"){
 
   histData <- bind_rows(unAsIs(sca_data$control_coefs))

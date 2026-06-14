@@ -36,8 +36,10 @@ plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
                         data = bottles, progressBar = FALSE,
                         parallel = FALSE),
                      colorControls = TRUE);
+\donttest{
 plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
                         controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
                         data = bottles,
                         progressBar = TRUE, parallel = TRUE, workers = 2));
+}
 }

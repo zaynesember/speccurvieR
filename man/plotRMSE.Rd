@@ -35,7 +35,9 @@ plotRMSE(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
 plotRMSE(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
                          data=bottles, progressBar=FALSE, parallel=FALSE),
                      showIndex = FALSE, plotVars = FALSE);
+\donttest{
 plotRMSE(sca_data = sca(y="Salnty", x="T_degC",
                          c("ChlorA*NO3uM", "O2Sat*NO3uM"), data=bottles,
                          progressBar = TRUE, parallel=TRUE, workers=2));
+}
 }

@@ -58,9 +58,11 @@ plotCurve(sca_data = sca(y="Salnty", x="T_degC",
                          data=bottles, progressBar=FALSE, parallel=FALSE),
                      showIndex = TRUE, plotVars = TRUE,
                      plotSE = "ribbon");
+\donttest{
 plotCurve(sca_data = sca(y="Salnty", x="T_degC",
                          c("ChlorA*NO3uM", "O2Sat", "ChlorA", "NO3uM"),
                          data=bottles,
                          progressBar = TRUE, parallel = TRUE, workers=2),
           plotSE="");
+}
 }

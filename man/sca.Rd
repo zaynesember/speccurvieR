@@ -83,8 +83,10 @@ possible combination of controls.
 \examples{
 sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
     data = bottles, progressBar = TRUE, parallel = FALSE);
+\donttest{
 sca(y = "Salnty", x = "T_degC", controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
     data = bottles, progressBar = TRUE, parallel = TRUE, workers = 2);
+}
 sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat*NO3uM"),
     data = bottles, progressBar = TRUE, parallel = FALSE,
     returnFormulae = TRUE);

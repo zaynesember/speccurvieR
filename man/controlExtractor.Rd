@@ -5,7 +5,7 @@
 \title{Extracts the control variable names and coefficients from an lm model
 summary.}
 \usage{
-controlExtractor(model, x, feols_model = F)
+controlExtractor(model, x, feols_model = FALSE)
 }
 \arguments{
 \item{model}{A model summary object.}

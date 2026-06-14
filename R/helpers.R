@@ -258,6 +258,7 @@ scp <- function(sca_data){
 #' se_boot(data = bottles, formula = "Salnty ~ T_degC + ChlorA + O2Sat",
 #'         n_x = 3, n_samples = 4, sample_size = 300)
 #'
+#' \donttest{
 #' se_boot(data = data.frame(x1 = rnorm(50000, mean=4, sd=10),
 #'                           x2 = rnorm(50000, sd=50),
 #'                           ID = rep(1:100, 500),
@@ -265,6 +266,7 @@ scp <- function(sca_data){
 #'                           y = rnorm(50000)),
 #'         formula = "y ~ x1 + x2 | ID",
 #'         n_x = 2, n_samples = 10, sample_size = 1000)
+#' }
 #'
 se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
 
