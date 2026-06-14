@@ -497,7 +497,7 @@ plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
     sca_data <- sca_data %>% select(-control_coefs)
   }
 
-  pointSize <- -.25*(ncol(sca_data)-7)+(13/4)
+  pointSize <- spec_point_size(sca_data)
 
   if(tolower(plotSE)=="ribbon"){
     sca_data <- sca_data %>%
@@ -626,6 +626,54 @@ plotVars <- function(sca_data, title="", colorControls=FALSE){
   return(sc)
 }
 
+# Internal: point size for the specification-curve scatter plots, scaled down
+# as the number of control-indicator columns grows so dense plots stay legible.
+spec_point_size <- function(sca_data){
+  -.25 * (ncol(sca_data) - 7) + (13 / 4)
+}
+
+# Internal: shared implementation behind plotRMSE()/plotR2Adj()/plotAIC()/
+# plotDeviance(), which differ only in the metric column, the axis label, and
+# the message shown when that metric is absent from the sca() output.
+plot_metric <- function(sca_data, metric, ylab, missing_message,
+                        title="", showIndex=TRUE, plotVars=TRUE){
+
+  if(!metric %in% colnames(sca_data)){
+    message(missing_message)
+    return(invisible(NULL))
+  }
+
+  sca_data <- sca_data %>% select(-control_coefs)
+
+  pointSize <- spec_point_size(sca_data)
+
+  margin <- {if(title=="") unit(c(-5,2,-5,2), "points")
+             else unit(c(5,2,-5,2), "points")}
+
+  sc1 <- ggplot(data=sca_data, aes(x=.data$index, y=.data[[metric]])) +
+    geom_point(size=pointSize) +
+    labs(title=title, x="", y=ylab) +
+    theme_bw() +
+    theme(
+      axis.text.x = {if(showIndex) element_text()
+                     else element_blank()},
+      legend.title=element_blank(),
+      legend.key.size = unit(.4, 'cm'),
+      plot.margin = margin
+    )
+
+  if(plotVars){
+    sc2 <- plotVars(sca_data)
+
+    grid::grid.newpage()
+
+    return(grid::grid.draw(rbind(ggplotGrob(sc1), ggplotGrob(sc2))))
+  }
+  else{
+    return(sc1)
+  }
+}
+
 #' Plots RMSE across model specifications.
 #'
 #' @description
@@ -655,42 +703,10 @@ plotVars <- function(sca_data, title="", colorControls=FALSE){
 #'                          c("ChlorA*NO3uM", "O2Sat*NO3uM"), data=bottles,
 #'                          progressBar = TRUE, parallel=TRUE, workers=2));
 plotRMSE <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
-
-  if(!"RMSE" %in% colnames(sca_data)){
-    message(paste0("RMSE not found. Are your models nonlinear? ",
-                   "Try plotAIC() or plotDeviance() instead."))
-    return(invisible(NULL))
-  }
-
-  sca_data <- sca_data %>% select(-control_coefs)
-
-  pointSize <- -.25*(ncol(sca_data)-7)+(13/4)
-
-  margin <- {if(title=="") unit(c(-5,2,-5,2), "points")
-             else unit(c(5,2,-5,2), "points")}
-
-  sc1 <- ggplot(data=sca_data, aes(y=RMSE, x=index)) +
-    geom_point(size=pointSize) +
-    labs(title=title, x="", y="RMSE") +
-    theme_bw() +
-    theme(
-      axis.text.x = {if(showIndex) element_text()
-                     else element_blank()},
-      legend.title=element_blank(),
-      legend.key.size = unit(.4, 'cm'),
-      plot.margin = margin
-    )
-
-  if(plotVars){
-    sc2 <- plotVars(sca_data)
-
-    grid::grid.newpage()
-
-    return(grid::grid.draw(rbind(ggplotGrob(sc1), ggplotGrob(sc2))))
-  }
-  else{
-    return(sc1)
-  }
+  plot_metric(sca_data, metric="RMSE", ylab="RMSE",
+              missing_message=paste0("RMSE not found. Are your models nonlinear? ",
+                                     "Try plotAIC() or plotDeviance() instead."),
+              title=title, showIndex=showIndex, plotVars=plotVars)
 }
 
 #' Plots the adj. R-squared across model specifications.
@@ -724,42 +740,10 @@ plotRMSE <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'                          data = bottles,
 #'                          progressBar = TRUE, parallel = TRUE, workers = 2));
 plotR2Adj <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
-
-  if(!"adjR" %in% colnames(sca_data)){
-    message(paste0("Adj. R^2 not found. Are your models nonlinear? ",
-                   "Try plotAIC() or plotDeviance() instead."))
-    return(invisible(NULL))
-  }
-
-  sca_data <- sca_data %>% select(-control_coefs)
-
-  pointSize <- -.25*(ncol(sca_data)-7)+(13/4)
-
-  margin <- {if(title=="") unit(c(-5,2,-5,2), "points")
-    else unit(c(5,2,-5,2), "points")}
-
-  sc1 <- ggplot(data=sca_data, aes(y=adjR, x=index)) +
-    geom_point(size=pointSize) +
-    labs(title=title, x="", y=bquote('Adj. R'^2)) +
-    theme_bw() +
-    theme(
-      axis.text.x = {if(showIndex) element_text()
-        else element_blank()},
-      legend.title=element_blank(),
-      legend.key.size = unit(.4, 'cm'),
-      plot.margin = margin
-    )
-
-  if(plotVars){
-    sc2 <- plotVars(sca_data)
-
-    grid::grid.newpage()
-
-    return(grid::grid.draw(rbind(ggplotGrob(sc1), ggplotGrob(sc2))))
-  }
-  else{
-    return(sc1)
-  }
+  plot_metric(sca_data, metric="adjR", ylab=bquote('Adj. R'^2),
+              missing_message=paste0("Adj. R^2 not found. Are your models nonlinear? ",
+                                     "Try plotAIC() or plotDeviance() instead."),
+              title=title, showIndex=showIndex, plotVars=plotVars)
 }
 
 #' Plots the AIC across model specifications.
@@ -790,42 +774,10 @@ plotR2Adj <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'                          data = bottles,
 #'                          progressBar = TRUE, parallel = TRUE, workers = 2));
 plotAIC <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
-
-  if(!"AIC" %in% colnames(sca_data)){
-    message(paste0("AIC not found. Are your models linear? ",
-                   "Try plotR2Adj() or plotRMSE instead."))
-    return(invisible(NULL))
-  }
-
-  sca_data <- sca_data %>% select(-control_coefs)
-
-  pointSize <- -.25*(ncol(sca_data)-7)+(13/4)
-
-  margin <- {if(title=="") unit(c(-5,2,-5,2), "points")
-    else unit(c(5,2,-5,2), "points")}
-
-  sc1 <- ggplot(data=sca_data, aes(y=AIC, x=index)) +
-    geom_point(size=pointSize) +
-    labs(title=title, x="", y="AIC") +
-    theme_bw() +
-    theme(
-      axis.text.x = {if(showIndex) element_text()
-        else element_blank()},
-      legend.title=element_blank(),
-      legend.key.size = unit(.4, 'cm'),
-      plot.margin = margin
-    )
-
-  if(plotVars){
-    sc2 <- plotVars(sca_data)
-
-    grid::grid.newpage()
-
-    return(grid::grid.draw(rbind(ggplotGrob(sc1), ggplotGrob(sc2))))
-  }
-  else{
-    return(sc1)
-  }
+  plot_metric(sca_data, metric="AIC", ylab="AIC",
+              missing_message=paste0("AIC not found. Are your models linear? ",
+                                     "Try plotR2Adj() or plotRMSE instead."),
+              title=title, showIndex=showIndex, plotVars=plotVars)
 }
 
 #' Plots the deviance of residuals across model specifications.
@@ -857,43 +809,11 @@ plotAIC <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'                          data = bottles, progressBar = TRUE, parallel = TRUE,
 #'                          workers = 2));
 plotDeviance <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
-
-  if(!"deviance" %in% colnames(sca_data)){
-    message(paste0("Deviance of residuals not found. ",
-                   "Are your models linear? Try plotAIC(), ",
-                   "plotR2Adj(), or plotRMSE() instead."))
-    return(invisible(NULL))
-  }
-
-  sca_data <- sca_data %>% select(-control_coefs)
-
-  pointSize <- -.25*(ncol(sca_data)-7)+(13/4)
-
-  margin <- {if(title=="") unit(c(-5,2,-5,2), "points")
-    else unit(c(5,2,-5,2), "points")}
-
-  sc1 <- ggplot(data=sca_data, aes(y=deviance, x=index)) +
-    geom_point(size=pointSize) +
-    labs(title=title, x="", y="Deviance") +
-    theme_bw() +
-    theme(
-      axis.text.x = {if(showIndex) element_text()
-        else element_blank()},
-      legend.title=element_blank(),
-      legend.key.size = unit(.4, 'cm'),
-      plot.margin = margin
-    )
-
-  if(plotVars){
-    sc2 <- plotVars(sca_data)
-
-    grid::grid.newpage()
-
-    return(grid::grid.draw(rbind(ggplotGrob(sc1), ggplotGrob(sc2))))
-  }
-  else{
-    return(sc1)
-  }
+  plot_metric(sca_data, metric="deviance", ylab="Deviance",
+              missing_message=paste0("Deviance of residuals not found. ",
+                                     "Are your models linear? Try plotAIC(), ",
+                                     "plotR2Adj(), or plotRMSE() instead."),
+              title=title, showIndex=showIndex, plotVars=plotVars)
 }
 
 #' Plots control variable distributions.
