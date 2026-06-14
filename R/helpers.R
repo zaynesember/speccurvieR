@@ -1,5 +1,15 @@
 # Helper functions--------------------------------------------------------------
 
+# Internal: stop with an informative message if any of `cols` are absent from
+# `data`. `what` labels the offending argument in the error message.
+check_columns <- function(data, cols, what){
+  missing <- setdiff(cols, colnames(data))
+  if(length(missing) > 0){
+    stop(what, " not found in data: ", paste(missing, collapse=", "),
+         call.=FALSE)
+  }
+}
+
 #' Builds models formulae with every combination of control variables possible.
 #'
 #' @param y A string containing the dependent variable name.
@@ -26,7 +36,7 @@ formula_builder <- function(y, x, controls, fixedEffects=NA){
                             combinat::combn,
                             x = controls,
                             simplify = FALSE),
-                     recursive=F)
+                     recursive=FALSE)
 
   # Remove duplicate controls that are already in the interaction
   powerset <- unique(sapply(X=powerset, FUN=duplicate_remover, x=x))
@@ -63,7 +73,7 @@ formula_builder <- function(y, x, controls, fixedEffects=NA){
 #' paste_factory(controls = c("control1", "control2"),
 #'               x = "independentVariable");
 paste_factory <- function(controls, x){
-  if(T %in% str_detect(controls, x)){
+  if(TRUE %in% str_detect(controls, x)){
     return(paste(controls, collapse=" + "))
   }
   else return(paste(x, paste(controls, collapse=" + "), sep=" + "))
@@ -86,9 +96,9 @@ paste_factory <- function(controls, x){
 #'                   x = "independentVariable");
 duplicate_remover <- function(controls, x){
   # Check for interactions
-  if(T %in% str_detect(controls, "\\*")){
+  if(TRUE %in% str_detect(controls, "\\*")){
     # Find interaction terms
-    indices <- which(T==str_detect(controls, "\\*"))
+    indices <- which(TRUE==str_detect(controls, "\\*"))
     # Find controls that are in interaction terms
     extraTerms <- str_replace(str_replace(controls[indices],
                                           pattern=x,
@@ -125,7 +135,7 @@ duplicate_remover <- function(controls, x){
 #'
 #' m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
 #' controlExtractor(model = m, x = "STheta");
-controlExtractor <- function(model, x, feols_model=F){
+controlExtractor <- function(model, x, feols_model=FALSE){
   if(feols_model){
     input <- model$coeftable[,1]
   }
@@ -259,7 +269,7 @@ scp <- function(sca_data){
 se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
 
   # Check for fixed effects in the formula
-  FE <- ifelse(grepl("|", formula, fixed=T), T, F)
+  FE <- ifelse(grepl("|", formula, fixed=TRUE), TRUE, FALSE)
 
   # Create a list of NAs to return for cases when bootstrapping fails
   fallback_list <- as.list(rep(NA, n_x + 1))

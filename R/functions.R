@@ -65,6 +65,9 @@ sca <- function(y, x, controls, data, weights=NULL,
                 fixedEffects=NULL, returnFormulae=FALSE,
                 progressBar=TRUE, parallel=FALSE, workers=2){
 
+  # Treat the common alias "gaussian" as ordinary least squares.
+  if(family=="gaussian") family <- "linear"
+
   if(family!="linear" & !is.null(fixedEffects))
   {
     warning(paste0("Fixed effects unsupported for models other than OLS ",
@@ -74,9 +77,15 @@ sca <- function(y, x, controls, data, weights=NULL,
     fixedEffects <- NULL
   }
 
-  # General family argument for glm
+  # Build the glm family object, defaulting to the family's canonical link when
+  # `link` is NULL, with a clear error for an unrecognised family.
   if(family!="linear"){
-    family_link <- paste0(family, "(link=\"", link, "\")" )
+    fam_fun <- tryCatch(match.fun(family),
+                        error=function(e)
+                          stop("'", family,
+                               "' is not a recognised model family.",
+                               call.=FALSE))
+    fam_obj <- if(is.null(link)) fam_fun() else fam_fun(link=link)
   }
 
   # Just generate the formulae and return if desired
@@ -90,6 +99,15 @@ sca <- function(y, x, controls, data, weights=NULL,
     }
   }
 
+  # Validate that the requested columns exist in `data` (interaction syntax in
+  # x/controls is split so each underlying variable is checked).
+  vars <- unique(trimws(unlist(strsplit(c(y, x, controls), "[*:]"))))
+  check_columns(data, vars, "Variable(s)")
+  if(!is.null(fixedEffects)){
+    check_columns(data, fixedEffects, "Fixed-effects variable(s)")
+  }
+  if(!is.null(weights)) check_columns(data, weights, "Weights variable")
+
   # Build the model formulae (with or without fixed effects)
   if(is.null(fixedEffects)){
     formulae <- formula_builder(y=y, x=x, controls=controls)
@@ -102,7 +120,7 @@ sca <- function(y, x, controls, data, weights=NULL,
   # Estimator for a single specification. Dispatches on fixed effects, family,
   # and weights and returns a model summary. Defined as a closure so that, when
   # estimation is parallelised, it carries `data`, `weights`, `family`,
-  # `family_link`, and `fixedEffects` to the workers along with the function.
+  # `fam_obj`, and `fixedEffects` to the workers along with the function.
   estimate_one <- function(f){
     if(!is.null(fixedEffects)){
       if(is.null(weights)){
@@ -123,12 +141,11 @@ sca <- function(y, x, controls, data, weights=NULL,
     }
     else{
       if(is.null(weights)){
-        summary(glm(f, data=data, family=eval(parse(text=family_link))))
+        summary(glm(f, data=data, family=fam_obj))
       }
       else{
         environment(f) <- environment()
-        summary(glm(f, data=data, weights=get(weights),
-                    family=eval(parse(text=family_link))))
+        summary(glm(f, data=data, weights=get(weights), family=fam_obj))
       }
     }
   }
@@ -189,12 +206,12 @@ sca <- function(y, x, controls, data, weights=NULL,
       p <- lapply(X=models, function(x2) x2$coeftable[x,4])
       terms <- lapply(X=models, FUN=function(x2) row.names(x2$coeftable))
       RMSE <- lapply(X=models, FUN=function(x2) fitstat(x2, type="rmse",
-                                                        verbose=F)[[1]])
+                                                        verbose=FALSE)[[1]])
       adjR <- lapply(X=models, FUN=function(x2) fitstat(x2, type="war2",
-                                                        verbose=F)[[1]])
+                                                        verbose=FALSE)[[1]])
       control_coefs <- lapply(X=models,
                               FUN=function(x2,x3)
-                                controlExtractor(x2, x3, feols_model=T),
+                                controlExtractor(x2, x3, feols_model=TRUE),
                               x3=x)
     }
 
@@ -215,7 +232,7 @@ sca <- function(y, x, controls, data, weights=NULL,
           p < .05 ~ "p < .05",
           p < .1 ~ "p < .1",
           p >= .1 ~ "p >= .1",
-          T ~ NA_character_
+          TRUE ~ NA_character_
         )) %>%
       arrange(coef) %>%
       mutate(index=row_number())
@@ -253,7 +270,7 @@ sca <- function(y, x, controls, data, weights=NULL,
           p < .05 ~ "p < .05",
           p < .1 ~ "p < .1",
           p >= .1 ~ "p >= .1",
-          T ~ NA_character_
+          TRUE ~ NA_character_
         )) %>%
       arrange(coef) %>%
       mutate(index=row_number())
@@ -889,9 +906,16 @@ se_compare <- function(formula, data, weights=NULL,
   # not flag it as invalid when fixed effects are present.
   has_fe <- grepl("|", formula, fixed=TRUE)
 
+  # Validate the columns referenced by the formula and (if supplied) the
+  # weights. Clustering variables are validated where they are used, with a
+  # warning rather than an error.
+  formula_vars <- setdiff(all.vars(stats::as.formula(formula)), ".")
+  check_columns(data, formula_vars, "Variable(s)")
+  if(!is.null(weights)) check_columns(data, weights, "Weights variable")
+
   # If the formula contains a pipe then fixed effects are assumed to be
   # present and models are estimated with feols() rather than lm()
-  if(grepl("|", formula, fixed=T)){
+  if(grepl("|", formula, fixed=TRUE)){
 
     if(is.null(weights)){
       model_fe <- tryCatch(feols(as.formula(formula), data=data),
@@ -1006,7 +1030,7 @@ se_compare <- function(formula, data, weights=NULL,
     ses_CL <- NULL
 
     # If the formula has FEs remove them
-    if(grepl("|",formula, fixed=T)){
+    if(grepl("|",formula, fixed=TRUE)){
       formula <- str_trim(str_split(formula, fixed("|"))[[1]][[1]])
     }
 
@@ -1106,7 +1130,7 @@ se_compare <- function(formula, data, weights=NULL,
           sapply(types, function(x){
             coeftest(model, vcov.=vcovCL, type=x, cluster=data[c])[,2]
           })
-        }, types=types_CL, simplify=F)
+        }, types=types_CL, simplify=FALSE)
 
         ses_CL <- do.call(cbind, ses_CL)
 
