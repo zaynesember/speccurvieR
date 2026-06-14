@@ -1,3 +1,22 @@
+# speccurvieR 0.5.0
+
+* `sca()` and `se_compare()` now validate that the supplied column names exist
+  in `data`, failing with an informative message instead of a cryptic
+  deep-stack error.
+* `sca()` accepts `family = "gaussian"` as an alias for OLS and defaults to a
+  glm family's canonical link when `link` is not supplied (e.g.
+  `family = "binomial"` no longer requires explicitly specifying the logit
+  link). An unrecognised family now raises a clear error.
+* `se_compare()` no longer errors on a fixed-effects model when clustering with
+  specific (non-`"all"`) standard error types, and no longer warns that the
+  fixed-effects-only `"CL_FE"` type is invalid when the formula has fixed
+  effects.
+* Fixed latent bugs in `se_compare()` standard-error type validation and
+  bootstrap sample-size expansion, a stray debug print, and a crash when
+  combining fixed effects with a non-linear family in `sca()`.
+* Added a `testthat` test suite and refactored the internals of `sca()` and
+  `se_compare()`; no change to their output for valid input.
+
 # speccurvieR 0.4.2
 
 Added support for weights in se_compare().
