@@ -90,236 +90,76 @@ sca <- function(y, x, controls, data, weights=NULL,
     }
   }
 
-  # With parallel computing
-  if(parallel){
-
-    cl <- makePSOCKcluster(rep("localhost", workers))
-
-    # Load needed package into each cluster
-    clusterEvalQ(cl, library(fixest))
-
-    # No fixed effects specified
-    if(is.null(fixedEffects)){
-      # Build the formulae
-      formulae <- formula_builder(y=y, x=x, controls=controls)
-
-      # Estimate the models with lm()
-      clusterExport(cl, "formulae", envir=environment())
-      clusterExport(cl, "data", envir=environment())
-
-      # Show progress bar if desired
-      if(progressBar){
-        print.noquote(paste("Estimating", length(formulae),
-                            "models in parallel with",
-                            workers, "workers"))
-
-        if(family=="linear"){
-          if(is.null(weights)){
-            system.time(models <- pblapply(
-              formulae, function(x2) summary(lm(x2, data=data)), cl=cl))
-          }
-          else{
-            system.time(models <- pblapply(
-              formulae, function(x2){
-                environment(x2) <- environment()
-                summary(lm(x2, data=data, weights=get(weights)))},
-              cl=cl))
-          }
-        }
-        else{
-          if(is.null(weights)){
-            system.time(models <- pblapply(
-              formulae, function(x2) summary(
-                glm(x2, data=data, family=eval(parse(text=family_link)))),
-              cl=cl))
-          }
-          else{
-            system.time(models <- pblapply(
-              formulae, function(x2){
-                environment(x2) <- environment()
-                summary(glm(x2, data=data, weights=get(weights),
-                    family=eval(parse(text=family_link))))},
-              cl=cl))
-          }
-        }
-      }
-      else{
-        if(family=="linear"){
-          if(is.null(weights)){
-            models <- parLapply(
-              cl, formulae, function(x2) summary(lm(x2, data=data)))
-          }
-          else{
-            models <- parLapply(
-              cl, formulae, function(x2){
-                environment(x2) <- environment()
-                summary(lm(x2, data=data, weights=get(weights)))}
-              )
-          }
-        }
-        else{
-          if(is.null(weights)){
-            models <- parLapply(
-              cl, formulae, function(x2) summary(
-                glm(x2, data=data, family=eval(parse(text=family_link)))))
-          }
-          else{
-            models <- parLapply(
-              cl, formulae, function(x2){
-                environment(x2) <- environment()
-                summary(glm(x2, data=data, weights=get(weights),
-                    family=eval(parse(text=family_link))))}
-              )
-          }
-        }
-      }
-    }
-    # Fixed effects specified
-    else{
-      # Build the formulae
-      formulae <- formula_builder(y=y, x=x, controls=controls,
-                                  fixedEffects=fixedEffects)
-
-      clusterExport(cl, "formulae", envir=environment())
-      clusterExport(cl, "data", envir=environment())
-
-      if(progressBar){
-        print.noquote(paste("Estimating", length(formulae),
-                            "models in parallel with",
-                            workers, "workers"))
-        if(is.null(weights)){
-          system.time(models <- pblapply(formulae,
-                                         function(x2) summary(feols(x2,data=data)),
-                                         cl=cl))
-        }
-        else{
-          system.time(models <- pblapply(formulae,
-                                         function(x2){
-                                           summary(feols(x2, data=data,
-                                                         weights=data[[weights]]))},
-                                         cl=cl))
-        }
-      }
-      else{
-        if(is.null(weights)){
-          models <- parLapply(cl, formulae,
-                              function(x2) summary(feols(x2, data=data)))
-        }
-        else{
-          models <- parLapply(cl, formulae,
-                              function(x2){
-                                summary(feols(x2, data=data,
-                                              weights=data[[weights]]))}
-                              )
-        }
-      }
-    }
+  # Build the model formulae (with or without fixed effects)
+  if(is.null(fixedEffects)){
+    formulae <- formula_builder(y=y, x=x, controls=controls)
   }
-  # Without parallel computing
   else{
-    # No fixed effects specified
-    if(is.null(fixedEffects)){
-      # Build the formulae
-      formulae <- formula_builder(y=y, x=x, controls=controls)
+    formulae <- formula_builder(y=y, x=x, controls=controls,
+                                fixedEffects=fixedEffects)
+  }
 
-      if(progressBar){
-        print.noquote(paste("Estimating", length(formulae), "models"))
-        if(family=="linear"){
-          if(is.null(weights)){
-            system.time(models <- pblapply(
-              formulae, function(x2) summary(lm(x2, data=data))))
-          }
-          else{
-
-            system.time(models <- pblapply(
-              formulae, function(x2){
-                environment(x2) <- environment()
-                summary(lm(x2, data=data, weights=get(weights)))
-                }
-              ))
-          }
-        }
-        else{
-          if(is.null(weights)){
-            system.time(models <- pblapply(
-              formulae, function(x2) summary(
-                glm(x2, data=data, family=eval(parse(text=family_link))))))
-          }
-          else{
-            system.time(models <- pblapply(
-              formulae, function(x2){
-                environment(x2) <- environment()
-                summary(
-                  glm(x2, data=data, weights=get(weights),
-                      family=eval(parse(text=family_link))))}
-              ))
-          }
-        }
+  # Estimator for a single specification. Dispatches on fixed effects, family,
+  # and weights and returns a model summary. Defined as a closure so that, when
+  # estimation is parallelised, it carries `data`, `weights`, `family`,
+  # `family_link`, and `fixedEffects` to the workers along with the function.
+  estimate_one <- function(f){
+    if(!is.null(fixedEffects)){
+      if(is.null(weights)){
+        summary(feols(f, data=data))
       }
       else{
-        if(family=="linear"){
-          if(is.null(weights)){
-            models <- lapply(formulae, function(x2) summary(lm(x2, data=data)))
-          }
-          else{
-            models <- lapply(formulae, function(x2){
-              environment(x2) <- environment()
-              summary(lm(x2, data=data, weights=get(weights)))}
-              )
-          }
-        }
-        else{
-          if(is.null(weights)){
-            models <- lapply(formulae,
-                             function(x2) summary(
-                               glm(x2, data=data,
-                                   family=eval(parse(text=family_link)))))
-          }
-          else{
-            models <- lapply(formulae,
-                             function(x2){
-                               environment(x2) <- environment()
-                               summary(glm(x2, data=data, weights=get(weights),
-                                   family=eval(parse(text=family_link))))}
-                             )
-          }
-        }
+        summary(feols(f, data=data, weights=data[[weights]]))
       }
     }
-    # Fixed effects specified
-    else{
-      # Build the formulae
-      formulae <- formula_builder(y=y, x=x, controls=controls,
-                                  fixedEffects=fixedEffects)
-
-      if(progressBar){
-        print.noquote(paste("Estimating", length(formulae), "models"))
-        if(is.null(weights)){
-          system.time(models <- pblapply(
-            X=formulae, function(x2) summary(feols(x2, data=data))))
-        }
-        else{
-          system.time(models <- pblapply(
-            X=formulae, function(x2){
-              summary(feols(x2, data=data, weights=data[[weights]]))}
-            ))
-        }
+    else if(family=="linear"){
+      if(is.null(weights)){
+        summary(lm(f, data=data))
       }
       else{
-        if(is.null(weights)){
-          models <- lapply(X=formulae, function(x2) summary(feols(x2, data=data)))
-        }
-        else{
-          models <- lapply(X=formulae, function(x2){
-            summary(feols(x2, data=data, weights=data[[weights]]))}
-            )
-        }
+        environment(f) <- environment()
+        summary(lm(f, data=data, weights=get(weights)))
+      }
+    }
+    else{
+      if(is.null(weights)){
+        summary(glm(f, data=data, family=eval(parse(text=family_link))))
+      }
+      else{
+        environment(f) <- environment()
+        summary(glm(f, data=data, weights=get(weights),
+                    family=eval(parse(text=family_link))))
       }
     }
   }
 
-  # Garbage collection for parallel connections
-  if(parallel) stopCluster(cl=cl)
+  # Estimate every specification, parallelising and/or showing a progress bar
+  # as requested.
+  if(parallel){
+    cl <- makePSOCKcluster(rep("localhost", workers))
+    clusterEvalQ(cl, library(fixest))
+    clusterExport(cl, "data", envir=environment())
+
+    if(progressBar){
+      print.noquote(paste("Estimating", length(formulae),
+                          "models in parallel with", workers, "workers"))
+      models <- pblapply(formulae, estimate_one, cl=cl)
+    }
+    else{
+      models <- parLapply(cl, formulae, estimate_one)
+    }
+
+    stopCluster(cl)
+  }
+  else{
+    if(progressBar){
+      print.noquote(paste("Estimating", length(formulae), "models"))
+      models <- pblapply(formulae, estimate_one)
+    }
+    else{
+      models <- lapply(formulae, estimate_one)
+    }
+  }
 
   # OLS models
   if(family=="linear"){
