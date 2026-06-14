@@ -252,7 +252,7 @@ Or maybe we want histograms:
 
 ``` r
 plotControlDistributions(s, type="histogram")
-#> `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+#> `stat_bin()` using `bins = 30`. Pick better value `binwidth`.
 ```
 
 <img src="man/figures/README-unnamed-chunk-16-1.png" width="100%" />
@@ -289,13 +289,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            bootSamples=c(8, 10), bootSampleSize=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017       0.15622103       0.118853774
-#> T_degC      -0.0599783335 0.007428642       0.01182771       0.009862705
-#> ChlorA       0.0006514447 0.012449618       0.06291394       0.048310059
+#> (Intercept) 34.2940251811 0.097594017       0.10468529        0.16947611
+#> T_degC      -0.0599783335 0.007428642       0.00652081        0.01425708
+#> ChlorA       0.0006514447 0.012449618       0.07140932        0.07822521
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)       0.12172942       0.107378252
-#> T_degC            0.01131272       0.008436476
-#> ChlorA            0.02692236       0.023803066
+#> (Intercept)       0.05479602       0.106369136
+#> T_degC            0.00397893       0.008672805
+#> ChlorA            0.04452761       0.004257291
 ```
 
 Clustered standard errors are also supported:
@@ -316,8 +316,8 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA | Sta_ID", data = bottles,
            types = c("CL_FE", "iid", "HC0", "HC1"))
 #>              estimate_FE       CL_FE      estimate         iid         HC0
 #> (Intercept)           NA          NA 34.2940251811 0.097594017 0.107876468
-#> T_degC      -0.056560122 0.011605252 -0.0599783335 0.007428642 0.008370367
-#> ChlorA      -0.003614691 0.007410004  0.0006514447 0.012449618 0.005327664
+#> T_degC      -0.056560122 0.009382055 -0.0599783335 0.007428642 0.008370367
+#> ChlorA      -0.003614691 0.012111659  0.0006514447 0.012449618 0.005327664
 #>                     HC1
 #> (Intercept) 0.109239172
 #> T_degC      0.008476102
@@ -361,31 +361,31 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x000001d4ba66cb20>
+#> <environment: 0x11cec0b90>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x000001d4ba66cb20>
+#> <environment: 0x11cec0b90>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x000001d4ba66cb20>
+#> <environment: 0x11cec0b90>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x000001d4ba66cb20>
+#> <environment: 0x11cec0b90>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x000001d4ba66cb20>
+#> <environment: 0x11cec0b90>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x000001d4ba66cb20>
+#> <environment: 0x11cec0b90>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x000001d4ba66cb20>
+#> <environment: 0x11cec0b90>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
@@ -419,7 +419,7 @@ summary(my_own_models[[1]])
 
 # What’s next?
 
-Feel free to contact me at <zaynesember@gmail.com> to let me know of features
+Feel free to contact me at <zsember@ucsd.edu> to let me know of features
 you would find useful. Currently, I hope to add the following:
 
 - Plotting different types of standard errors
