@@ -12,6 +12,8 @@ Description: Making specification curve analysis easy, fast, and pretty. It
   Simmons, and Nelson (2020) <doi:10.1038/s41562-020-0912-z>.
 Encoding: UTF-8
 LazyData: true
+Depends:
+  R (>= 3.5.0)
 Imports:
   ggplot2,
   magrittr,
@@ -24,6 +26,9 @@ Imports:
   parallel,
   lmtest,
   sandwich
+Suggests:
+  testthat (>= 3.0.0)
+Config/testthat/edition: 3
 RoxygenNote: 7.3.1
 License: MIT + file LICENSE
 URL: https://github.com/zaynesember/speccurvieR

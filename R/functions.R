@@ -69,6 +69,9 @@ sca <- function(y, x, controls, data, weights=NULL,
   {
     warning(paste0("Fixed effects unsupported for models other than OLS ",
                    "regression. Ignoring fixed effects."))
+    # Actually drop the fixed effects so downstream estimation/extraction uses
+    # the glm path, as the warning promises.
+    fixedEffects <- NULL
   }
 
   # General family argument for glm
@@ -1110,7 +1113,7 @@ se_compare <- function(formula, data, weights=NULL,
 
         if(!"all" %in% types){
 
-          if(length(setdiff(types, types_other)!=0)){
+          if(length(setdiff(types, types_other))!=0){
             warning(paste0(setdiff(types, types_other),
                            " not a valid type for SEs in FE model, ignoring.",
                            collapse="\n"))
@@ -1132,7 +1135,7 @@ se_compare <- function(formula, data, weights=NULL,
 
           n_x <- length(model_fe$coefficients)
 
-          if(length(bootSamples)==1 & length(bootSampleSize==1)){
+          if(length(bootSamples)==1 & length(bootSampleSize)==1){
 
             samples <- bootSamples
             sample_sizes <- bootSampleSize
@@ -1175,7 +1178,6 @@ se_compare <- function(formula, data, weights=NULL,
             }
 
             if(!is.null(boot)){
-              print(boot)
               colnames(boot) <- paste("bootstrap_", "k", samples, "n",
                                       sample_sizes, "_FE", sep="")
 
@@ -1191,7 +1193,7 @@ se_compare <- function(formula, data, weights=NULL,
       # the FEs
       if(!is.null(cluster)){
 
-        if(length(setdiff(cluster, colnames(data))!=0)){
+        if(length(setdiff(cluster, colnames(data)))!=0){
           warning(paste0(setdiff(cluster, colnames(data)),
                          " not a valid clustering variable, ignoring.",
                          collapse="\n"))
@@ -1263,7 +1265,7 @@ se_compare <- function(formula, data, weights=NULL,
 
       if(!"all" %in% types){
 
-        if(length(setdiff(types, c(types_HC, types_other))!=0)){
+        if(length(setdiff(types, c(types_HC, types_other)))!=0){
           warning(paste0(setdiff(types, c(types_HC, types_other)),
                          " not a valid type for SEs, ignoring.", collapse="\n"))
         }
@@ -1286,7 +1288,7 @@ se_compare <- function(formula, data, weights=NULL,
          !is.null(bootSampleSize)){
         n_x <- length(model$coefficients)-1
 
-        if(length(bootSamples)==1 & length(bootSampleSize==1)){
+        if(length(bootSamples)==1 & length(bootSampleSize)==1){
 
           samples <- bootSamples
           sample_sizes <- bootSampleSize
@@ -1343,7 +1345,7 @@ se_compare <- function(formula, data, weights=NULL,
     # Case when clustered SEs for non-FE model are desired
     if(!is.null(cluster)){
 
-      if(length(setdiff(cluster, colnames(data))!=0)){
+      if(length(setdiff(cluster, colnames(data)))!=0){
         warning(paste0(setdiff(cluster, colnames(data)),
                        " not a valid clustering variable, ignoring.",
                        collapse="\n"))
