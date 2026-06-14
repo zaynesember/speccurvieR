@@ -276,31 +276,31 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
   # In the future this should be vectorized.
   for(i in 1:n_samples){
     # Estimate the model with a random subset of the data
-    # sample_n is a function from the dplyr package that gives us random
-    # rows from a dataframe
+    # slice_sample() is a dplyr function that returns random rows from a
+    # data frame (the modern replacement for the superseded sample_n()).
     model <- tryCatch(
       {
         if(FE){
           if(is.null(weights)){
             suppressMessages(feols(as.formula(formula),
-                                   sample_n(data, sample_size)))
+                                   slice_sample(data, n=sample_size)))
           }
           else{
             suppressMessages(feols(as.formula(formula),
-                                   sample_n(data, sample_size),
+                                   slice_sample(data, n=sample_size),
                                    weights=data[[weights]]))
           }
         }
         else{
           if(is.null(weights)){
             suppressMessages(lm(as.formula(formula),
-                                sample_n(data, sample_size)))
+                                slice_sample(data, n=sample_size)))
           }
           else{
             fmla <- as.formula(formula)
             environment(fmla) <- environment()
             suppressMessages(lm(fmla,
-                                sample_n(data, sample_size),
+                                slice_sample(data, n=sample_size),
                                 weights=get(weights)))
           }
         }

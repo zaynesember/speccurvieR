@@ -42,7 +42,7 @@ gave in and used the professor’s code. Fast forward a couple years and I
 need to run a specification curve analysis but I can’t find the
 assignment with the professor’s code–guess I’ll just write it myself.
 
-Version 0.4.0 builds on standard specification curve analysis
+`speccurvieR` builds on standard specification curve analysis
 (i.e. comparing coefficient estimates) by offering an easy way to
 compare different types of standard errors. To date no `R` package
 offers this functionality, leaving modelers to manually try different
@@ -194,7 +194,6 @@ object returned) you can also customize the plot as you would any
 
 ``` r
 library(ggplot2)
-#> Warning: package 'ggplot2' was built under R version 4.3.3
 
 plotCurve(s, plotVars=F, title="Salinity Coefficient Specification Curve") +
       theme_minimal() +

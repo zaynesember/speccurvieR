@@ -1074,6 +1074,12 @@ se_compare <- function(formula, data, weights=NULL,
   # Create the object we will eventually return
   ses <- NULL
 
+  # Whether the formula specifies fixed effects (a pipe). Captured up front
+  # because `formula` is later stripped of its fixed effects for the non-FE
+  # model. "CL_FE" is a fixed-effects-only type, so the non-FE branch should
+  # not flag it as invalid when fixed effects are present.
+  has_fe <- grepl("|", formula, fixed=TRUE)
+
   # If the formula contains a pipe then fixed effects are assumed to be
   # present and models are estimated with feols() rather than lm()
   if(grepl("|", formula, fixed=T)){
@@ -1259,8 +1265,12 @@ se_compare <- function(formula, data, weights=NULL,
 
       if(!"all" %in% types){
 
-        if(length(setdiff(types, c(types_HC, types_other)))!=0){
-          warning(paste0(setdiff(types, c(types_HC, types_other)),
+        # "CL_FE" is handled by the FE branch when fixed effects are present,
+        # so it is not an invalid type here in that case.
+        invalid <- setdiff(types, c(types_HC, types_other,
+                                    if(has_fe) "CL_FE"))
+        if(length(invalid)!=0){
+          warning(paste0(invalid,
                          " not a valid type for SEs, ignoring.", collapse="\n"))
         }
 
@@ -1351,10 +1361,12 @@ se_compare <- function(formula, data, weights=NULL,
 
       if(!"all" %in% types){
 
-        if(length(setdiff(types[!types %in% c("bootstrapped", "iid")],
-                          types_CL))!=0){
-          warning(paste0(setdiff(setdiff(types, types_CL),
-                                 c("bootstrapped", "iid")),
+        # Bootstrapped/iid SEs are not clustered, and "CL_FE" is a
+        # fixed-effects-only type, so none of them are invalid here.
+        not_clustered <- c("bootstrapped", "iid", if(has_fe) "CL_FE")
+        invalid <- setdiff(types[!types %in% not_clustered], types_CL)
+        if(length(invalid)!=0){
+          warning(paste0(invalid,
                          " not a valid type for clustered SEs, ignoring.",
                          collapse="\n"))
         }

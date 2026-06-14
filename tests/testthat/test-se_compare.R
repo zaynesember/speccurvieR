@@ -55,6 +55,31 @@ test_that("se_compare() handles FE + cluster with specific (non-'all') types", {
   expect_length(warns, 0)
 })
 
+test_that("se_compare() does not flag CL_FE as invalid when the formula has FE", {
+  # With the default fixedEffectsOnly = FALSE both an FE and a non-FE model are
+  # fit. "CL_FE" is a fixed-effects-only type, so the non-FE branch should not
+  # warn that it is invalid.
+  warns <- character(0)
+  withCallingHandlers(
+    suppressMessages(se_compare("Salnty ~ T_degC + STheta | Sta_ID", bottles,
+                                types = c("CL_FE"), cluster = "Depth_ID")),
+    warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_false(any(grepl("CL_FE", warns)))
+})
+
+test_that("se_compare() still flags CL_FE as invalid for a non-FE formula", {
+  # Guard against over-suppression: without fixed effects, CL_FE is genuinely
+  # not a valid type and should still warn.
+  expect_warning(
+    suppressMessages(se_compare("Salnty ~ T_degC", bottles, types = c("CL_FE"))),
+    "not a valid type"
+  )
+})
+
 test_that("se_boot() returns a named standard error per coefficient", {
   set.seed(1)
   b <- suppressMessages(se_boot(data = bottles,
