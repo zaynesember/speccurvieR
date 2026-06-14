@@ -1201,15 +1201,9 @@ se_compare <- function(formula, data, weights=NULL,
           cluster <- cluster[cluster %in% colnames(data)]
         }
 
-        if(!"all" %in% types){
-          if(length(setdiff(types[!types %in% c("bootstrapped", "iid")],
-                            types_CL))!=0){
-            warning(paste0(setdiff(setdiff(types, types_CL),
-                                   c("bootstrapped", "iid")),
-                           " not a valid type for clustered SEs, ignoring.",
-                           collapse="\n"))
-          }
-        }
+        # NB: for fixed-effects models the clustered SEs are feols' default
+        # cluster-robust SEs estimated per clustering variable; they do not
+        # depend on `types`, so there is no type validation here.
 
         # Estimate standard errors clustered by each desired variable
         ses_CL <- sapply(cluster, FUN=function(c){

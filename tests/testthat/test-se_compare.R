@@ -36,6 +36,25 @@ test_that("se_compare() expands a vector of bootSampleSize into multiple columns
   expect_true(all(c("bootstrap_k4n250", "bootstrap_k4n300") %in% colnames(r)))
 })
 
+test_that("se_compare() handles FE + cluster with specific (non-'all') types", {
+  # Regression test: previously errored with "object 'types_CL' not found"
+  # because the FE clustering branch referenced a variable defined only in the
+  # non-FE branch. FE clustered SEs do not depend on `types`.
+  warns <- character(0)
+  r <- withCallingHandlers(
+    suppressMessages(se_compare("Salnty ~ T_degC + STheta | Sta_ID", bottles,
+                                types = c("CL_FE"), cluster = "Depth_ID",
+                                fixedEffectsOnly = TRUE)),
+    warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_s3_class(r, "data.frame")
+  expect_true(all(c("estimate_FE", "CL_FE", "CL_Depth_ID_FE") %in% colnames(r)))
+  expect_length(warns, 0)
+})
+
 test_that("se_boot() returns a named standard error per coefficient", {
   set.seed(1)
   b <- suppressMessages(se_boot(data = bottles,
