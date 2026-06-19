@@ -5,6 +5,10 @@
   right-hand-side term is the focal independent variable, the remaining terms
   are controls, and anything after `|` is treated as fixed effects. The original
   `y` / `x` / `controls` / `fixedEffects` argument interface is unchanged.
+* New `plotSE()`: visualises the output of `se_compare()`, plotting each
+  coefficient's estimate with a confidence interval for every standard error
+  type so the sensitivity of inference to the choice of standard error is easy
+  to see.
 
 # speccurvieR 0.5.0
 
