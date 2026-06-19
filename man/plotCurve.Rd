@@ -10,7 +10,9 @@ plotCurve(
   showIndex = TRUE,
   plotVars = TRUE,
   ylab = "Coefficient",
-  plotSE = "bar"
+  plotSE = "bar",
+  medianLine = FALSE,
+  pointSize = NULL
 )
 }
 \arguments{
@@ -34,18 +36,27 @@ to `TRUE`.}
 bars or plots. For bars `plotSE = "bar"`, for ribbons
 `plotSE = "ribbon"`. If any other value is supplied then no
 standard errors are included. Defaults to `"bar"`.}
+
+\item{medianLine}{A boolean indicating whether to add a dotted line at the
+median coefficient across specifications. Defaults to
+`FALSE`.}
+
+\item{pointSize}{A number giving the size of the plotted points. Defaults to
+`NULL`, in which case a size is chosen automatically from the
+number of specifications.}
 }
 \value{
-If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
-        to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+If `plotVars = TRUE` a `patchwork` object combining the curve and the
+        variable panel; if `plotVars = FALSE` a ggplot object. Both can be
+        further customised with ggplot2 (and patchwork) operators.
 }
 \description{
 plotCurve() takes the data frame output of sca() and produces a ggplot of
 the independent variable's coefficient (as indicated in the call to sca())
 across model specifications. By default a panel is added showing which
-control variables are present in each model. Note that the ggplot output by
-this function can only be further customized when `plotVars = FALSE`, i.e.
-when the control variable panel is not included.
+control variables are present in each model. The combined plot is returned as
+a `patchwork` object, so it can be further customised with ggplot2 and
+patchwork operators (e.g. `& theme_sca(base_size = 14)`).
 }
 \examples{
 plotCurve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),

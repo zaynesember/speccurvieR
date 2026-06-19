@@ -4,7 +4,12 @@
 \alias{plotControlDistributions}
 \title{Plots control variable distributions.}
 \usage{
-plotControlDistributions(sca_data, title = "", type = "density")
+plotControlDistributions(
+  sca_data,
+  title = "",
+  type = "density",
+  zeroLine = TRUE
+)
 }
 \arguments{
 \item{sca_data}{A data frame returned by `sca()` containing model estimates
@@ -17,6 +22,10 @@ from the specification curve analysis.}
 When `type = "density"` density plots are produced. When
 `type = "hist"` or `type = "histogram"` histograms are produced.
 Defaults to `"density"`.}
+
+\item{zeroLine}{A boolean indicating whether to draw a dashed reference line
+at zero, making it easy to see whether a control's effect
+crosses zero. Defaults to `TRUE`.}
 }
 \value{
 A ggplot object.

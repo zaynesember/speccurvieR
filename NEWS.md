@@ -9,6 +9,12 @@
   coefficient's estimate with a confidence interval for every standard error
   type so the sensitivity of inference to the choice of standard error is easy
   to see.
+* Visualization overhaul: a shared, colour-blind-safe palette and an exported
+  `theme_sca()` are now applied across all plots; `plotCurve()` and the
+  model-fit plots combine their panels with `patchwork` (so the combined plot
+  is now customisable and panels align precisely); `plotCurve()` gains
+  `medianLine` and `pointSize` arguments; and `plotControlDistributions()` gains
+  a `zeroLine` argument and a cohesive fill.
 
 # speccurvieR 0.5.0
 
