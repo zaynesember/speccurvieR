@@ -21,8 +21,8 @@ showing which variables are present in each model. Defaults
 to `TRUE`.}
 }
 \value{
-If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
-        to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+If `plotVars = TRUE` a `patchwork` object combining the plot and the
+        variable panel; if `plotVars = FALSE` a ggplot object.
 }
 \description{
 plotRMSE() plots the root mean square error across model specifications. Only

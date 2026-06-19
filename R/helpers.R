@@ -420,3 +420,43 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
 
   return(retVal)
 }
+
+# Internal: an ordered, colour-blind-safe colour mapping for the significance
+# bins used across the package's plots. Sequential blues (darker = more
+# significant) with grey for non-significant, which reads intuitively and is
+# safe for all common colour-vision deficiencies.
+sca_sig_colors <- function(){
+  c("p < .005" = "#08519C",
+    "p < .05"  = "#3182BD",
+    "p < .1"   = "#6BAED6",
+    "p >= .1"  = "#9E9E9E")
+}
+
+#' A clean, consistent ggplot2 theme for speccurvieR plots.
+#'
+#' @description
+#' `theme_sca()` is the shared theme applied by the package's plotting
+#' functions. It is exported so the same look can be reused or tweaked when
+#' customising the plots they return.
+#'
+#' @param base_size Base font size, passed to [ggplot2::theme_minimal()].
+#'                  Defaults to `11`.
+#'
+#' @return A ggplot2 theme object.
+#'
+#' @export
+#'
+#' @examples
+#' library(ggplot2)
+#' ggplot(bottles, aes(T_degC, Salnty)) + geom_point() + theme_sca();
+theme_sca <- function(base_size = 11){
+  theme_minimal(base_size = base_size) +
+    theme(
+      panel.grid.minor = element_blank(),
+      plot.title       = element_text(face = "bold"),
+      legend.position  = "top",
+      legend.title     = element_blank(),
+      strip.background = element_blank(),
+      strip.text       = element_text(face = "bold")
+    )
+}

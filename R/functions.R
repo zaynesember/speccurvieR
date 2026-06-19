@@ -338,9 +338,9 @@ sca <- function(y, x, controls, data, weights=NULL,
 #' plotCurve() takes the data frame output of sca() and produces a ggplot of
 #' the independent variable's coefficient (as indicated in the call to sca())
 #' across model specifications. By default a panel is added showing which
-#' control variables are present in each model. Note that the ggplot output by
-#' this function can only be further customized when `plotVars = FALSE`, i.e.
-#' when the control variable panel is not included.
+#' control variables are present in each model. The combined plot is returned as
+#' a `patchwork` object, so it can be further customised with ggplot2 and
+#' patchwork operators (e.g. `& theme_sca(base_size = 14)`).
 #'
 #' @param sca_data A data frame returned by `sca()` containing model estimates
 #'                 from the specification curve analysis.
@@ -357,9 +357,16 @@ sca <- function(y, x, controls, data, weights=NULL,
 #'               bars or plots. For bars `plotSE = "bar"`, for ribbons
 #'               `plotSE = "ribbon"`. If any other value is supplied then no
 #'               standard errors are included. Defaults to `"bar"`.
+#' @param medianLine A boolean indicating whether to add a dotted line at the
+#'                   median coefficient across specifications. Defaults to
+#'                   `FALSE`.
+#' @param pointSize A number giving the size of the plotted points. Defaults to
+#'                  `NULL`, in which case a size is chosen automatically from the
+#'                  number of specifications.
 #'
-#' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
-#'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#' @return If `plotVars = TRUE` a `patchwork` object combining the curve and the
+#'         variable panel; if `plotVars = FALSE` a ggplot object. Both can be
+#'         further customised with ggplot2 (and patchwork) operators.
 #'
 #' @export
 #'
@@ -382,13 +389,18 @@ sca <- function(y, x, controls, data, weights=NULL,
 #'           plotSE="");
 #' }
 plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
-                         ylab="Coefficient", plotSE="bar"){
+                         ylab="Coefficient", plotSE="bar", medianLine=FALSE,
+                         pointSize=NULL){
 
   if("control_coefs" %in% names(sca_data)){
     sca_data <- sca_data %>% select(-control_coefs)
   }
 
-  pointSize <- spec_point_size(sca_data)
+  if(is.null(pointSize)) pointSize <- spec_point_size(sca_data)
+
+  # Order the significance bins so the colour scale is consistent across plots.
+  sca_data <- sca_data %>%
+    mutate(sig.level = factor(sig.level, levels = names(sca_sig_colors())))
 
   if(tolower(plotSE)=="ribbon"){
     sca_data <- sca_data %>%
@@ -396,44 +408,35 @@ plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
                                                     def = first(sig.level))))
   }
 
-  margin <- {if(title=="") unit(c(-15,2,-5,2), "points")
-             else unit(c(5,2,-5,2), "points")}
-
   sc1 <- ggplot(data=sca_data, aes(y=coef, x=index)) +
-    geom_hline(yintercept = 0, color="red", linetype="dashed", linewidth=.75) +
-    {if(plotSE=="ribbon") geom_ribbon(aes(ymin=coef-se, ymax=coef+se,
+    geom_hline(yintercept = 0, color="red", linetype="dashed", linewidth=.6) +
+    {if(medianLine) geom_hline(yintercept = stats::median(sca_data$coef),
+                               color="grey40", linetype="dotted",
+                               linewidth=.6)} +
+    {if(tolower(plotSE)=="ribbon") geom_ribbon(aes(ymin=coef-se, ymax=coef+se,
                                            group=factor(ribbon.group),
-                                           fill=factor(sig.level)),
+                                           fill=sig.level),
                                        alpha=.4)} +
     {if(tolower(plotSE)=="bar") geom_errorbar(aes(ymin=coef-se, ymax=coef+se,
-                                          color=factor(sig.level)),
+                                          color=sig.level),
                                       width=0.25)} +
-    {if(!tolower(plotSE) %in% c("ribbon",
-                       "bar")) geom_point(aes(color=as.factor(sig.level)),
-                                          size=pointSize)} +
-    {if(tolower(plotSE) %in% c("ribbon",
-                      "bar")) geom_point(color="black",size=pointSize)} +
+    {if(!tolower(plotSE) %in% c("ribbon", "bar"))
+      geom_point(aes(color=sig.level), size=pointSize)} +
+    {if(tolower(plotSE) %in% c("ribbon", "bar"))
+      geom_point(color="black", size=pointSize)} +
+    {if(tolower(plotSE)!="ribbon")
+      scale_color_manual(values=sca_sig_colors(), drop=TRUE)} +
+    {if(tolower(plotSE)=="ribbon")
+      scale_fill_manual(values=sca_sig_colors(), drop=TRUE)} +
     labs(title=title, x="", y=ylab) +
-    theme_bw() +
-    theme(
-      axis.text.x = {if(showIndex) element_text()
-                      else element_blank()},
-      axis.title.y = element_text(vjust=-0.5),
-      legend.position="top",
-      legend.title=element_blank(),
-      plot.margin = {if(title=="") unit(c(-15,1,-5,1), "points")
-                     else unit(c(5,1,-5,1), "points")}
-    ) +
-    guides(color = guide_legend(override.aes = list(size=2))) +
-    guides(fill = guide_legend(override.aes = list(size=2)))
-
+    theme_sca() +
+    theme(axis.text.x = {if(showIndex) element_text() else element_blank()}) +
+    guides(color = guide_legend(override.aes = list(size=2)),
+           fill  = guide_legend(override.aes = list(size=2)))
 
   if(plotVars){
     sc2 <- plotVars(sca_data)
-
-    grid::grid.newpage()
-
-    return(grid::grid.draw(rbind(ggplotGrob(sc1), ggplotGrob(sc2))))
+    return(patchwork::wrap_plots(sc1, sc2, ncol=1, heights=c(3, 1)))
   }
   else{
     return(sc1)
@@ -540,27 +543,15 @@ plot_metric <- function(sca_data, metric, ylab, missing_message,
 
   pointSize <- spec_point_size(sca_data)
 
-  margin <- {if(title=="") unit(c(-5,2,-5,2), "points")
-             else unit(c(5,2,-5,2), "points")}
-
   sc1 <- ggplot(data=sca_data, aes(x=.data$index, y=.data[[metric]])) +
     geom_point(size=pointSize) +
     labs(title=title, x="", y=ylab) +
-    theme_bw() +
-    theme(
-      axis.text.x = {if(showIndex) element_text()
-                     else element_blank()},
-      legend.title=element_blank(),
-      legend.key.size = unit(.4, 'cm'),
-      plot.margin = margin
-    )
+    theme_sca() +
+    theme(axis.text.x = {if(showIndex) element_text() else element_blank()})
 
   if(plotVars){
     sc2 <- plotVars(sca_data)
-
-    grid::grid.newpage()
-
-    return(grid::grid.draw(rbind(ggplotGrob(sc1), ggplotGrob(sc2))))
+    return(patchwork::wrap_plots(sc1, sc2, ncol=1, heights=c(3, 1)))
   }
   else{
     return(sc1)
@@ -580,8 +571,8 @@ plot_metric <- function(sca_data, metric, ylab, missing_message,
 #'                 showing which variables are present in each model. Defaults
 #'                 to `TRUE`.
 #'
-#' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
-#'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#' @return If `plotVars = TRUE` a `patchwork` object combining the plot and the
+#'         variable panel; if `plotVars = FALSE` a ggplot object.
 #'
 #' @export
 #'
@@ -614,8 +605,8 @@ plotRMSE <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'
 #' @inheritParams plotRMSE
 #'
-#' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
-#'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#' @return If `plotVars = TRUE` a `patchwork` object combining the plot and the
+#'         variable panel; if `plotVars = FALSE` a ggplot object.
 #'
 #' @export
 #'
@@ -651,8 +642,8 @@ plotR2Adj <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'
 #' @inheritParams plotRMSE
 #'
-#' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
-#'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#' @return If `plotVars = TRUE` a `patchwork` object combining the plot and the
+#'         variable panel; if `plotVars = FALSE` a ggplot object.
 #'
 #' @export
 #'
@@ -687,8 +678,8 @@ plotAIC <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'
 #' @inheritParams plotRMSE
 #'
-#' @return If `plotVars = TRUE` returns a grid grob (i.e. the output of a call
-#'         to `grid.draw`). If `plotVars =  FALSE` returns a ggplot object.
+#' @return If `plotVars = TRUE` a `patchwork` object combining the plot and the
+#'         variable panel; if `plotVars = FALSE` a ggplot object.
 #'
 #' @export
 #'
@@ -728,6 +719,9 @@ plotDeviance <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'             When `type = "density"` density plots are produced. When
 #'             `type = "hist"` or `type = "histogram"` histograms are produced.
 #'             Defaults to `"density"`.
+#' @param zeroLine A boolean indicating whether to draw a dashed reference line
+#'                 at zero, making it easy to see whether a control's effect
+#'                 crosses zero. Defaults to `TRUE`.
 #'
 #' @return A ggplot object.
 #'
@@ -752,7 +746,8 @@ plotDeviance <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #'                                     parallel = TRUE, workers = 2),
 #'                          type = "density")
 #' }
-plotControlDistributions <- function(sca_data, title="", type="density"){
+plotControlDistributions <- function(sca_data, title="", type="density",
+                                     zeroLine=TRUE){
 
   histData <- bind_rows(unAsIs(sca_data$control_coefs))
 
@@ -763,18 +758,21 @@ plotControlDistributions <- function(sca_data, title="", type="density"){
 
   n_facets <- length(unique(histData$term))
 
+  # A single cohesive fill from the package palette rather than a clashing
+  # colour per facet (the colour carried no information).
+  fillColor <- sca_sig_colors()[["p < .05"]]
+
   sc1 <- histData %>%
-    ggplot(aes(x=coef, fill=factor(term))) +
-      {if(tolower(type)=="hist" | tolower(type)=="histogram") geom_histogram()
-       else if (tolower(type)=="density") geom_density()} +
+    ggplot(aes(x=coef)) +
+      {if(tolower(type)=="hist" | tolower(type)=="histogram")
+         geom_histogram(fill=fillColor, color="white")
+       else if (tolower(type)=="density")
+         geom_density(fill=fillColor, color="grey20", alpha=.85)} +
+      {if(zeroLine) geom_vline(xintercept=0, color="red", linetype="dashed",
+                               linewidth=.5)} +
       labs(x="", y="", title=title) +
-      theme_bw() +
-      theme(
-        legend.position="none",
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        strip.background = element_blank()
-      ) +
+      theme_sca() +
+      theme(legend.position="none") +
     {if(n_facets>16) theme(axis.text.x=element_text(size=4),
                            axis.text.y=element_text(size=4),
                            strip.text=element_text(size=6))
@@ -1279,12 +1277,11 @@ plotSE <- function(se_data, level=0.95, intercept=FALSE, title=""){
     geom_hline(yintercept=0, color="red", linetype="dashed") +
     geom_pointrange(aes(ymin=lower, ymax=upper)) +
     facet_wrap(~term, scales="free_y") +
-    scale_color_manual(values=c("FALSE"="grey50", "TRUE"="black"),
+    scale_color_manual(values=c("FALSE"="#9E9E9E", "TRUE"="#08519C"),
                        labels=c("FALSE"="CI includes 0",
                                 "TRUE"="CI excludes 0"),
                        drop=FALSE) +
     labs(title=title, x="Standard error type", y="Estimate", color="") +
-    theme_bw() +
-    theme(axis.text.x=element_text(angle=45, hjust=1),
-          legend.position="top")
+    theme_sca() +
+    theme(axis.text.x=element_text(angle=45, hjust=1))
 }

@@ -16,6 +16,7 @@ Depends:
   R (>= 3.5.0)
 Imports:
   ggplot2,
+  patchwork,
   magrittr,
   tidyr,
   dplyr,
