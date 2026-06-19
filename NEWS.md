@@ -9,6 +9,12 @@
   coefficient's estimate with a confidence interval for every standard error
   type so the sensitivity of inference to the choice of standard error is easy
   to see.
+* Three new diagnostic plots: `plotInfluence()` shows how including vs excluding
+  each control shifts the independent variable's coefficient; `plotCoefFit()`
+  plots the coefficient against model fit (are the best-fitting specifications
+  outliers?); and `plotMultiSE()` draws the specification curve faceted by
+  standard error type, so you can see which specifications stay significant under
+  each choice of standard error.
 * Visualization overhaul: a shared, colour-blind-safe palette and an exported
   `theme_sca()` are now applied across all plots; `plotCurve()` and the
   model-fit plots combine their panels with `patchwork` (so the combined plot

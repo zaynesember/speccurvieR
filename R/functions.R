@@ -1285,3 +1285,188 @@ plotSE <- function(se_data, level=0.95, intercept=FALSE, title=""){
     theme_sca() +
     theme(axis.text.x=element_text(angle=45, hjust=1))
 }
+
+#' Plots how each control influences the independent variable's coefficient.
+#'
+#' @description
+#' plotInfluence() shows, for every control variable, the distribution of the
+#' independent variable's coefficient across the specifications that include
+#' versus exclude that control. It makes clear which modelling choices move the
+#' estimate, and by how much.
+#'
+#' @param sca_data A data frame returned by `sca()`.
+#' @param title A string to use as the plot title. Defaults to `""`.
+#'
+#' @return A ggplot object with one facet per control comparing the coefficient
+#'         when that control is excluded versus included.
+#'
+#' @export
+#'
+#' @examples
+#' plotInfluence(sca(y = "Salnty", x = "T_degC",
+#'                   controls = c("ChlorA", "O2Sat", "NO2uM"),
+#'                   data = bottles, progressBar = FALSE));
+plotInfluence <- function(sca_data, title=""){
+
+  controls <- sca_control_cols(sca_data)
+  if(length(controls) == 0){
+    message("No control indicator columns found in sca_data.")
+    return(invisible(NULL))
+  }
+
+  long <- sca_data %>%
+    select(all_of(c("coef", controls))) %>%
+    pivot_longer(all_of(controls), names_to="control", values_to="included") %>%
+    mutate(included = factor(ifelse(included == 1, "Included", "Excluded"),
+                             levels = c("Excluded", "Included")))
+
+  ggplot(long, aes(x=included, y=coef, fill=included)) +
+    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5) +
+    geom_boxplot(outlier.size=.6, alpha=.9) +
+    facet_wrap(~control) +
+    scale_fill_manual(values=c("Excluded"="#9E9E9E", "Included"="#3182BD")) +
+    labs(title=title, x="", y="Coefficient") +
+    theme_sca() +
+    theme(legend.position="none")
+}
+
+#' Plots the independent variable's coefficient against model fit.
+#'
+#' @description
+#' plotCoefFit() plots the independent variable's coefficient against a measure
+#' of model fit across specifications, revealing whether better-fitting models
+#' tend to produce systematically different estimates (i.e. whether your
+#' best-fitting specifications are outliers).
+#'
+#' @param sca_data A data frame returned by `sca()`.
+#' @param metric A string naming the fit measure to plot against, one of
+#'               `"RMSE"`, `"adjR"`, `"AIC"`, or `"deviance"`. Defaults to
+#'               `NULL`, in which case the first measure available in `sca_data`
+#'               is used.
+#' @param title A string to use as the plot title. Defaults to `""`.
+#'
+#' @return A ggplot object.
+#'
+#' @export
+#'
+#' @examples
+#' plotCoefFit(sca(y = "Salnty", x = "T_degC",
+#'                 controls = c("ChlorA", "O2Sat", "NO2uM"),
+#'                 data = bottles, progressBar = FALSE));
+plotCoefFit <- function(sca_data, metric=NULL, title=""){
+
+  available <- intersect(c("RMSE", "adjR", "AIC", "deviance"), names(sca_data))
+  if(length(available) == 0){
+    message("No model-fit columns found in sca_data.")
+    return(invisible(NULL))
+  }
+  if(is.null(metric)) metric <- available[1]
+  if(!metric %in% available){
+    stop("`metric` must be one of: ", paste(available, collapse=", "),
+         call.=FALSE)
+  }
+
+  axis_labels <- c(RMSE="RMSE", adjR="Adjusted R-squared", AIC="AIC",
+                   deviance="Deviance")
+
+  sca_data <- sca_data %>%
+    mutate(sig.level = factor(sig.level, levels = names(sca_sig_colors())))
+
+  ggplot(sca_data, aes(x=.data[[metric]], y=coef, color=sig.level)) +
+    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5) +
+    geom_point(size=2) +
+    scale_color_manual(values=sca_sig_colors(), drop=TRUE) +
+    labs(title=title, x=axis_labels[[metric]], y="Coefficient") +
+    theme_sca()
+}
+
+#' Plots a specification curve under multiple standard error types.
+#'
+#' @description
+#' plotMultiSE() estimates every specification (as `sca()` does) and, for each,
+#' computes the independent variable's standard error under several types via
+#' `se_compare()`. It then plots the specification curve faceted by standard
+#' error type: the coefficient estimates are identical across facets, but the
+#' confidence intervals -- and hence which specifications are "significant" --
+#' change with the choice of standard error, showing how sensitive your
+#' conclusions are to that choice.
+#'
+#' @inheritParams sca
+#' @param types A vector of standard error types to compare, passed to
+#'              `se_compare()`: `"iid"`, the `"HC*"` types, or (with `cluster`)
+#'              clustered types. Defaults to `c("iid", "HC3")`. Bootstrapped
+#'              standard errors are not supported here; use `se_compare()`
+#'              directly for those.
+#' @param cluster Optional clustering variable(s) passed to `se_compare()`.
+#' @param level The confidence level used for the intervals. Defaults to `0.95`.
+#' @param title A string to use as the plot title. Defaults to `""`.
+#'
+#' @return A ggplot object: the specification curve faceted by standard error
+#'         type, points coloured by significance under each type.
+#'
+#' @export
+#'
+#' @examples
+#' plotMultiSE(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
+#'             data = bottles, types = c("iid", "HC1", "HC3"));
+plotMultiSE <- function(y, x, controls, data, types=c("iid", "HC3"),
+                        cluster=NULL, fixedEffects=NULL, level=0.95, title=""){
+
+  # Reuse sca()'s machinery to build the specification formulae.
+  formulae <- sca(y=y, x=x, controls=controls, data=data,
+                  fixedEffects=fixedEffects, returnFormulae=TRUE)
+
+  est_col <- if(!is.null(fixedEffects)) "estimate_FE" else "estimate"
+
+  # For each specification, pull the focal variable's coefficient and its SE
+  # under every requested type from se_compare().
+  rows <- lapply(formulae, function(f){
+    fstr <- paste(deparse(f), collapse=" ")
+    res <- tryCatch(
+      suppressWarnings(suppressMessages(
+        se_compare(formula=fstr, data=data, types=types, cluster=cluster,
+                   fixedEffectsOnly=!is.null(fixedEffects)))),
+      error=function(e) NULL)
+    if(is.null(res) || !x %in% rownames(res) || !est_col %in% colnames(res)){
+      return(NULL)
+    }
+    se_cols <- setdiff(colnames(res), c("estimate", "estimate_FE"))
+    data.frame(coef=res[x, est_col], se_type=se_cols,
+               se=as.numeric(res[x, se_cols]), stringsAsFactors=FALSE)
+  })
+
+  long <- bind_rows(rows)
+  if(nrow(long) == 0){
+    message("No standard errors could be computed for the focal variable.")
+    return(invisible(NULL))
+  }
+
+  z <- stats::qnorm(1 - (1 - level) / 2)
+
+  long <- long %>%
+    filter(!is.na(se)) %>%
+    arrange(se_type, coef) %>%
+    group_by(se_type) %>%
+    mutate(index = row_number()) %>%
+    ungroup() %>%
+    mutate(
+      p = 2 * stats::pnorm(-abs(coef / se)),
+      sig.level = factor(case_when(
+        p < .005 ~ "p < .005",
+        p < .05  ~ "p < .05",
+        p < .1   ~ "p < .1",
+        TRUE     ~ "p >= .1"
+      ), levels = names(sca_sig_colors())),
+      lower = coef - z * se,
+      upper = coef + z * se
+    )
+
+  ggplot(long, aes(x=index, y=coef)) +
+    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5) +
+    geom_errorbar(aes(ymin=lower, ymax=upper, color=sig.level), width=.25) +
+    geom_point(color="black", size=.9) +
+    facet_wrap(~se_type) +
+    scale_color_manual(values=sca_sig_colors(), drop=TRUE) +
+    labs(title=title, x="", y="Coefficient") +
+    theme_sca()
+}

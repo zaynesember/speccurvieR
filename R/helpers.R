@@ -1,5 +1,13 @@
 # Helper functions--------------------------------------------------------------
 
+# Internal: the control-indicator columns of an sca() data frame, i.e. the 0/1
+# columns naming each control, found by removing the known result columns.
+sca_control_cols <- function(sca_data){
+  meta <- c("coef", "se", "statistic", "p", "RMSE", "adjR", "AIC", "deviance",
+            "terms", "control_coefs", "sig.level", "index")
+  setdiff(names(sca_data), meta)
+}
+
 # Internal: stop with an informative message if any of `cols` are absent from
 # `data`. `what` labels the offending argument in the error message.
 check_columns <- function(data, cols, what){
