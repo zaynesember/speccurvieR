@@ -17,7 +17,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Zayne Sember \email{zsember@ucsd.edu} [copyright holder]
+\strong{Maintainer}: Zayne Sember \email{zayne@mit.edu} [copyright holder]
 
 }
 \keyword{internal}

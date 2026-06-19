@@ -10,6 +10,50 @@ check_columns <- function(data, cols, what){
   }
 }
 
+# Internal: decompose a model formula into the string components sca() uses.
+# The response is y; the FIRST right-hand-side term is the focal independent
+# variable x; remaining terms are controls; anything after a `|` is treated as
+# fixed effects (as in fixest). Right-hand-side terms are split on top-level `+`
+# so interaction units (e.g. a:b or a*b) are kept whole, and spaces around the
+# interaction operators are removed so `a * b` matches the vector interface's
+# "a*b".
+formula_to_args <- function(formula){
+  if(!inherits(formula, "formula") || length(formula) != 3){
+    stop("`formula` must be a two-sided formula, e.g. y ~ x + control1.",
+         call.=FALSE)
+  }
+
+  norm <- function(expr){
+    gsub("\\s*([*:^])\\s*", "\\1", paste(deparse(expr), collapse=""))
+  }
+
+  split_plus <- function(expr){
+    if(length(expr) == 3 && identical(expr[[1]], as.name("+"))){
+      c(split_plus(expr[[2]]), split_plus(expr[[3]]))
+    }
+    else{
+      norm(expr)
+    }
+  }
+
+  y <- norm(formula[[2]])
+
+  rhs <- formula[[3]]
+  fixedEffects <- NULL
+  if(length(rhs) == 3 && identical(rhs[[1]], as.name("|"))){
+    fixedEffects <- norm(rhs[[3]])
+    rhs <- rhs[[2]]
+  }
+
+  terms <- split_plus(rhs)
+  if(length(terms) < 2){
+    stop("The formula must supply a focal independent variable and at least ",
+         "one control, e.g. y ~ x + control1.", call.=FALSE)
+  }
+
+  list(y = y, x = terms[1], controls = terms[-1], fixedEffects = fixedEffects)
+}
+
 #' Builds models formulae with every combination of control variables possible.
 #'
 #' @param y A string containing the dependent variable name.
