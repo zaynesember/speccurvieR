@@ -1,3 +1,10 @@
+# speccurvieR (development version)
+
+* New `plotSE()`: visualises the output of `se_compare()`, plotting each
+  coefficient's estimate with a confidence interval for every standard error
+  type so the sensitivity of inference to the choice of standard error is easy
+  to see.
+
 # speccurvieR 0.5.0
 
 * `sca()` and `se_compare()` now validate that the supplied column names exist

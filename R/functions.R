@@ -1168,3 +1168,93 @@ se_compare <- function(formula, data, weights=NULL,
   # Coerce matrix to a data frame and return
   return(as.data.frame(apply(ses, FUN=unlist, MARGIN=2)))
 }
+
+#' Plots standard error estimates across types.
+#'
+#' @description
+#' plotSE() takes the data frame output of `se_compare()` and plots, for each
+#' coefficient, the estimate together with a confidence interval derived from
+#' every available type of standard error. This makes it easy to see how
+#' inference about a coefficient changes with the choice of standard error.
+#'
+#' @param se_data A data frame returned by `se_compare()`.
+#' @param level The confidence level used for the intervals. Defaults to `0.95`.
+#' @param intercept A boolean indicating whether to include the `"(Intercept)"`
+#'                  coefficient. Defaults to `FALSE`.
+#' @param title A string to use as the plot title. Defaults to an empty string,
+#'              `""`.
+#'
+#' @return A ggplot object with one facet per coefficient; within each facet the
+#'         estimate is plotted against each standard error type with a
+#'         confidence interval, and the colour indicates whether that interval
+#'         excludes zero.
+#'
+#' @export
+#'
+#' @examples
+#' plotSE(se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
+#'                   types = c("iid", "HC0", "HC3")));
+#' plotSE(se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
+#'                   types = "HC1", cluster = c("Sta_ID", "Depth_ID")),
+#'        level = 0.9);
+plotSE <- function(se_data, level=0.95, intercept=FALSE, title=""){
+
+  df <- as.data.frame(se_data)
+  df$term <- rownames(df)
+  rownames(df) <- NULL
+
+  has_fe  <- "estimate_FE" %in% names(df)
+  has_ols <- "estimate" %in% names(df)
+  est_cols <- intersect(c("estimate", "estimate_FE"), names(df))
+  se_cols <- setdiff(names(df), c(est_cols, "term"))
+
+  if(length(se_cols) == 0){
+    message("No standard error columns found in se_data.")
+    return(invisible(NULL))
+  }
+
+  # Half-width multiplier for the requested confidence level.
+  z <- stats::qnorm(1 - (1 - level) / 2)
+
+  long <- se_data %>%
+    as.data.frame() %>%
+    mutate(term = rownames(.)) %>%
+    pivot_longer(cols=all_of(se_cols), names_to="se_type", values_to="se") %>%
+    # Pair each SE type with its estimate (fixed-effects types end in "_FE").
+    mutate(is_fe = grepl("_FE$", se_type))
+
+  if(has_fe & has_ols){
+    long <- long %>% mutate(estimate = ifelse(is_fe, estimate_FE, estimate))
+  }
+  else if(has_fe){
+    long <- long %>% mutate(estimate = estimate_FE)
+  }
+
+  if(!intercept){
+    long <- long %>% filter(term != "(Intercept)")
+  }
+
+  long <- long %>%
+    filter(!is.na(se), !is.na(estimate)) %>%
+    mutate(lower = estimate - z * se,
+           upper = estimate + z * se,
+           sig   = (lower > 0) | (upper < 0))
+
+  if(nrow(long) == 0){
+    message("Nothing to plot after removing missing values.")
+    return(invisible(NULL))
+  }
+
+  ggplot(data=long, aes(x=se_type, y=estimate, color=sig)) +
+    geom_hline(yintercept=0, color="red", linetype="dashed") +
+    geom_pointrange(aes(ymin=lower, ymax=upper)) +
+    facet_wrap(~term, scales="free_y") +
+    scale_color_manual(values=c("FALSE"="grey50", "TRUE"="black"),
+                       labels=c("FALSE"="CI includes 0",
+                                "TRUE"="CI excludes 0"),
+                       drop=FALSE) +
+    labs(title=title, x="Standard error type", y="Estimate", color="") +
+    theme_bw() +
+    theme(axis.text.x=element_text(angle=45, hjust=1),
+          legend.position="top")
+}
