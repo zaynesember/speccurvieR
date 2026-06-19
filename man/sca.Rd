@@ -21,7 +21,13 @@ sca(
 }
 \arguments{
 \item{y}{A string containing the column name of the dependent variable in
-data.}
+data. Alternatively, a two-sided formula specifying the whole model,
+e.g. `y ~ x + control1 + control2 | fixedEffect`. When a formula is
+supplied the first right-hand-side term is taken as the independent
+variable `x`, the remaining terms as `controls`, and anything after
+`|` as `fixedEffects`; the `x`, `controls`, and `fixedEffects`
+arguments are then taken from the formula. `data` may be passed
+positionally in this case, e.g. `sca(y ~ x + z, data)`.}
 
 \item{x}{A string containing the column name of the independent variable in
 data.}
@@ -83,6 +89,11 @@ possible combination of controls.
 \examples{
 sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
     data = bottles, progressBar = TRUE, parallel = FALSE);
+# Equivalent call using the formula interface:
+sca(Salnty ~ T_degC + ChlorA + O2Sat, data = bottles, progressBar = FALSE);
+# Formula interface with an interaction control and fixed effects:
+sca(Salnty ~ T_degC + ChlorA + ChlorA*O2Sat | Sta_ID, data = bottles,
+    progressBar = FALSE);
 \donttest{
 sca(y = "Salnty", x = "T_degC", controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
     data = bottles, progressBar = TRUE, parallel = TRUE, workers = 2);

@@ -12,7 +12,13 @@
 #' possible combination of controls.
 #'
 #' @param y A string containing the column name of the dependent variable in
-#'          data.
+#'          data. Alternatively, a two-sided formula specifying the whole model,
+#'          e.g. `y ~ x + control1 + control2 | fixedEffect`. When a formula is
+#'          supplied the first right-hand-side term is taken as the independent
+#'          variable `x`, the remaining terms as `controls`, and anything after
+#'          `|` as `fixedEffects`; the `x`, `controls`, and `fixedEffects`
+#'          arguments are then taken from the formula. `data` may be passed
+#'          positionally in this case, e.g. `sca(y ~ x + z, data)`.
 #' @param x A string containing the column name of the independent variable in
 #'          data.
 #' @param controls A vector of strings containing the column names of the
@@ -55,6 +61,11 @@
 #' @examples
 #' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
 #'     data = bottles, progressBar = TRUE, parallel = FALSE);
+#' # Equivalent call using the formula interface:
+#' sca(Salnty ~ T_degC + ChlorA + O2Sat, data = bottles, progressBar = FALSE);
+#' # Formula interface with an interaction control and fixed effects:
+#' sca(Salnty ~ T_degC + ChlorA + ChlorA*O2Sat | Sta_ID, data = bottles,
+#'     progressBar = FALSE);
 #' \donttest{
 #' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
 #'     data = bottles, progressBar = TRUE, parallel = TRUE, workers = 2);
@@ -66,6 +77,25 @@ sca <- function(y, x, controls, data, weights=NULL,
                 family="linear", link=NULL,
                 fixedEffects=NULL, returnFormulae=FALSE,
                 progressBar=TRUE, parallel=FALSE, workers=2){
+
+  # Formula interface: sca(y ~ x + control1 + control2 | fe, data = ...).
+  # The response is y, the first right-hand-side term is the focal independent
+  # variable, the remaining terms are controls, and anything after `|` is
+  # treated as fixed effects.
+  if(inherits(y, "formula")){
+    # Allow data to be passed positionally, i.e. sca(y ~ ..., data).
+    if(missing(data) && !missing(x) && is.data.frame(x)){
+      data <- x
+    }
+    else if(!missing(x) || !missing(controls)){
+      warning("`x` and `controls` are ignored when `y` is a formula.")
+    }
+    parsed <- formula_to_args(y)
+    y <- parsed$y
+    x <- parsed$x
+    controls <- parsed$controls
+    if(!is.null(parsed$fixedEffects)) fixedEffects <- parsed$fixedEffects
+  }
 
   # Treat the common alias "gaussian" as ordinary least squares.
   if(family=="gaussian") family <- "linear"

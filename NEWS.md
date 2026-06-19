@@ -1,3 +1,11 @@
+# speccurvieR (development version)
+
+* `sca()` gains a formula interface:
+  `sca(y ~ x + control1 + control2 | fixedEffect, data)`. The first
+  right-hand-side term is the focal independent variable, the remaining terms
+  are controls, and anything after `|` is treated as fixed effects. The original
+  `y` / `x` / `controls` / `fixedEffects` argument interface is unchanged.
+
 # speccurvieR 0.5.0
 
 * `sca()` and `se_compare()` now validate that the supplied column names exist
