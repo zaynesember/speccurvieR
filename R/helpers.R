@@ -1,5 +1,13 @@
 # Helper functions--------------------------------------------------------------
 
+# Internal: the control-indicator columns of an sca() data frame, i.e. the 0/1
+# columns naming each control, found by removing the known result columns.
+sca_control_cols <- function(sca_data){
+  meta <- c("coef", "se", "statistic", "p", "RMSE", "adjR", "AIC", "deviance",
+            "terms", "control_coefs", "sig.level", "index")
+  setdiff(names(sca_data), meta)
+}
+
 # Internal: stop with an informative message if any of `cols` are absent from
 # `data`. `what` labels the offending argument in the error message.
 check_columns <- function(data, cols, what){
@@ -39,9 +47,9 @@ formula_to_args <- function(formula){
   y <- norm(formula[[2]])
 
   rhs <- formula[[3]]
-  fixedEffects <- NULL
+  fixed_effects <- NULL
   if(length(rhs) == 3 && identical(rhs[[1]], as.name("|"))){
-    fixedEffects <- norm(rhs[[3]])
+    fixed_effects <- norm(rhs[[3]])
     rhs <- rhs[[2]]
   }
 
@@ -51,7 +59,7 @@ formula_to_args <- function(formula){
          "one control, e.g. y ~ x + control1.", call.=FALSE)
   }
 
-  list(y = y, x = terms[1], controls = terms[-1], fixedEffects = fixedEffects)
+  list(y = y, x = terms[1], controls = terms[-1], fixed_effects = fixed_effects)
 }
 
 #' Builds models formulae with every combination of control variables possible.
@@ -59,9 +67,11 @@ formula_to_args <- function(formula){
 #' @param y A string containing the dependent variable name.
 #' @param x A string containing the independent variable name.
 #' @param controls A vector of strings containing control variable names.
-#' @param fixedEffects A string containing the name of a variable to use for
+#' @param fixed_effects A string containing the name of a variable to use for
 #'                     fixed effects, defaults to `NA` indicating no fixed
 #'                     effects desired.
+#' @param ... Deprecated camelCase arguments (`fixedEffects`); use
+#'            `fixed_effects` instead.
 #'
 #' @return A vector of formula objects using every possible combination of
 #'         controls.
@@ -72,8 +82,15 @@ formula_to_args <- function(formula){
 #' formula_builder("dependentVariable", "independentVariable",
 #'                 c("control1", "control2"));
 #' formula_builder("dependentVariable", "independentVariable",
-#'                 c("control1*control2"), fixedEffects="month");
-formula_builder <- function(y, x, controls, fixedEffects=NA){
+#'                 c("control1*control2"), fixed_effects="month");
+formula_builder <- function(y, x, controls, fixed_effects=NA, ...){
+
+  # Backward compatibility: translate the deprecated `fixedEffects` argument.
+  .dots <- list(...)
+  if("fixedEffects" %in% names(.dots)){
+    .Deprecated(msg="`fixedEffects` is deprecated; use `fixed_effects`.")
+    fixed_effects <- .dots$fixedEffects
+  }
 
   # Get all combinations of controls
   powerset <- unlist(lapply(1:length(controls),
@@ -86,11 +103,11 @@ formula_builder <- function(y, x, controls, fixedEffects=NA){
   powerset <- unique(sapply(X=powerset, FUN=duplicate_remover, x=x))
 
   # Build right hand side of the formulae
-  if(is.na(fixedEffects)){
+  if(is.na(fixed_effects)){
     RHS <- unique(sapply(powerset, paste_factory, x))
   }
   else{
-    RHS <- paste(unique(sapply(powerset, paste_factory, x)), fixedEffects,
+    RHS <- paste(unique(sapply(powerset, paste_factory, x)), fixed_effects,
                  sep=" | ")
   }
   # Build formulae
@@ -175,11 +192,11 @@ duplicate_remover <- function(controls, x){
 #'
 #' @examples
 #' m <- summary(lm(Salnty ~ STheta + T_degC, bottles))
-#' controlExtractor(model = m, x = "STheta");
+#' control_extractor(model = m, x = "STheta");
 #'
 #' m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
-#' controlExtractor(model = m, x = "STheta");
-controlExtractor <- function(model, x, feols_model=FALSE){
+#' control_extractor(model = m, x = "STheta");
+control_extractor <- function(model, x, feols_model=FALSE){
   if(feols_model){
     input <- model$coeftable[,1]
   }
@@ -210,8 +227,8 @@ controlExtractor <- function(model, x, feols_model=FALSE){
 #' @export
 #'
 #' @examples
-#' unAsIs(x = I(c(1:4)));
-unAsIs <- function(x) {
+#' un_as_is(x = I(c(1:4)));
+un_as_is <- function(x) {
   if("AsIs" %in% class(x)) {
     class(x) <- class(x)[-match("AsIs", class(x))]
   }
@@ -234,7 +251,7 @@ unAsIs <- function(x) {
 #'
 #' @examples
 #' scp(sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
-#'         data = bottles, progressBar=TRUE, parallel=FALSE));
+#'         data = bottles, progress_bar=TRUE, parallel=FALSE));
 scp <- function(sca_data){
   if("control_coefs" %in% names(sca_data)){
     df <- sca_data %>%

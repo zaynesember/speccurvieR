@@ -2,42 +2,42 @@
 
 test_that("formula interface matches the vector interface (linear)", {
   v <- suppressMessages(sca("Salnty", "T_degC", c("ChlorA", "O2Sat"),
-                            bottles, progressBar = FALSE))
+                            bottles, progress_bar = FALSE))
   f <- suppressMessages(sca(Salnty ~ T_degC + ChlorA + O2Sat,
-                            data = bottles, progressBar = FALSE))
+                            data = bottles, progress_bar = FALSE))
   expect_equal(f, v)
 })
 
 test_that("data can be passed positionally with a formula", {
   named <- suppressMessages(sca(Salnty ~ T_degC + ChlorA + O2Sat,
-                                data = bottles, progressBar = FALSE))
+                                data = bottles, progress_bar = FALSE))
   positional <- suppressMessages(sca(Salnty ~ T_degC + ChlorA + O2Sat,
-                                     bottles, progressBar = FALSE))
+                                     bottles, progress_bar = FALSE))
   expect_equal(positional, named)
 })
 
 test_that("formula interface handles fixed effects after `|`", {
   v <- suppressMessages(sca("Salnty", "T_degC", "ChlorA", bottles,
-                            fixedEffects = "Sta_ID", progressBar = FALSE))
+                            fixed_effects = "Sta_ID", progress_bar = FALSE))
   f <- suppressMessages(sca(Salnty ~ T_degC + ChlorA | Sta_ID,
-                            data = bottles, progressBar = FALSE))
+                            data = bottles, progress_bar = FALSE))
   expect_equal(f, v)
 })
 
 test_that("formula interface keeps interaction terms as single control units", {
   v <- suppressMessages(sca("Salnty", "T_degC",
                             c("ChlorA", "O2Sat", "ChlorA*O2Sat"),
-                            bottles, progressBar = FALSE))
+                            bottles, progress_bar = FALSE))
   f <- suppressMessages(sca(Salnty ~ T_degC + ChlorA + O2Sat + ChlorA*O2Sat,
-                            data = bottles, progressBar = FALSE))
+                            data = bottles, progress_bar = FALSE))
   expect_equal(f, v)
 })
 
-test_that("formula interface works with returnFormulae", {
+test_that("formula interface works with return_formulae", {
   v <- sca("Salnty", "T_degC", c("ChlorA", "O2Sat"), bottles,
-           returnFormulae = TRUE)
+           return_formulae = TRUE)
   f <- sca(Salnty ~ T_degC + ChlorA + O2Sat, data = bottles,
-           returnFormulae = TRUE)
+           return_formulae = TRUE)
   expect_equal(f, v)
 })
 
@@ -57,7 +57,7 @@ test_that("supplying x/controls alongside a formula warns", {
   expect_warning(
     suppressMessages(sca(Salnty ~ T_degC + ChlorA, x = "ignored",
                          controls = "ignored", data = bottles,
-                         progressBar = FALSE)),
+                         progress_bar = FALSE)),
     "ignored when `y` is a formula"
   )
 })

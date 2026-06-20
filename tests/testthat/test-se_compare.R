@@ -25,14 +25,14 @@ test_that("se_compare() warns on an invalid type without a coercion warning", {
   expect_false(any(grepl("NAs introduced by coercion", warns)))
 })
 
-test_that("se_compare() expands a vector of bootSampleSize into multiple columns", {
-  # Regression test for length(bootSampleSize == 1): a length-1 bootSamples
-  # combined with a length-2 bootSampleSize must yield one column per size.
+test_that("se_compare() expands a vector of boot_sample_size into multiple columns", {
+  # Regression test for length(boot_sample_size == 1): a length-1 boot_samples
+  # combined with a length-2 boot_sample_size must yield one column per size.
   set.seed(1)
   r <- suppressMessages(se_compare("Salnty ~ T_degC + STheta", bottles,
                                    types = "bootstrapped",
-                                   bootSamples = 4,
-                                   bootSampleSize = c(250, 300)))
+                                   boot_samples = 4,
+                                   boot_sample_size = c(250, 300)))
   expect_true(all(c("bootstrap_k4n250", "bootstrap_k4n300") %in% colnames(r)))
 })
 
@@ -44,7 +44,7 @@ test_that("se_compare() handles FE + cluster with specific (non-'all') types", {
   r <- withCallingHandlers(
     suppressMessages(se_compare("Salnty ~ T_degC + STheta | Sta_ID", bottles,
                                 types = c("CL_FE"), cluster = "Depth_ID",
-                                fixedEffectsOnly = TRUE)),
+                                fixed_effects_only = TRUE)),
     warning = function(w) {
       warns <<- c(warns, conditionMessage(w))
       invokeRestart("muffleWarning")
@@ -56,7 +56,7 @@ test_that("se_compare() handles FE + cluster with specific (non-'all') types", {
 })
 
 test_that("se_compare() does not flag CL_FE as invalid when the formula has FE", {
-  # With the default fixedEffectsOnly = FALSE both an FE and a non-FE model are
+  # With the default fixed_effects_only = FALSE both an FE and a non-FE model are
   # fit. "CL_FE" is a fixed-effects-only type, so the non-FE branch should not
   # warn that it is invalid.
   warns <- character(0)

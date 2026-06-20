@@ -2,40 +2,40 @@
 
 test_that("sca() gives a clear error for columns missing from data", {
   expect_error(
-    suppressMessages(sca("Salnty", "TYPO", "STheta", bottles, progressBar = FALSE)),
+    suppressMessages(sca("Salnty", "TYPO", "STheta", bottles, progress_bar = FALSE)),
     "not found in data"
   )
   expect_error(
     suppressMessages(sca("Salnty", "T_degC", c("STheta", "NOPE"), bottles,
-                         progressBar = FALSE)),
+                         progress_bar = FALSE)),
     "not found in data"
   )
   expect_error(
     suppressMessages(sca("Salnty", "T_degC", "STheta", bottles,
-                         fixedEffects = "NOPE", progressBar = FALSE)),
+                         fixed_effects = "NOPE", progress_bar = FALSE)),
     "Fixed-effects"
   )
   expect_error(
     suppressMessages(sca("Salnty", "T_degC", "STheta", bottles,
-                         weights = "NOPE", progressBar = FALSE)),
+                         weights = "NOPE", progress_bar = FALSE)),
     "Weights"
   )
 })
 
-test_that("sca() validation does not interfere with returnFormulae", {
-  # returnFormulae does not touch data, so it should not require valid columns.
+test_that("sca() validation does not interfere with return_formulae", {
+  # return_formulae does not touch data, so it should not require valid columns.
   expect_silent(
     f <- sca("y", "x", c("a", "b"), data = data.frame(z = 1),
-             returnFormulae = TRUE)
+             return_formulae = TRUE)
   )
   expect_length(f, 3)
 })
 
 test_that("sca() treats family = 'gaussian' as OLS", {
   g <- suppressMessages(sca("Salnty", "T_degC", "STheta", bottles,
-                            family = "gaussian", progressBar = FALSE))
+                            family = "gaussian", progress_bar = FALSE))
   l <- suppressMessages(sca("Salnty", "T_degC", "STheta", bottles,
-                            family = "linear", progressBar = FALSE))
+                            family = "linear", progress_bar = FALSE))
   expect_equal(g, l)
   expect_true("RMSE" %in% names(g))
 })
@@ -45,11 +45,11 @@ test_that("sca() defaults the link for a glm family and errors on a bad family",
   d$bin <- as.integer(d$Salnty > median(d$Salnty, na.rm = TRUE))
   # binomial with no link supplied should default to the canonical logit link.
   g <- suppressMessages(sca("bin", "T_degC", "STheta", d, family = "binomial",
-                            progressBar = FALSE))
+                            progress_bar = FALSE))
   expect_true("AIC" %in% names(g))
   expect_error(
     suppressMessages(sca("bin", "T_degC", "STheta", d, family = "binomail",
-                         progressBar = FALSE)),
+                         progress_bar = FALSE)),
     "not a recognised model family"
   )
 })

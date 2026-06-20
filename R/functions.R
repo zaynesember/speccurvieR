@@ -6,9 +6,9 @@
 #' sca() is the workhorse function of the package--this estimates models with every
 #' possible combination of the controls supplied and returns a data frame
 #' where each row contains the pertinent information and parameters for a
-#' given model by default. This data frame can then be input to plotCurve()
+#' given model by default. This data frame can then be input to plot_curve()
 #' or any other plotting function in the package. Alternatively, if
-#' `returnFormulae = TRUE`, it returns a list of formula objects with every
+#' `return_formulae = TRUE`, it returns a list of formula objects with every
 #' possible combination of controls.
 #'
 #' @param y A string containing the column name of the dependent variable in
@@ -16,7 +16,7 @@
 #'          e.g. `y ~ x + control1 + control2 | fixedEffect`. When a formula is
 #'          supplied the first right-hand-side term is taken as the independent
 #'          variable `x`, the remaining terms as `controls`, and anything after
-#'          `|` as `fixedEffects`; the `x`, `controls`, and `fixedEffects`
+#'          `|` as `fixed_effects`; the `x`, `controls`, and `fixed_effects`
 #'          arguments are then taken from the formula. `data` may be passed
 #'          positionally in this case, e.g. `sca(y ~ x + z, data)`.
 #' @param x A string containing the column name of the independent variable in
@@ -35,14 +35,14 @@
 #'             `fixest::feols()` depending on whether fixed effects are supplied.
 #'             Supports all link functions supported by the family parameter of
 #'             `glm()`.
-#' @param fixedEffects A string containing the column name of the variable
+#' @param fixed_effects A string containing the column name of the variable
 #'                     in data desired for fixed effects. Defaults to NULL in
 #'                     which case no fixed effects are included.
-#' @param returnFormulae A boolean. When `TRUE` a list of model formula objects
+#' @param return_formulae A boolean. When `TRUE` a list of model formula objects
 #'                       is returned but the models are not estimated. Defaults
 #'                       to `FALSE` in which case a dataframe of model results
 #'                       is returned.
-#' @param progressBar A boolean indicating whether the user wants a progress bar
+#' @param progress_bar A boolean indicating whether the user wants a progress bar
 #'                    for model estimation. Defaults to `TRUE`.
 #' @param parallel A boolean indicating whether to parallelize model estimation.
 #'                 Parallelization only offers a speed advantage when a large
@@ -50,8 +50,10 @@
 #'                 `FALSE`.
 #' @param workers An integer indicating the number of workers to use for
 #'                parallelization. Defaults to 2.
+#' @param ... Deprecated camelCase arguments (`fixedEffects`, `returnFormulae`,
+#'            `progressBar`); use the snake_case equivalents instead.
 #'
-#' @return When `returnFormulae` is `FALSE`, a dataframe where each row contains
+#' @return When `return_formulae` is `FALSE`, a dataframe where each row contains
 #'         the independent variable coefficient estimate, standard error,
 #'         test statistic, p-value, model specification, and measures of model
 #'         fit.
@@ -60,23 +62,38 @@
 #'
 #' @examples
 #' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
-#'     data = bottles, progressBar = TRUE, parallel = FALSE);
+#'     data = bottles, progress_bar = TRUE, parallel = FALSE);
 #' # Equivalent call using the formula interface:
-#' sca(Salnty ~ T_degC + ChlorA + O2Sat, data = bottles, progressBar = FALSE);
+#' sca(Salnty ~ T_degC + ChlorA + O2Sat, data = bottles, progress_bar = FALSE);
 #' # Formula interface with an interaction control and fixed effects:
 #' sca(Salnty ~ T_degC + ChlorA + ChlorA*O2Sat | Sta_ID, data = bottles,
-#'     progressBar = FALSE);
+#'     progress_bar = FALSE);
 #' \donttest{
 #' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
-#'     data = bottles, progressBar = TRUE, parallel = TRUE, workers = 2);
+#'     data = bottles, progress_bar = TRUE, parallel = TRUE, workers = 2);
 #' }
 #' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat*NO3uM"),
-#'     data = bottles, progressBar = TRUE, parallel = FALSE,
-#'     returnFormulae = TRUE);
+#'     data = bottles, progress_bar = TRUE, parallel = FALSE,
+#'     return_formulae = TRUE);
 sca <- function(y, x, controls, data, weights=NULL,
                 family="linear", link=NULL,
-                fixedEffects=NULL, returnFormulae=FALSE,
-                progressBar=TRUE, parallel=FALSE, workers=2){
+                fixed_effects=NULL, return_formulae=FALSE,
+                progress_bar=TRUE, parallel=FALSE, workers=2, ...){
+
+  # Backward compatibility: translate deprecated camelCase argument names.
+  .dots <- list(...)
+  if("fixedEffects" %in% names(.dots)){
+    .Deprecated(msg="`fixedEffects` is deprecated; use `fixed_effects`.")
+    fixed_effects <- .dots$fixedEffects
+  }
+  if("returnFormulae" %in% names(.dots)){
+    .Deprecated(msg="`returnFormulae` is deprecated; use `return_formulae`.")
+    return_formulae <- .dots$returnFormulae
+  }
+  if("progressBar" %in% names(.dots)){
+    .Deprecated(msg="`progressBar` is deprecated; use `progress_bar`.")
+    progress_bar <- .dots$progressBar
+  }
 
   # Formula interface: sca(y ~ x + control1 + control2 | fe, data = ...).
   # The response is y, the first right-hand-side term is the focal independent
@@ -94,19 +111,19 @@ sca <- function(y, x, controls, data, weights=NULL,
     y <- parsed$y
     x <- parsed$x
     controls <- parsed$controls
-    if(!is.null(parsed$fixedEffects)) fixedEffects <- parsed$fixedEffects
+    if(!is.null(parsed$fixed_effects)) fixed_effects <- parsed$fixed_effects
   }
 
   # Treat the common alias "gaussian" as ordinary least squares.
   if(family=="gaussian") family <- "linear"
 
-  if(family!="linear" & !is.null(fixedEffects))
+  if(family!="linear" & !is.null(fixed_effects))
   {
     warning(paste0("Fixed effects unsupported for models other than OLS ",
                    "regression. Ignoring fixed effects."))
     # Actually drop the fixed effects so downstream estimation/extraction uses
     # the glm path, as the warning promises.
-    fixedEffects <- NULL
+    fixed_effects <- NULL
   }
 
   # Build the glm family object, defaulting to the family's canonical link when
@@ -121,10 +138,10 @@ sca <- function(y, x, controls, data, weights=NULL,
   }
 
   # Just generate the formulae and return if desired
-  if(returnFormulae){
-    if(!is.null(fixedEffects)){
+  if(return_formulae){
+    if(!is.null(fixed_effects)){
       return(formula_builder(y=y, x=x, controls=controls,
-                             fixedEffects=fixedEffects))
+                             fixed_effects=fixed_effects))
     }
     else{
       return(formula_builder(y=y, x=x, controls=controls))
@@ -135,26 +152,26 @@ sca <- function(y, x, controls, data, weights=NULL,
   # x/controls is split so each underlying variable is checked).
   vars <- unique(trimws(unlist(strsplit(c(y, x, controls), "[*:]"))))
   check_columns(data, vars, "Variable(s)")
-  if(!is.null(fixedEffects)){
-    check_columns(data, fixedEffects, "Fixed-effects variable(s)")
+  if(!is.null(fixed_effects)){
+    check_columns(data, fixed_effects, "Fixed-effects variable(s)")
   }
   if(!is.null(weights)) check_columns(data, weights, "Weights variable")
 
   # Build the model formulae (with or without fixed effects)
-  if(is.null(fixedEffects)){
+  if(is.null(fixed_effects)){
     formulae <- formula_builder(y=y, x=x, controls=controls)
   }
   else{
     formulae <- formula_builder(y=y, x=x, controls=controls,
-                                fixedEffects=fixedEffects)
+                                fixed_effects=fixed_effects)
   }
 
   # Estimator for a single specification. Dispatches on fixed effects, family,
   # and weights and returns a model summary. Defined as a closure so that, when
   # estimation is parallelised, it carries `data`, `weights`, `family`,
-  # `fam_obj`, and `fixedEffects` to the workers along with the function.
+  # `fam_obj`, and `fixed_effects` to the workers along with the function.
   estimate_one <- function(f){
-    if(!is.null(fixedEffects)){
+    if(!is.null(fixed_effects)){
       if(is.null(weights)){
         summary(feols(f, data=data))
       }
@@ -189,7 +206,7 @@ sca <- function(y, x, controls, data, weights=NULL,
     clusterEvalQ(cl, library(fixest))
     clusterExport(cl, "data", envir=environment())
 
-    if(progressBar){
+    if(progress_bar){
       print.noquote(paste("Estimating", length(formulae),
                           "models in parallel with", workers, "workers"))
       models <- pblapply(formulae, estimate_one, cl=cl)
@@ -201,7 +218,7 @@ sca <- function(y, x, controls, data, weights=NULL,
     stopCluster(cl)
   }
   else{
-    if(progressBar){
+    if(progress_bar){
       print.noquote(paste("Estimating", length(formulae), "models"))
       models <- pblapply(formulae, estimate_one)
     }
@@ -214,7 +231,7 @@ sca <- function(y, x, controls, data, weights=NULL,
   if(family=="linear"){
 
     # No fixed effects
-    if(is.null(fixedEffects)){
+    if(is.null(fixed_effects)){
 
       # Get each value of interest across models
       coef <- lapply(X=models, function(x2) x2$coefficients[x,1])
@@ -225,7 +242,7 @@ sca <- function(y, x, controls, data, weights=NULL,
       RMSE <- lapply(X=models, FUN=function(x2) sqrt(mean(x2$residuals^2)))
       adjR <- lapply(X=models, function(x2) x2$adj.r.squared)
       control_coefs <- lapply(X=models,
-                              FUN=function(x2, x3) controlExtractor(x2,x3),
+                              FUN=function(x2, x3) control_extractor(x2,x3),
                               x3=x)
 
     }
@@ -243,7 +260,7 @@ sca <- function(y, x, controls, data, weights=NULL,
                                                         verbose=FALSE)[[1]])
       control_coefs <- lapply(X=models,
                               FUN=function(x2,x3)
-                                controlExtractor(x2, x3, feols_model=TRUE),
+                                control_extractor(x2, x3, feols_model=TRUE),
                               x3=x)
     }
 
@@ -282,7 +299,7 @@ sca <- function(y, x, controls, data, weights=NULL,
     deviance <- lapply(X=models, FUN=function(x2) x2$deviance)
     control_coefs <- lapply(X=models,
                             FUN=function(x2,x3,
-                                         x4) controlExtractor(x2,x3),x3=x)
+                                         x4) control_extractor(x2,x3),x3=x)
 
 
     # Store values in a data frame to be returned
@@ -335,7 +352,7 @@ sca <- function(y, x, controls, data, weights=NULL,
 #' Plots a specification curve.
 #'
 #' @description
-#' plotCurve() takes the data frame output of sca() and produces a ggplot of
+#' plot_curve() takes the data frame output of sca() and produces a ggplot of
 #' the independent variable's coefficient (as indicated in the call to sca())
 #' across model specifications. By default a panel is added showing which
 #' control variables are present in each model. The combined plot is returned as
@@ -346,63 +363,63 @@ sca <- function(y, x, controls, data, weights=NULL,
 #'                 from the specification curve analysis.
 #' @param title A string to use as the plot title. Defaults to an empty string,
 #'              `""`.
-#' @param showIndex A boolean indicating whether to label the model index on the
+#' @param show_index A boolean indicating whether to label the model index on the
 #'                  the x-axis. Defaults to `TRUE`.
-#' @param plotVars A boolean indicating whether to include a panel on the plot
+#' @param plot_vars A boolean indicating whether to include a panel on the plot
 #'                 showing which variables are present in each model. Defaults
 #'                 to `TRUE`.
 #' @param ylab A string to be used as the y-axis label. Defaults to
 #'             `"Coefficient"`.
-#' @param plotSE A string indicating whether to display standard errors as
-#'               bars or plots. For bars `plotSE = "bar"`, for ribbons
-#'               `plotSE = "ribbon"`. If any other value is supplied then no
+#' @param plot_se A string indicating whether to display standard errors as
+#'               bars or plots. For bars `plot_se = "bar"`, for ribbons
+#'               `plot_se = "ribbon"`. If any other value is supplied then no
 #'               standard errors are included. Defaults to `"bar"`.
-#' @param medianLine A boolean indicating whether to add a dotted line at the
+#' @param median_line A boolean indicating whether to add a dotted line at the
 #'                   median coefficient across specifications. Defaults to
 #'                   `FALSE`.
-#' @param pointSize A number giving the size of the plotted points. Defaults to
+#' @param point_size A number giving the size of the plotted points. Defaults to
 #'                  `NULL`, in which case a size is chosen automatically from the
 #'                  number of specifications.
 #'
-#' @return If `plotVars = TRUE` a `patchwork` object combining the curve and the
-#'         variable panel; if `plotVars = FALSE` a ggplot object. Both can be
+#' @return If `plot_vars = TRUE` a `patchwork` object combining the curve and the
+#'         variable panel; if `plot_vars = FALSE` a ggplot object. Both can be
 #'         further customised with ggplot2 (and patchwork) operators.
 #'
 #' @export
 #'
 #' @examples
-#' plotCurve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
-#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#' plot_curve(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
+#'                          data=bottles, progress_bar=TRUE, parallel=FALSE),
 #'                      title = "Salinity and Temperature Models",
-#'                      showIndex = TRUE, plotVars = TRUE,
-#'                      ylab = "Coefficient value", plotSE = "ribbon");
-#' plotCurve(sca_data = sca(y="Salnty", x="T_degC",
+#'                      show_index = TRUE, plot_vars = TRUE,
+#'                      ylab = "Coefficient value", plot_se = "ribbon");
+#' plot_curve(sca_data = sca(y="Salnty", x="T_degC",
 #'                          c("ChlorA*O2Sat", "ChlorA", "O2Sat"),
-#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
-#'                      showIndex = TRUE, plotVars = TRUE,
-#'                      plotSE = "ribbon");
+#'                          data=bottles, progress_bar=FALSE, parallel=FALSE),
+#'                      show_index = TRUE, plot_vars = TRUE,
+#'                      plot_se = "ribbon");
 #' \donttest{
-#' plotCurve(sca_data = sca(y="Salnty", x="T_degC",
+#' plot_curve(sca_data = sca(y="Salnty", x="T_degC",
 #'                          c("ChlorA*NO3uM", "O2Sat", "ChlorA", "NO3uM"),
 #'                          data=bottles,
-#'                          progressBar = TRUE, parallel = TRUE, workers=2),
-#'           plotSE="");
+#'                          progress_bar = TRUE, parallel = TRUE, workers=2),
+#'           plot_se="");
 #' }
-plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
-                         ylab="Coefficient", plotSE="bar", medianLine=FALSE,
-                         pointSize=NULL){
+plot_curve <- function(sca_data, title="", show_index=TRUE, plot_vars=TRUE,
+                         ylab="Coefficient", plot_se="bar", median_line=FALSE,
+                         point_size=NULL){
 
   if("control_coefs" %in% names(sca_data)){
     sca_data <- sca_data %>% select(-control_coefs)
   }
 
-  if(is.null(pointSize)) pointSize <- spec_point_size(sca_data)
+  if(is.null(point_size)) point_size <- spec_point_size(sca_data)
 
   # Order the significance bins so the colour scale is consistent across plots.
   sca_data <- sca_data %>%
     mutate(sig.level = factor(sig.level, levels = names(sca_sig_colors())))
 
-  if(tolower(plotSE)=="ribbon"){
+  if(tolower(plot_se)=="ribbon"){
     sca_data <- sca_data %>%
       mutate(ribbon.group = cumsum(sig.level != stats::lag(sig.level,
                                                     def = first(sig.level))))
@@ -410,32 +427,32 @@ plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
 
   sc1 <- ggplot(data=sca_data, aes(y=coef, x=index)) +
     geom_hline(yintercept = 0, color="red", linetype="dashed", linewidth=.6) +
-    {if(medianLine) geom_hline(yintercept = stats::median(sca_data$coef),
+    {if(median_line) geom_hline(yintercept = stats::median(sca_data$coef),
                                color="grey40", linetype="dotted",
                                linewidth=.6)} +
-    {if(tolower(plotSE)=="ribbon") geom_ribbon(aes(ymin=coef-se, ymax=coef+se,
+    {if(tolower(plot_se)=="ribbon") geom_ribbon(aes(ymin=coef-se, ymax=coef+se,
                                            group=factor(ribbon.group),
                                            fill=sig.level),
                                        alpha=.4)} +
-    {if(tolower(plotSE)=="bar") geom_errorbar(aes(ymin=coef-se, ymax=coef+se,
+    {if(tolower(plot_se)=="bar") geom_errorbar(aes(ymin=coef-se, ymax=coef+se,
                                           color=sig.level),
                                       width=0.25)} +
-    {if(!tolower(plotSE) %in% c("ribbon", "bar"))
-      geom_point(aes(color=sig.level), size=pointSize)} +
-    {if(tolower(plotSE) %in% c("ribbon", "bar"))
-      geom_point(color="black", size=pointSize)} +
-    {if(tolower(plotSE)!="ribbon")
+    {if(!tolower(plot_se) %in% c("ribbon", "bar"))
+      geom_point(aes(color=sig.level), size=point_size)} +
+    {if(tolower(plot_se) %in% c("ribbon", "bar"))
+      geom_point(color="black", size=point_size)} +
+    {if(tolower(plot_se)!="ribbon")
       scale_color_manual(values=sca_sig_colors(), drop=TRUE)} +
-    {if(tolower(plotSE)=="ribbon")
+    {if(tolower(plot_se)=="ribbon")
       scale_fill_manual(values=sca_sig_colors(), drop=TRUE)} +
     labs(title=title, x="", y=ylab) +
     theme_sca() +
-    theme(axis.text.x = {if(showIndex) element_text() else element_blank()}) +
+    theme(axis.text.x = {if(show_index) element_text() else element_blank()}) +
     guides(color = guide_legend(override.aes = list(size=2)),
            fill  = guide_legend(override.aes = list(size=2)))
 
-  if(plotVars){
-    sc2 <- plotVars(sca_data)
+  if(plot_vars){
+    sc2 <- plot_vars(sca_data)
     return(patchwork::wrap_plots(sc1, sc2, ncol=1, heights=c(3, 1)))
   }
   else{
@@ -446,13 +463,13 @@ plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
 #' Plots the variables in each model.
 #'
 #' @description
-#' plotVars() plots the variables included in each model specification in order
+#' plot_vars() plots the variables included in each model specification in order
 #' of model index. Returns a ggplot object that can then be combined with the
-#' output of other functions like plotRMSE() if further customization of each
+#' output of other functions like plot_rmse() if further customization of each
 #' plot is desired.
 #'
-#' @inheritParams plotCurve
-#' @param colorControls A boolean indicating whether to give each variable a
+#' @inheritParams plot_curve
+#' @param color_controls A boolean indicating whether to give each variable a
 #'                      color to improve readability. Defaults to `FALSE`.
 #'
 #' @return A ggplot object.
@@ -460,23 +477,23 @@ plotCurve <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE,
 #' @export
 #'
 #' @examples
-#' plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_vars(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                         controls = c("ChlorA", "O2Sat"),
-#'                         data = bottles, progressBar = TRUE,
+#'                         data = bottles, progress_bar = TRUE,
 #'                         parallel = FALSE),
 #'                      title = "Model Variable Specifications");
-#' plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_vars(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                         controls = c("ChlorA*O2Sat"),
-#'                         data = bottles, progressBar = FALSE,
+#'                         data = bottles, progress_bar = FALSE,
 #'                         parallel = FALSE),
-#'                      colorControls = TRUE);
+#'                      color_controls = TRUE);
 #' \donttest{
-#' plotVars(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_vars(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                         controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
 #'                         data = bottles,
-#'                         progressBar = TRUE, parallel = TRUE, workers = 2));
+#'                         progress_bar = TRUE, parallel = TRUE, workers = 2));
 #' }
-plotVars <- function(sca_data, title="", colorControls=FALSE){
+plot_vars <- function(sca_data, title="", color_controls=FALSE){
 
   if("control_coefs" %in% names(sca_data)){
     sca_data <- sca_data %>% select(-control_coefs)
@@ -489,7 +506,7 @@ plotVars <- function(sca_data, title="", colorControls=FALSE){
   margin <- {if(title=="") unit(c(-5,2,-5,2), "points")
              else unit(c(5,2,-5,2), "points")}
 
-  if(colorControls){
+  if(color_controls){
     sc <- ggplot(data=scp_data[[1]],
                   aes(x=index,y=factor(controlID), color=factor(controlID))
     ) +
@@ -528,11 +545,11 @@ spec_point_size <- function(sca_data){
   -.25 * (ncol(sca_data) - 7) + (13 / 4)
 }
 
-# Internal: shared implementation behind plotRMSE()/plotR2Adj()/plotAIC()/
-# plotDeviance(), which differ only in the metric column, the axis label, and
+# Internal: shared implementation behind plot_rmse()/plot_r2_adj()/plot_aic()/
+# plot_deviance(), which differ only in the metric column, the axis label, and
 # the message shown when that metric is absent from the sca() output.
 plot_metric <- function(sca_data, metric, ylab, missing_message,
-                        title="", showIndex=TRUE, plotVars=TRUE){
+                        title="", show_index=TRUE, plot_vars=TRUE){
 
   if(!metric %in% colnames(sca_data)){
     message(missing_message)
@@ -541,16 +558,16 @@ plot_metric <- function(sca_data, metric, ylab, missing_message,
 
   sca_data <- sca_data %>% select(-control_coefs)
 
-  pointSize <- spec_point_size(sca_data)
+  point_size <- spec_point_size(sca_data)
 
   sc1 <- ggplot(data=sca_data, aes(x=.data$index, y=.data[[metric]])) +
-    geom_point(size=pointSize) +
+    geom_point(size=point_size) +
     labs(title=title, x="", y=ylab) +
     theme_sca() +
-    theme(axis.text.x = {if(showIndex) element_text() else element_blank()})
+    theme(axis.text.x = {if(show_index) element_text() else element_blank()})
 
-  if(plotVars){
-    sc2 <- plotVars(sca_data)
+  if(plot_vars){
+    sc2 <- plot_vars(sca_data)
     return(patchwork::wrap_plots(sc1, sc2, ncol=1, heights=c(3, 1)))
   }
   else{
@@ -561,165 +578,165 @@ plot_metric <- function(sca_data, metric, ylab, missing_message,
 #' Plots RMSE across model specifications.
 #'
 #' @description
-#' plotRMSE() plots the root mean square error across model specifications. Only
+#' plot_rmse() plots the root mean square error across model specifications. Only
 #' available for linear regression models.
 #'
-#' @inheritParams plotCurve
-#' @param showIndex A boolean indicating whether to label the model index on the
+#' @inheritParams plot_curve
+#' @param show_index A boolean indicating whether to label the model index on the
 #'                  the x-axis. Defaults to `TRUE`.
-#' @param plotVars A boolean indicating whether to include a panel on the plot
+#' @param plot_vars A boolean indicating whether to include a panel on the plot
 #'                 showing which variables are present in each model. Defaults
 #'                 to `TRUE`.
 #'
-#' @return If `plotVars = TRUE` a `patchwork` object combining the plot and the
-#'         variable panel; if `plotVars = FALSE` a ggplot object.
+#' @return If `plot_vars = TRUE` a `patchwork` object combining the plot and the
+#'         variable panel; if `plot_vars = FALSE` a ggplot object.
 #'
 #' @export
 #'
 #' @examples
-#' plotRMSE(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
-#'                          data=bottles, progressBar=TRUE, parallel=FALSE),
+#' plot_rmse(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA", "O2Sat"),
+#'                          data=bottles, progress_bar=TRUE, parallel=FALSE),
 #'                      title = "RMSE");
-#' plotRMSE(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
-#'                          data=bottles, progressBar=FALSE, parallel=FALSE),
-#'                      showIndex = FALSE, plotVars = FALSE);
+#' plot_rmse(sca_data = sca(y="Salnty", x="T_degC", c("ChlorA*O2Sat"),
+#'                          data=bottles, progress_bar=FALSE, parallel=FALSE),
+#'                      show_index = FALSE, plot_vars = FALSE);
 #' \donttest{
-#' plotRMSE(sca_data = sca(y="Salnty", x="T_degC",
+#' plot_rmse(sca_data = sca(y="Salnty", x="T_degC",
 #'                          c("ChlorA*NO3uM", "O2Sat*NO3uM"), data=bottles,
-#'                          progressBar = TRUE, parallel=TRUE, workers=2));
+#'                          progress_bar = TRUE, parallel=TRUE, workers=2));
 #' }
-plotRMSE <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
+plot_rmse <- function(sca_data, title="", show_index=TRUE, plot_vars=TRUE){
   plot_metric(sca_data, metric="RMSE", ylab="RMSE",
               missing_message=paste0("RMSE not found. Are your models nonlinear? ",
-                                     "Try plotAIC() or plotDeviance() instead."),
-              title=title, showIndex=showIndex, plotVars=plotVars)
+                                     "Try plot_aic() or plot_deviance() instead."),
+              title=title, show_index=show_index, plot_vars=plot_vars)
 }
 
 #' Plots the adj. R-squared across model specifications.
 #'
 #' @description
-#' plotR2Adj() plots the adjusted R-squared across model specifications. Only
+#' plot_r2_adj() plots the adjusted R-squared across model specifications. Only
 #' available for linear regression models. Note when fixed effects are
 #' are specified the within adjusted R-squared is used (i.e. `fixest::r2()`
 #' with `type="war2"`).
 #'
-#' @inheritParams plotRMSE
+#' @inheritParams plot_rmse
 #'
-#' @return If `plotVars = TRUE` a `patchwork` object combining the plot and the
-#'         variable panel; if `plotVars = FALSE` a ggplot object.
+#' @return If `plot_vars = TRUE` a `patchwork` object combining the plot and the
+#'         variable panel; if `plot_vars = FALSE` a ggplot object.
 #'
 #' @export
 #'
 #' @examples
-#' plotR2Adj(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_r2_adj(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                          controls = c("ChlorA", "O2Sat"),
-#'                          data = bottles, progressBar = TRUE,
+#'                          data = bottles, progress_bar = TRUE,
 #'                          parallel = FALSE),
 #'                      title = "Adjusted R^2");
-#' plotR2Adj(sca_data = sca(y="Salnty", x="T_degC",
+#' plot_r2_adj(sca_data = sca(y="Salnty", x="T_degC",
 #'                          controls = c("ChlorA*O2Sat"),
-#'                          data = bottles, progressBar = FALSE,
+#'                          data = bottles, progress_bar = FALSE,
 #'                          parallel = FALSE),
-#'                      showIndex = FALSE, plotVars = FALSE);
+#'                      show_index = FALSE, plot_vars = FALSE);
 #' \donttest{
-#' plotR2Adj(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_r2_adj(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                          controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
 #'                          data = bottles,
-#'                          progressBar = TRUE, parallel = TRUE, workers = 2));
+#'                          progress_bar = TRUE, parallel = TRUE, workers = 2));
 #' }
-plotR2Adj <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
+plot_r2_adj <- function(sca_data, title="", show_index=TRUE, plot_vars=TRUE){
   plot_metric(sca_data, metric="adjR", ylab=bquote('Adj. R'^2),
               missing_message=paste0("Adj. R^2 not found. Are your models nonlinear? ",
-                                     "Try plotAIC() or plotDeviance() instead."),
-              title=title, showIndex=showIndex, plotVars=plotVars)
+                                     "Try plot_aic() or plot_deviance() instead."),
+              title=title, show_index=show_index, plot_vars=plot_vars)
 }
 
 #' Plots the AIC across model specifications.
 #'
 #' @description
-#' plotAIC() plots the Akaike information criterion across model specifications.
+#' plot_aic() plots the Akaike information criterion across model specifications.
 #' Only available for nonlinear regression models.
 #'
-#' @inheritParams plotRMSE
+#' @inheritParams plot_rmse
 #'
-#' @return If `plotVars = TRUE` a `patchwork` object combining the plot and the
-#'         variable panel; if `plotVars = FALSE` a ggplot object.
+#' @return If `plot_vars = TRUE` a `patchwork` object combining the plot and the
+#'         variable panel; if `plot_vars = FALSE` a ggplot object.
 #'
 #' @export
 #'
 #' @examples
-#' plotAIC(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_aic(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                        controls = c("ChlorA", "O2Sat"),
-#'                        data = bottles, progressBar = TRUE, parallel = FALSE),
+#'                        data = bottles, progress_bar = TRUE, parallel = FALSE),
 #'                      title = "AIC");
-#' plotAIC(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_aic(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                        controls = c("ChlorA*O2Sat"),
-#'                        data = bottles, progressBar = FALSE,
+#'                        data = bottles, progress_bar = FALSE,
 #'                        parallel = FALSE),
-#'                        showIndex = FALSE, plotVars = FALSE);
+#'                        show_index = FALSE, plot_vars = FALSE);
 #' \donttest{
-#' plotAIC(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_aic(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                          controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
 #'                          data = bottles,
-#'                          progressBar = TRUE, parallel = TRUE, workers = 2));
+#'                          progress_bar = TRUE, parallel = TRUE, workers = 2));
 #' }
-plotAIC <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
+plot_aic <- function(sca_data, title="", show_index=TRUE, plot_vars=TRUE){
   plot_metric(sca_data, metric="AIC", ylab="AIC",
               missing_message=paste0("AIC not found. Are your models linear? ",
-                                     "Try plotR2Adj() or plotRMSE instead."),
-              title=title, showIndex=showIndex, plotVars=plotVars)
+                                     "Try plot_r2_adj() or plot_rmse instead."),
+              title=title, show_index=show_index, plot_vars=plot_vars)
 }
 
 #' Plots the deviance of residuals across model specifications.
 #'
 #' @description
-#' plotDeviance() plots the deviance of residuals across model specifications.
+#' plot_deviance() plots the deviance of residuals across model specifications.
 #' Only available for linear regression models.
 #'
-#' @inheritParams plotRMSE
+#' @inheritParams plot_rmse
 #'
-#' @return If `plotVars = TRUE` a `patchwork` object combining the plot and the
-#'         variable panel; if `plotVars = FALSE` a ggplot object.
+#' @return If `plot_vars = TRUE` a `patchwork` object combining the plot and the
+#'         variable panel; if `plot_vars = FALSE` a ggplot object.
 #'
 #' @export
 #'
 #' @examples
-#' plotDeviance(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_deviance(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                             controls = c("ChlorA", "O2Sat"),
-#'                             data = bottles, progressBar = TRUE,
+#'                             data = bottles, progress_bar = TRUE,
 #'                             parallel = FALSE),
 #'                      title = "Model Deviance");
-#' plotDeviance(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_deviance(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                             controls = c("ChlorA*O2Sat"),
-#'                             data = bottles, progressBar = FALSE,
+#'                             data = bottles, progress_bar = FALSE,
 #'                             parallel = FALSE),
-#'                      showIndex = FALSE, plotVars = FALSE);
+#'                      show_index = FALSE, plot_vars = FALSE);
 #' \donttest{
-#' plotDeviance(sca_data = sca(y = "Salnty", x="T_degC",
+#' plot_deviance(sca_data = sca(y = "Salnty", x="T_degC",
 #'                          controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
-#'                          data = bottles, progressBar = TRUE, parallel = TRUE,
+#'                          data = bottles, progress_bar = TRUE, parallel = TRUE,
 #'                          workers = 2));
 #' }
-plotDeviance <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
+plot_deviance <- function(sca_data, title="", show_index=TRUE, plot_vars=TRUE){
   plot_metric(sca_data, metric="deviance", ylab="Deviance",
               missing_message=paste0("Deviance of residuals not found. ",
-                                     "Are your models linear? Try plotAIC(), ",
-                                     "plotR2Adj(), or plotRMSE() instead."),
-              title=title, showIndex=showIndex, plotVars=plotVars)
+                                     "Are your models linear? Try plot_aic(), ",
+                                     "plot_r2_adj(), or plot_rmse() instead."),
+              title=title, show_index=show_index, plot_vars=plot_vars)
 }
 
 #' Plots control variable distributions.
 #'
 #' @description
-#' plotControlDistributions() plots the distribution of coefficients for each
+#' plot_control_distributions() plots the distribution of coefficients for each
 #' control variable included in the model specifications.
 #'
-#' @inheritParams plotRMSE
+#' @inheritParams plot_rmse
 #' @param type A string indicating what type of distribution plot to produce.
 #'             When `type = "density"` density plots are produced. When
 #'             `type = "hist"` or `type = "histogram"` histograms are produced.
 #'             Defaults to `"density"`.
-#' @param zeroLine A boolean indicating whether to draw a dashed reference line
+#' @param zero_line A boolean indicating whether to draw a dashed reference line
 #'                 at zero, making it easy to see whether a control's effect
 #'                 crosses zero. Defaults to `TRUE`.
 #'
@@ -728,28 +745,28 @@ plotDeviance <- function(sca_data, title="", showIndex=TRUE, plotVars=TRUE){
 #' @export
 #'
 #' @examples
-#' plotControlDistributions(sca_data = sca(y="Salnty", x="T_degC",
+#' plot_control_distributions(sca_data = sca(y="Salnty", x="T_degC",
 #'                                     controls = c("ChlorA", "O2Sat"),
 #'                                     data = bottles,
-#'                                     progressBar = TRUE, parallel = FALSE),
+#'                                     progress_bar = TRUE, parallel = FALSE),
 #'                          title = "Control Variable Distributions")
-#' plotControlDistributions(sca_data = sca(y = "Salnty", x="T_degC",
+#' plot_control_distributions(sca_data = sca(y = "Salnty", x="T_degC",
 #'                                     controls = c("ChlorA*O2Sat"),
 #'                                     data = bottles,
-#'                                     progressBar = FALSE, parallel = FALSE),
+#'                                     progress_bar = FALSE, parallel = FALSE),
 #'                          type = "hist")
 #' \donttest{
-#' plotControlDistributions(sca_data = sca(y = "Salnty", x = "T_degC",
+#' plot_control_distributions(sca_data = sca(y = "Salnty", x = "T_degC",
 #'                                     controls = c("ChlorA*NO3uM",
 #'                                                  "O2Sat*NO3uM"),
-#'                                     data = bottles, progressBar = TRUE,
+#'                                     data = bottles, progress_bar = TRUE,
 #'                                     parallel = TRUE, workers = 2),
 #'                          type = "density")
 #' }
-plotControlDistributions <- function(sca_data, title="", type="density",
-                                     zeroLine=TRUE){
+plot_control_distributions <- function(sca_data, title="", type="density",
+                                     zero_line=TRUE){
 
-  histData <- bind_rows(unAsIs(sca_data$control_coefs))
+  histData <- bind_rows(un_as_is(sca_data$control_coefs))
 
   rownames(histData) <- NULL
 
@@ -768,7 +785,7 @@ plotControlDistributions <- function(sca_data, title="", type="density",
          geom_histogram(fill=fillColor, color="white")
        else if (tolower(type)=="density")
          geom_density(fill=fillColor, color="grey20", alpha=.85)} +
-      {if(zeroLine) geom_vline(xintercept=0, color="red", linetype="dashed",
+      {if(zero_line) geom_vline(xintercept=0, color="red", linetype="dashed",
                                linewidth=.5)} +
       labs(x="", y="", title=title) +
       theme_sca() +
@@ -783,24 +800,24 @@ plotControlDistributions <- function(sca_data, title="", type="density",
 
 
 # Internal: bootstrapped SEs for se_compare(). Estimates one column per
-# (bootSamples, bootSampleSize) combination and returns a named matrix (rows =
+# (boot_samples, boot_sample_size) combination and returns a named matrix (rows =
 # coefficients), or NULL if no estimates were produced. `fe_suffix` tags the
 # column names for fixed-effects models.
-boot_ses <- function(data, formula, n_x, bootSamples, bootSampleSize,
+boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
                      weights=NULL, fe_suffix=""){
-  if(length(bootSamples)==1 & length(bootSampleSize)==1){
-    samples <- bootSamples
-    sample_sizes <- bootSampleSize
+  if(length(boot_samples)==1 & length(boot_sample_size)==1){
+    samples <- boot_samples
+    sample_sizes <- boot_sample_size
 
     if(is.null(weights)){
       boot <- se_boot(data=data, formula=formula, n_x=n_x,
-                      n_samples=bootSamples[[1]],
-                      sample_size=bootSampleSize[[1]])
+                      n_samples=boot_samples[[1]],
+                      sample_size=boot_sample_size[[1]])
     }
     else{
       boot <- se_boot(data=data, formula=formula, n_x=n_x,
-                      n_samples=bootSamples[[1]],
-                      sample_size=bootSampleSize[[1]],
+                      n_samples=boot_samples[[1]],
+                      sample_size=boot_sample_size[[1]],
                       weights=weights)
     }
 
@@ -808,8 +825,8 @@ boot_ses <- function(data, formula, n_x, bootSamples, bootSampleSize,
     boot <- matrix(boot, ncol=1, dimnames=list(names(boot), NULL))
   }
   else{
-    samples <- rep(bootSamples, length(bootSampleSize))
-    sample_sizes <- sort(rep(bootSampleSize, length(bootSamples)))
+    samples <- rep(boot_samples, length(boot_sample_size))
+    sample_sizes <- sort(rep(boot_sample_size, length(boot_samples)))
 
     if(is.null(weights)){
       boot <- mapply(FUN=se_boot, n_samples=samples,
@@ -874,19 +891,22 @@ boot_ses <- function(data, formula, n_x, bootSamples, bootSampleSize,
 #'                                    "bootstrapped".
 #' @param cluster A string or vector of strings specifying variables present in
 #'                `data` to be used for clustering standard errors.
-#' @param clusteredOnly A boolean indicating whether only standard errors with
+#' @param clustered_only A boolean indicating whether only standard errors with
 #'                      clustering should be estimated, defaults to `FALSE`.
-#' @param fixedEffectsOnly A boolean indicating whether only standard errors for
+#' @param fixed_effects_only A boolean indicating whether only standard errors for
 #'                         fixed effects models should be estimated, defaults to
 #'                         `FALSE`.
-#' @param bootSamples An integer or vector of integers indicating how many times
+#' @param boot_samples An integer or vector of integers indicating how many times
 #'                    the model should be estimated with a random subset of the
-#'                    data. If a vector then every combination of `bootSamples`
-#'                    and `bootSampleSize` are estimated.
-#' @param bootSampleSize An integer or vector of integers indicating how many
+#'                    data. If a vector then every combination of `boot_samples`
+#'                    and `boot_sample_size` are estimated.
+#' @param boot_sample_size An integer or vector of integers indicating how many
 #'                       observations are in each random subset of the data.
-#'                       If a vector then every combination of `bootSamples`
-#'                       and `bootSampleSize` are estimated.
+#'                       If a vector then every combination of `boot_samples`
+#'                       and `boot_sample_size` are estimated.
+#' @param ... Deprecated camelCase arguments (`clusteredOnly`,
+#'            `fixedEffectsOnly`, `bootSamples`, `bootSampleSize`); use the
+#'            snake_case equivalents instead.
 #'
 #' @return A data frame where row represents an independent variable in the
 #'         model and each column a type of standard error. Coefficient estimates
@@ -902,8 +922,8 @@ boot_ses <- function(data, formula, n_x, bootSamples, bootSampleSize,
 #'          "CL_FE" = standard errors clustered by fixed effects
 #'
 #'          "bootstrap_k8n300_FE" =  bootstrapped standard errors for a fixed
-#'                                   effects model where `bootSamples = 8` and
-#'                                   `bootSampleSize = 300`
+#'                                   effects model where `boot_samples = 8` and
+#'                                   `boot_sample_size = 300`
 #'
 #'          "CL_Depth_ID_FE" = standard errors clustered by the variable
 #'                               "Depth_ID" for a model with fixed effects
@@ -921,20 +941,39 @@ boot_ses <- function(data, formula, n_x, bootSamples, bootSampleSize,
 #'
 #' se_compare(formula = "Salnty ~ T_degC + ChlorA + O2Sat | Sta_ID",
 #'            data = bottles, types = "all", cluster = c("Depth_ID", "Sta_ID"),
-#'            fixedEffectsOnly = FALSE, bootSamples=c(4, 8, 10),
-#'            bootSampleSize=c(300, 500))
+#'            fixed_effects_only = FALSE, boot_samples=c(4, 8, 10),
+#'            boot_sample_size=c(300, 500))
 #'
 #' se_compare(formula = "Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
-#'            types = "bootstrapped", bootSamples = c(8, 10),
-#'            bootSampleSize = c(300, 500))
+#'            types = "bootstrapped", boot_samples = c(8, 10),
+#'            boot_sample_size = c(300, 500))
 #'
 #' se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
 #'            types = c("HC0", "HC1", "HC3"))
 #'
 se_compare <- function(formula, data, weights=NULL,
                        types="all", cluster=NULL,
-                       clusteredOnly=FALSE, fixedEffectsOnly=FALSE,
-                       bootSamples=NULL, bootSampleSize=NULL){
+                       clustered_only=FALSE, fixed_effects_only=FALSE,
+                       boot_samples=NULL, boot_sample_size=NULL, ...){
+
+  # Backward compatibility: translate deprecated camelCase argument names.
+  .dots <- list(...)
+  if("clusteredOnly" %in% names(.dots)){
+    .Deprecated(msg="`clusteredOnly` is deprecated; use `clustered_only`.")
+    clustered_only <- .dots$clusteredOnly
+  }
+  if("fixedEffectsOnly" %in% names(.dots)){
+    .Deprecated(msg="`fixedEffectsOnly` is deprecated; use `fixed_effects_only`.")
+    fixed_effects_only <- .dots$fixedEffectsOnly
+  }
+  if("bootSamples" %in% names(.dots)){
+    .Deprecated(msg="`bootSamples` is deprecated; use `boot_samples`.")
+    boot_samples <- .dots$bootSamples
+  }
+  if("bootSampleSize" %in% names(.dots)){
+    .Deprecated(msg="`bootSampleSize` is deprecated; use `boot_sample_size`.")
+    boot_sample_size <- .dots$bootSampleSize
+  }
 
   # Create objects that will store the standard errors
   ses_CL <- NULL
@@ -991,7 +1030,7 @@ se_compare <- function(formula, data, weights=NULL,
 
       # Case when user wants to cluster by FEs (i.e. the default SEs reported
       # by feols()) or bootstrap
-      if(!clusteredOnly){
+      if(!clustered_only){
         types_other <- c("CL_FE","bootstrapped")
 
         if(!"all" %in% types){
@@ -1013,12 +1052,12 @@ se_compare <- function(formula, data, weights=NULL,
         }
 
         # Get bootstrapped SEs
-        if("bootstrapped" %in% types_other & !is.null(bootSamples) &
-           !is.null(bootSampleSize)){
+        if("bootstrapped" %in% types_other & !is.null(boot_samples) &
+           !is.null(boot_sample_size)){
 
           boot <- boot_ses(data=data, formula=formula,
                            n_x=length(model_fe$coefficients),
-                           bootSamples=bootSamples, bootSampleSize=bootSampleSize,
+                           boot_samples=boot_samples, boot_sample_size=boot_sample_size,
                            weights=weights, fe_suffix="_FE")
 
           if(!is.null(boot)){
@@ -1066,7 +1105,7 @@ se_compare <- function(formula, data, weights=NULL,
 
   }
   # Case when a non-FE model is desired
-  if(!fixedEffectsOnly){
+  if(!fixed_effects_only){
 
     # Allocate objects to hold SEs
     ses_other <- NULL
@@ -1093,7 +1132,7 @@ se_compare <- function(formula, data, weights=NULL,
                                            c("estimate"))))
 
     # Parse the user's desired SE types
-    if(!clusteredOnly){
+    if(!clustered_only){
       types_HC <- c("HC0", "HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")
       types_other <- c("iid", "bootstrapped")
 
@@ -1122,12 +1161,12 @@ se_compare <- function(formula, data, weights=NULL,
                        function(x) coeftest(model, vcov.=vcovHC, type=x)[,2])
 
       # Get bootstrapped standard errors
-      if("bootstrapped" %in% types_other & !is.null(bootSamples) &
-         !is.null(bootSampleSize)){
+      if("bootstrapped" %in% types_other & !is.null(boot_samples) &
+         !is.null(boot_sample_size)){
 
         boot <- boot_ses(data=data, formula=formula,
                          n_x=length(model$coefficients)-1,
-                         bootSamples=bootSamples, bootSampleSize=bootSampleSize,
+                         boot_samples=boot_samples, boot_sample_size=boot_sample_size,
                          weights=weights, fe_suffix="")
 
         if(!is.null(boot)){
@@ -1200,7 +1239,7 @@ se_compare <- function(formula, data, weights=NULL,
 #' Plots standard error estimates across types.
 #'
 #' @description
-#' plotSE() takes the data frame output of `se_compare()` and plots, for each
+#' plot_se() takes the data frame output of `se_compare()` and plots, for each
 #' coefficient, the estimate together with a confidence interval derived from
 #' every available type of standard error. This makes it easy to see how
 #' inference about a coefficient changes with the choice of standard error.
@@ -1220,12 +1259,12 @@ se_compare <- function(formula, data, weights=NULL,
 #' @export
 #'
 #' @examples
-#' plotSE(se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
+#' plot_se(se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
 #'                   types = c("iid", "HC0", "HC3")));
-#' plotSE(se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
+#' plot_se(se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
 #'                   types = "HC1", cluster = c("Sta_ID", "Depth_ID")),
 #'        level = 0.9);
-plotSE <- function(se_data, level=0.95, intercept=FALSE, title=""){
+plot_se <- function(se_data, level=0.95, intercept=FALSE, title=""){
 
   df <- as.data.frame(se_data)
   df$term <- rownames(df)
@@ -1284,4 +1323,189 @@ plotSE <- function(se_data, level=0.95, intercept=FALSE, title=""){
     labs(title=title, x="Standard error type", y="Estimate", color="") +
     theme_sca() +
     theme(axis.text.x=element_text(angle=45, hjust=1))
+}
+
+#' Plots how each control influences the independent variable's coefficient.
+#'
+#' @description
+#' plot_influence() shows, for every control variable, the distribution of the
+#' independent variable's coefficient across the specifications that include
+#' versus exclude that control. It makes clear which modelling choices move the
+#' estimate, and by how much.
+#'
+#' @param sca_data A data frame returned by `sca()`.
+#' @param title A string to use as the plot title. Defaults to `""`.
+#'
+#' @return A ggplot object with one facet per control comparing the coefficient
+#'         when that control is excluded versus included.
+#'
+#' @export
+#'
+#' @examples
+#' plot_influence(sca(y = "Salnty", x = "T_degC",
+#'                   controls = c("ChlorA", "O2Sat", "NO2uM"),
+#'                   data = bottles, progress_bar = FALSE));
+plot_influence <- function(sca_data, title=""){
+
+  controls <- sca_control_cols(sca_data)
+  if(length(controls) == 0){
+    message("No control indicator columns found in sca_data.")
+    return(invisible(NULL))
+  }
+
+  long <- sca_data %>%
+    select(all_of(c("coef", controls))) %>%
+    pivot_longer(all_of(controls), names_to="control", values_to="included") %>%
+    mutate(included = factor(ifelse(included == 1, "Included", "Excluded"),
+                             levels = c("Excluded", "Included")))
+
+  ggplot(long, aes(x=included, y=coef, fill=included)) +
+    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5) +
+    geom_boxplot(outlier.size=.6, alpha=.9) +
+    facet_wrap(~control) +
+    scale_fill_manual(values=c("Excluded"="#9E9E9E", "Included"="#3182BD")) +
+    labs(title=title, x="", y="Coefficient") +
+    theme_sca() +
+    theme(legend.position="none")
+}
+
+#' Plots the independent variable's coefficient against model fit.
+#'
+#' @description
+#' plot_coef_fit() plots the independent variable's coefficient against a measure
+#' of model fit across specifications, revealing whether better-fitting models
+#' tend to produce systematically different estimates (i.e. whether your
+#' best-fitting specifications are outliers).
+#'
+#' @param sca_data A data frame returned by `sca()`.
+#' @param metric A string naming the fit measure to plot against, one of
+#'               `"RMSE"`, `"adjR"`, `"AIC"`, or `"deviance"`. Defaults to
+#'               `NULL`, in which case the first measure available in `sca_data`
+#'               is used.
+#' @param title A string to use as the plot title. Defaults to `""`.
+#'
+#' @return A ggplot object.
+#'
+#' @export
+#'
+#' @examples
+#' plot_coef_fit(sca(y = "Salnty", x = "T_degC",
+#'                 controls = c("ChlorA", "O2Sat", "NO2uM"),
+#'                 data = bottles, progress_bar = FALSE));
+plot_coef_fit <- function(sca_data, metric=NULL, title=""){
+
+  available <- intersect(c("RMSE", "adjR", "AIC", "deviance"), names(sca_data))
+  if(length(available) == 0){
+    message("No model-fit columns found in sca_data.")
+    return(invisible(NULL))
+  }
+  if(is.null(metric)) metric <- available[1]
+  if(!metric %in% available){
+    stop("`metric` must be one of: ", paste(available, collapse=", "),
+         call.=FALSE)
+  }
+
+  axis_labels <- c(RMSE="RMSE", adjR="Adjusted R-squared", AIC="AIC",
+                   deviance="Deviance")
+
+  sca_data <- sca_data %>%
+    mutate(sig.level = factor(sig.level, levels = names(sca_sig_colors())))
+
+  ggplot(sca_data, aes(x=.data[[metric]], y=coef, color=sig.level)) +
+    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5) +
+    geom_point(size=2) +
+    scale_color_manual(values=sca_sig_colors(), drop=TRUE) +
+    labs(title=title, x=axis_labels[[metric]], y="Coefficient") +
+    theme_sca()
+}
+
+#' Plots a specification curve under multiple standard error types.
+#'
+#' @description
+#' plot_multi_se() estimates every specification (as `sca()` does) and, for each,
+#' computes the independent variable's standard error under several types via
+#' `se_compare()`. It then plots the specification curve faceted by standard
+#' error type: the coefficient estimates are identical across facets, but the
+#' confidence intervals -- and hence which specifications are "significant" --
+#' change with the choice of standard error, showing how sensitive your
+#' conclusions are to that choice.
+#'
+#' @inheritParams sca
+#' @param types A vector of standard error types to compare, passed to
+#'              `se_compare()`: `"iid"`, the `"HC*"` types, or (with `cluster`)
+#'              clustered types. Defaults to `c("iid", "HC3")`. Bootstrapped
+#'              standard errors are not supported here; use `se_compare()`
+#'              directly for those.
+#' @param cluster Optional clustering variable(s) passed to `se_compare()`.
+#' @param level The confidence level used for the intervals. Defaults to `0.95`.
+#' @param title A string to use as the plot title. Defaults to `""`.
+#'
+#' @return A ggplot object: the specification curve faceted by standard error
+#'         type, points coloured by significance under each type.
+#'
+#' @export
+#'
+#' @examples
+#' plot_multi_se(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
+#'             data = bottles, types = c("iid", "HC1", "HC3"));
+plot_multi_se <- function(y, x, controls, data, types=c("iid", "HC3"),
+                        cluster=NULL, fixed_effects=NULL, level=0.95, title=""){
+
+  # Reuse sca()'s machinery to build the specification formulae.
+  formulae <- sca(y=y, x=x, controls=controls, data=data,
+                  fixed_effects=fixed_effects, return_formulae=TRUE)
+
+  est_col <- if(!is.null(fixed_effects)) "estimate_FE" else "estimate"
+
+  # For each specification, pull the focal variable's coefficient and its SE
+  # under every requested type from se_compare().
+  rows <- lapply(formulae, function(f){
+    fstr <- paste(deparse(f), collapse=" ")
+    res <- tryCatch(
+      suppressWarnings(suppressMessages(
+        se_compare(formula=fstr, data=data, types=types, cluster=cluster,
+                   fixed_effects_only=!is.null(fixed_effects)))),
+      error=function(e) NULL)
+    if(is.null(res) || !x %in% rownames(res) || !est_col %in% colnames(res)){
+      return(NULL)
+    }
+    se_cols <- setdiff(colnames(res), c("estimate", "estimate_FE"))
+    data.frame(coef=res[x, est_col], se_type=se_cols,
+               se=as.numeric(res[x, se_cols]), stringsAsFactors=FALSE)
+  })
+
+  long <- bind_rows(rows)
+  if(nrow(long) == 0){
+    message("No standard errors could be computed for the focal variable.")
+    return(invisible(NULL))
+  }
+
+  z <- stats::qnorm(1 - (1 - level) / 2)
+
+  long <- long %>%
+    filter(!is.na(se)) %>%
+    arrange(se_type, coef) %>%
+    group_by(se_type) %>%
+    mutate(index = row_number()) %>%
+    ungroup() %>%
+    mutate(
+      p = 2 * stats::pnorm(-abs(coef / se)),
+      sig.level = factor(case_when(
+        p < .005 ~ "p < .005",
+        p < .05  ~ "p < .05",
+        p < .1   ~ "p < .1",
+        TRUE     ~ "p >= .1"
+      ), levels = names(sca_sig_colors())),
+      lower = coef - z * se,
+      upper = coef + z * se
+    )
+
+  ggplot(long, aes(x=index, y=coef)) +
+    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5) +
+    geom_errorbar(aes(ymin=lower, ymax=upper, color=sig.level), width=.25) +
+    geom_point(color="black", size=.9) +
+    facet_wrap(~se_type) +
+    scale_color_manual(values=sca_sig_colors(), drop=TRUE) +
+    labs(title=title, x="", y="Coefficient") +
+    theme_sca()
 }

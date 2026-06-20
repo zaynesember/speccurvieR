@@ -87,7 +87,7 @@ The main function of the package is `sca()` (short for specification
 curve analysis, not the music genre). This is where you specify the
 models you want estimated and get back a data frame with useful data for
 each model. This can then be fed to plotting functions like
-`plotCurve()` and `plotRMSE()`.
+`plot_curve()` and `plot_rmse()`.
 
 Let’s look at the sample data provided with the package–[a sample of the
 CalCOFI bottle
@@ -164,17 +164,17 @@ Now let’s plot the specification curve for our independent variable’s
 coefficient
 
 ``` r
-plotCurve(s)
+plot_curve(s)
 ```
 
 <img src="man/figures/README-unnamed-chunk-7-1.png" width="100%" />
 
 By default, a bottom panel is provided showing which controls are
 present in each model. You can get the bottom panel by itself using
-`plotVars()`:
+`plot_vars()`:
 
 ``` r
-plotVars(s)
+plot_vars(s)
 ```
 
 <img src="man/figures/README-unnamed-chunk-8-1.png" width="100%" />
@@ -183,19 +183,19 @@ You can also get just the top panel with the specification curve, add a
 title, and more:
 
 ``` r
-plotCurve(s, plotVars=F, title="Salinity Coefficient Specification Curve")
+plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve")
 ```
 
 <img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
 
-When `plotVars = FALSE` (i.e. when you are only having a single ggplot
+When `plot_vars = FALSE` (i.e. when you are only having a single ggplot
 object returned) you can also customize the plot as you would any
 `ggplot` object:
 
 ``` r
 library(ggplot2)
 
-plotCurve(s, plotVars=F, title="Salinity Coefficient Specification Curve") +
+plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve") +
       theme_minimal() +
       theme(legend.position = "bottom", 
             legend.title = element_blank()) +
@@ -209,14 +209,14 @@ Note you may need to adjust the plot’s margin when customizing like this
 to avoid going off the plot’s edge, this can be done easily:
 
 ``` r
-plotCurve(s, plotVars = F) +
+plot_curve(s, plot_vars = F) +
       labs(title = "I'm missing")
 ```
 
 <img src="man/figures/README-unnamed-chunk-11-1.png" width="100%" />
 
 ``` r
-plotCurve(s, plotVars = F) +
+plot_curve(s, plot_vars = F) +
       theme(plot.margin = unit(c(5, 5, 5, 5), unit = "points")) +
       labs(title = "I'm found!")
 ```
@@ -228,13 +228,13 @@ Let’s see what other stuff we can plot.
 We can look at model fits across models:
 
 ``` r
-plotRMSE(s)
+plot_rmse(s)
 ```
 
 <img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
 
 ``` r
-plotR2Adj(s)
+plot_r2_adj(s)
 ```
 
 <img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
@@ -243,7 +243,7 @@ We can also look at the distributions of coefficients for our control
 variables:
 
 ``` r
-plotControlDistributions(s)
+plot_control_distributions(s)
 ```
 
 <img src="man/figures/README-unnamed-chunk-15-1.png" width="100%" />
@@ -251,7 +251,7 @@ plotControlDistributions(s)
 Or maybe we want histograms:
 
 ``` r
-plotControlDistributions(s, type="histogram")
+plot_control_distributions(s, type="histogram")
 #> `stat_bin()` using `bins = 30`. Pick better value `binwidth`.
 ```
 
@@ -287,15 +287,15 @@ bootstrapped errors:
 ``` r
 se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles, 
            types = c("iid", "bootstrapped"),
-           bootSamples=c(8, 10), bootSampleSize=c(200, 300))
+           boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017       0.07297819        0.18745663
-#> T_degC      -0.0599783335 0.007428642       0.00489322        0.01472213
-#> ChlorA       0.0006514447 0.012449618       0.05485791        0.05375581
+#> (Intercept) 34.2940251811 0.097594017       0.13478575       0.100135837
+#> T_degC      -0.0599783335 0.007428642       0.01050174       0.008020928
+#> ChlorA       0.0006514447 0.012449618       0.05922188       0.063893810
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)      0.086427537       0.096274125
-#> T_degC           0.007171396       0.007345186
-#> ChlorA           0.057571435       0.046105744
+#> (Intercept)      0.082719538       0.112303742
+#> T_degC           0.006294528       0.009025722
+#> ChlorA           0.005321084       0.048289838
 ```
 
 Clustered standard errors are also supported:
@@ -351,41 +351,41 @@ estimation.
 If you hate the plotting functions I’ve made or need something from the
 model not provided by the default output of `sca()` you can always have
 it just return a list of all possible formulae with
-`returnFormulae = TRUE`:
+`return_formulae = TRUE`:
 
 ``` r
 formulae <- sca(y = "T_degC", x = "Salnty", 
          controls = c("O2Sat", "NO2uM", "SiO3uM"),
-         data = bottles, returnFormulae = TRUE)
+         data = bottles, return_formulae = TRUE)
 
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x1501820a8>
+#> <environment: 0x12839c700>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x1501820a8>
+#> <environment: 0x12839c700>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x1501820a8>
+#> <environment: 0x12839c700>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x1501820a8>
+#> <environment: 0x12839c700>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x1501820a8>
+#> <environment: 0x12839c700>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x1501820a8>
+#> <environment: 0x12839c700>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x1501820a8>
+#> <environment: 0x12839c700>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
