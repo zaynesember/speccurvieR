@@ -1,5 +1,11 @@
 # speccurvieR (development version)
 
+* Bug fix: `sca()`'s control-indicator columns (used by `plot_vars()` and the
+  `plot_curve()` control panel) are now built by exact term membership instead
+  of substring matching on the model terms. Previously a control whose name was
+  a substring of another term (for example `"O2"` inside `"O2Sat"`) was marked
+  present in specifications that did not contain it.
+
 * New `sca_test()`: a permutation-based joint-inference test for the whole
   specification curve, following Simonsohn, Simmons, and Nelson (2020). It
   tests the sharp null that the focal variable has no effect in any
