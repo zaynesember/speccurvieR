@@ -1,26 +1,31 @@
 # speccurvieR (development version)
 
+* The package now uses snake_case throughout for both function names and
+  arguments (e.g. `plotCurve()` -> `plot_curve()`, `fixedEffects` ->
+  `fixed_effects`). The previous camelCase names are kept as deprecated aliases
+  that warn and forward to the new names, so existing code keeps working; they
+  will be removed in a future release.
 * `sca()` gains a formula interface:
-  `sca(y ~ x + control1 + control2 | fixedEffect, data)`. The first
+  `sca(y ~ x + control1 + control2 | fixed_effect, data)`. The first
   right-hand-side term is the focal independent variable, the remaining terms
   are controls, and anything after `|` is treated as fixed effects. The original
-  `y` / `x` / `controls` / `fixedEffects` argument interface is unchanged.
-* New `plotSE()`: visualises the output of `se_compare()`, plotting each
+  `y` / `x` / `controls` / `fixed_effects` argument interface is unchanged.
+* New `plot_se()`: visualises the output of `se_compare()`, plotting each
   coefficient's estimate with a confidence interval for every standard error
   type so the sensitivity of inference to the choice of standard error is easy
   to see.
-* Three new diagnostic plots: `plotInfluence()` shows how including vs excluding
-  each control shifts the independent variable's coefficient; `plotCoefFit()`
-  plots the coefficient against model fit (are the best-fitting specifications
-  outliers?); and `plotMultiSE()` draws the specification curve faceted by
-  standard error type, so you can see which specifications stay significant under
-  each choice of standard error.
+* Three new diagnostic plots: `plot_influence()` shows how including vs
+  excluding each control shifts the independent variable's coefficient;
+  `plot_coef_fit()` plots the coefficient against model fit (are the
+  best-fitting specifications outliers?); and `plot_multi_se()` draws the
+  specification curve faceted by standard error type, so you can see which
+  specifications stay significant under each choice of standard error.
 * Visualization overhaul: a shared, colour-blind-safe palette and an exported
-  `theme_sca()` are now applied across all plots; `plotCurve()` and the
+  `theme_sca()` are now applied across all plots; `plot_curve()` and the
   model-fit plots combine their panels with `patchwork` (so the combined plot
-  is now customisable and panels align precisely); `plotCurve()` gains
-  `medianLine` and `pointSize` arguments; and `plotControlDistributions()` gains
-  a `zeroLine` argument and a cohesive fill.
+  is now customisable and panels align precisely); `plot_curve()` gains
+  `median_line` and `point_size` arguments; and `plot_control_distributions()`
+  gains a `zero_line` argument and a cohesive fill.
 
 # speccurvieR 0.5.0
 

@@ -10,10 +10,11 @@ se_compare(
   weights = NULL,
   types = "all",
   cluster = NULL,
-  clusteredOnly = FALSE,
-  fixedEffectsOnly = FALSE,
-  bootSamples = NULL,
-  bootSampleSize = NULL
+  clustered_only = FALSE,
+  fixed_effects_only = FALSE,
+  boot_samples = NULL,
+  boot_sample_size = NULL,
+  ...
 )
 }
 \arguments{
@@ -56,22 +57,26 @@ weights.}
 \item{cluster}{A string or vector of strings specifying variables present in
 `data` to be used for clustering standard errors.}
 
-\item{clusteredOnly}{A boolean indicating whether only standard errors with
+\item{clustered_only}{A boolean indicating whether only standard errors with
 clustering should be estimated, defaults to `FALSE`.}
 
-\item{fixedEffectsOnly}{A boolean indicating whether only standard errors for
+\item{fixed_effects_only}{A boolean indicating whether only standard errors for
 fixed effects models should be estimated, defaults to
 `FALSE`.}
 
-\item{bootSamples}{An integer or vector of integers indicating how many times
+\item{boot_samples}{An integer or vector of integers indicating how many times
 the model should be estimated with a random subset of the
-data. If a vector then every combination of `bootSamples`
-and `bootSampleSize` are estimated.}
+data. If a vector then every combination of `boot_samples`
+and `boot_sample_size` are estimated.}
 
-\item{bootSampleSize}{An integer or vector of integers indicating how many
+\item{boot_sample_size}{An integer or vector of integers indicating how many
 observations are in each random subset of the data.
-If a vector then every combination of `bootSamples`
-and `bootSampleSize` are estimated.}
+If a vector then every combination of `boot_samples`
+and `boot_sample_size` are estimated.}
+
+\item{...}{Deprecated camelCase arguments (`clusteredOnly`,
+`fixedEffectsOnly`, `bootSamples`, `bootSampleSize`); use the
+snake_case equivalents instead.}
 }
 \value{
 A data frame where row represents an independent variable in the
@@ -88,8 +93,8 @@ A data frame where row represents an independent variable in the
          "CL_FE" = standard errors clustered by fixed effects
 
          "bootstrap_k8n300_FE" =  bootstrapped standard errors for a fixed
-                                  effects model where `bootSamples = 8` and
-                                  `bootSampleSize = 300`
+                                  effects model where `boot_samples = 8` and
+                                  `boot_sample_size = 300`
 
          "CL_Depth_ID_FE" = standard errors clustered by the variable
                               "Depth_ID" for a model with fixed effects
@@ -112,12 +117,12 @@ plotting.
 
 se_compare(formula = "Salnty ~ T_degC + ChlorA + O2Sat | Sta_ID",
            data = bottles, types = "all", cluster = c("Depth_ID", "Sta_ID"),
-           fixedEffectsOnly = FALSE, bootSamples=c(4, 8, 10),
-           bootSampleSize=c(300, 500))
+           fixed_effects_only = FALSE, boot_samples=c(4, 8, 10),
+           boot_sample_size=c(300, 500))
 
 se_compare(formula = "Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
-           types = "bootstrapped", bootSamples = c(8, 10),
-           bootSampleSize = c(300, 500))
+           types = "bootstrapped", boot_samples = c(8, 10),
+           boot_sample_size = c(300, 500))
 
 se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("HC0", "HC1", "HC3"))

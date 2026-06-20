@@ -12,7 +12,7 @@ test_that("formula_builder returns the full powerset of controls", {
 })
 
 test_that("formula_builder appends fixed effects with a pipe", {
-  f <- formula_builder("y", "x", c("a"), fixedEffects = "fe")
+  f <- formula_builder("y", "x", c("a"), fixed_effects = "fe")
   expect_true(any(grepl("|", as.character(f), fixed = TRUE)))
 })
 
@@ -30,25 +30,25 @@ test_that("duplicate_remover drops standalone copies of interacted controls", {
   expect_equal(duplicate_remover(c("a", "b"), "x"), c("a", "b"))
 })
 
-test_that("controlExtractor returns control coefs without intercept or x", {
+test_that("control_extractor returns control coefs without intercept or x", {
   m <- summary(lm(Salnty ~ STheta + T_degC, bottles))
-  ce <- controlExtractor(m, "STheta")
+  ce <- control_extractor(m, "STheta")
   expect_named(ce, c("coef", "term"))
   expect_false("(Intercept)" %in% ce$term)
   expect_false("STheta" %in% ce$term)
   expect_true("T_degC" %in% ce$term)
 })
 
-test_that("unAsIs strips the AsIs class", {
+test_that("un_as_is strips the AsIs class", {
   x <- I(1:4)
   expect_true(inherits(x, "AsIs"))
-  expect_false(inherits(unAsIs(x), "AsIs"))
+  expect_false(inherits(un_as_is(x), "AsIs"))
 })
 
 test_that("scp returns a data frame and label vector", {
   s <- suppressMessages(sca(y = "Salnty", x = "T_degC",
                             controls = c("O2Sat", "STheta"),
-                            data = bottles, progressBar = FALSE))
+                            data = bottles, progress_bar = FALSE))
   out <- scp(s)
   expect_length(out, 2)
   expect_true(is.data.frame(out[[1]]))

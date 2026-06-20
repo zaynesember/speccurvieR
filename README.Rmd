@@ -63,7 +63,7 @@ I thought you’d never ask, let’s walk through some examples.
 
 ## Estimating models
 
-The main function of the package is `sca()` (short for specification curve analysis, not the music genre). This is where you specify the models you want estimated and get back a data frame with useful data for each model. This can then be fed to plotting functions like `plotCurve()` and `plotRMSE()`.
+The main function of the package is `sca()` (short for specification curve analysis, not the music genre). This is where you specify the models you want estimated and get back a data frame with useful data for each model. This can then be fed to plotting functions like `plot_curve()` and `plot_rmse()`.
 
 Let’s look at the sample data provided with the package–[a sample of the CalCOFI bottle database](https://calcofi.org/data/oceanographic-data/bottle-database/) with plenty of variables to play around with.
 
@@ -99,27 +99,27 @@ names(s)
 Now let’s plot the specification curve for our independent variable’s coefficient
 
 ```{r}
-plotCurve(s)
+plot_curve(s)
 ```
 
-By default, a bottom panel is provided showing which controls are present in each model. You can get the bottom panel by itself using `plotVars()`:
+By default, a bottom panel is provided showing which controls are present in each model. You can get the bottom panel by itself using `plot_vars()`:
 
 ```{r}
-plotVars(s)
+plot_vars(s)
 ```
 
 You can also get just the top panel with the specification curve, add a title, and more:
 
 ```{r}
-plotCurve(s, plotVars=F, title="Salinity Coefficient Specification Curve")
+plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve")
 ```
 
-When `plotVars = FALSE` (i.e. when you are only having a single ggplot object returned) you can also customize the plot as you would any `ggplot` object:
+When `plot_vars = FALSE` (i.e. when you are only having a single ggplot object returned) you can also customize the plot as you would any `ggplot` object:
 
 ```{r}
 library(ggplot2)
 
-plotCurve(s, plotVars=F, title="Salinity Coefficient Specification Curve") +
+plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve") +
       theme_minimal() +
       theme(legend.position = "bottom", 
             legend.title = element_blank()) +
@@ -131,12 +131,12 @@ Note you may need to adjust the plot’s margin when customizing like this
 to avoid going off the plot’s edge, this can be done easily:
 
 ```{r}
-plotCurve(s, plotVars = F) +
+plot_curve(s, plot_vars = F) +
       labs(title = "I'm missing")
 ```
 
 ```{r}
-plotCurve(s, plotVars = F) +
+plot_curve(s, plot_vars = F) +
       theme(plot.margin = unit(c(5, 5, 5, 5), unit = "points")) +
       labs(title = "I'm found!")
 ```
@@ -146,24 +146,24 @@ Let’s see what other stuff we can plot.
 We can look at model fits across models:
 
 ```{r}
-plotRMSE(s)
+plot_rmse(s)
 ```
 
 ```{r}
-plotR2Adj(s)
+plot_r2_adj(s)
 ```
 
 We can also look at the distributions of coefficients for our control
 variables:
     
 ```{r}
-plotControlDistributions(s)
+plot_control_distributions(s)
 ```
 
 Or maybe we want histograms:
 
 ```{r}
-plotControlDistributions(s, type="histogram")
+plot_control_distributions(s, type="histogram")
 ```
 
 (Note: because the above plot is a facet wrapped `ggplot` object you can
@@ -184,7 +184,7 @@ You can provide bootstrapping parameters if you want to investigate bootstrapped
 ```{r}
 se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles, 
            types = c("iid", "bootstrapped"),
-           bootSamples=c(8, 10), bootSampleSize=c(200, 300))
+           boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 ```
 
 Clustered standard errors are also supported:
@@ -218,12 +218,12 @@ Note: parallelization is only recommended for specification curve analysis invol
 ## Getting formulae
 
 If you hate the plotting functions I’ve made or need something from the model not provided by the default output of `sca()` you can always have it just return a list of all possible formulae with
-`returnFormulae = TRUE`:
+`return_formulae = TRUE`:
 
 ```{r}
 formulae <- sca(y = "T_degC", x = "Salnty", 
          controls = c("O2Sat", "NO2uM", "SiO3uM"),
-         data = bottles, returnFormulae = TRUE)
+         data = bottles, return_formulae = TRUE)
 
 formulae
 ```

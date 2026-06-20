@@ -4,7 +4,7 @@
 \alias{formula_builder}
 \title{Builds models formulae with every combination of control variables possible.}
 \usage{
-formula_builder(y, x, controls, fixedEffects = NA)
+formula_builder(y, x, controls, fixed_effects = NA, ...)
 }
 \arguments{
 \item{y}{A string containing the dependent variable name.}
@@ -13,9 +13,12 @@ formula_builder(y, x, controls, fixedEffects = NA)
 
 \item{controls}{A vector of strings containing control variable names.}
 
-\item{fixedEffects}{A string containing the name of a variable to use for
+\item{fixed_effects}{A string containing the name of a variable to use for
 fixed effects, defaults to `NA` indicating no fixed
 effects desired.}
+
+\item{...}{Deprecated camelCase arguments (`fixedEffects`); use
+`fixed_effects` instead.}
 }
 \value{
 A vector of formula objects using every possible combination of
@@ -28,5 +31,5 @@ Builds models formulae with every combination of control variables possible.
 formula_builder("dependentVariable", "independentVariable",
                 c("control1", "control2"));
 formula_builder("dependentVariable", "independentVariable",
-                c("control1*control2"), fixedEffects="month");
+                c("control1*control2"), fixed_effects="month");
 }
