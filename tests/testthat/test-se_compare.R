@@ -168,3 +168,62 @@ test_that("se_boot() fits glm models when given a family object", {
   expect_length(b, 3)
   expect_named(b, c("(Intercept)", "T_degC", "STheta"))
 })
+
+# Statistical-correctness regression tests ------------------------------------
+
+# Complete cases for the bootstrap tests, so that resampling and the analytic
+# reference operate on the same observations.
+cc_bottles <- bottles[stats::complete.cases(
+  bottles[, c("Salnty", "T_degC", "STheta", "Sta_ID")]), ]
+
+test_that("se_compare() CL_FE is clustered by the first fixed effect, not iid", {
+  # Regression test: modern fixest defaults feols() to IID standard errors, so
+  # the "CL_FE" column must cluster by the first fixed effect explicitly to
+  # match its name and documentation.
+  r <- suppressMessages(se_compare("Salnty ~ T_degC + STheta | Sta_ID", bottles,
+                                   types = "CL_FE", fixed_effects_only = TRUE))
+  m <- fixest::feols(Salnty ~ T_degC + STheta | Sta_ID, data = bottles)
+  clustered <- summary(m, cluster = ~Sta_ID)$coeftable[, 2]
+  iid <- summary(m, vcov = "iid")$coeftable[, 2]
+
+  clfe <- r$CL_FE[!is.na(r$CL_FE)]  # drop the NA intercept row
+  expect_equal(unname(clfe), unname(clustered))
+  # And it is genuinely cluster-robust, i.e. distinct from the iid default.
+  expect_false(isTRUE(all.equal(unname(clfe), unname(iid))))
+})
+
+test_that("se_boot() does not collapse to zero when sample_size == n", {
+  # Regression test for the old without-replacement sampling, which made every
+  # resample identical (hence SE ~ 0) when sample_size equalled the row count.
+  set.seed(1)
+  n <- nrow(cc_bottles)
+  b <- suppressMessages(se_boot(cc_bottles, "Salnty ~ T_degC + STheta",
+                                n_x = 2, n_samples = 30, sample_size = n))
+  expect_true(all(b > 1e-6))
+})
+
+test_that("se_boot() full-n bootstrap recovers the heteroskedasticity-robust SE", {
+  # The nonparametric pairs bootstrap estimates the robust (not iid) SE. With
+  # replacement at sample_size = n this should track HC1 closely.
+  set.seed(20)
+  n <- nrow(cc_bottles)
+  b <- suppressMessages(se_boot(cc_bottles, "Salnty ~ T_degC + STheta",
+                                n_x = 2, n_samples = 800, sample_size = n))
+  m <- lm(Salnty ~ T_degC + STheta, cc_bottles)
+  hc1 <- lmtest::coeftest(m, vcov. = sandwich::vcovHC, type = "HC1")[, 2]
+  expect_equal(unname(b), unname(hc1), tolerance = 0.2)
+})
+
+test_that("se_boot() rescales an m-out-of-n bootstrap to the full-sample SE", {
+  # With sqrt(m/n) rescaling, a quarter-sample bootstrap targets the same SE as
+  # a full-sample bootstrap (previously it overstated it by ~sqrt(n/m) = 2x).
+  n <- nrow(cc_bottles)
+  set.seed(30)
+  full <- suppressMessages(se_boot(cc_bottles, "Salnty ~ T_degC + STheta",
+                                   n_x = 2, n_samples = 800, sample_size = n))
+  set.seed(31)
+  quarter <- suppressMessages(se_boot(cc_bottles, "Salnty ~ T_degC + STheta",
+                                      n_x = 2, n_samples = 800,
+                                      sample_size = round(n / 4)))
+  expect_equal(unname(quarter), unname(full), tolerance = 0.25)
+})

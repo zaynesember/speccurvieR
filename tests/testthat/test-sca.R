@@ -42,6 +42,19 @@ test_that("sca() supports glm families and reports AIC/deviance", {
   expect_true(all(c("AIC", "deviance") %in% names(g)))
 })
 
+test_that("sca() errors informatively when the focal variable is not a single coefficient", {
+  # A factor focal variable expands to multiple model terms (e.g. "regionwarm"),
+  # so there is no single focal coefficient to extract; this previously crashed
+  # with a cryptic "subscript out of bounds".
+  d <- bottles
+  d$region <- factor(ifelse(d$T_degC > stats::median(d$T_degC, na.rm = TRUE),
+                            "warm", "cold"))
+  expect_error(
+    suppressMessages(sca("Salnty", "region", "STheta", d, progress_bar = FALSE)),
+    "single (model|focal) coefficient"
+  )
+})
+
 test_that("sca() warns for fixed effects + non-linear family and then ignores them", {
   d <- bottles
   d$bin <- as.integer(d$Salnty > median(d$Salnty, na.rm = TRUE))

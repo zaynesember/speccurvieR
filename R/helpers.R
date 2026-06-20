@@ -318,7 +318,12 @@ scp <- function(sca_data){
 #' @description
 #' Takes in a data frame, regression formula, and bootstrapping parameters and
 #' estimates bootstrapped standard errors for models with and without fixed
-#' effects.
+#' effects. The model is refit on `n_samples` resamples of `sample_size`
+#' observations drawn with replacement, and the standard deviation of the
+#' resampled coefficients is rescaled by `sqrt(sample_size / nrow(data))` to
+#' estimate the standard error of the full-sample estimator (an m-out-of-n
+#' bootstrap; when `sample_size` equals `nrow(data)` this is the ordinary
+#' nonparametric bootstrap).
 #'
 #'
 #' @param data A data frame containing the variables provided in `formula`.
@@ -326,10 +331,10 @@ scp <- function(sca_data){
 #'                fixed effects.
 #' @param n_x An integer representing the number of independent variables in
 #'            the regression.
-#' @param n_samples An integer indicating how many times the model should be
-#'                  estimated with a random subset of the data.
-#' @param sample_size An integer indicating how many observations are in each
-#'                    random subset of the data.
+#' @param n_samples An integer indicating how many bootstrap resamples to draw,
+#'                  i.e. how many times the model is refit.
+#' @param sample_size An integer indicating how many observations are drawn
+#'                    (with replacement) in each bootstrap resample.
 #' @param weights Optional string with the column name in `data` that contains
 #'                weights.
 #' @param fam_obj Optional `family` object (as returned by e.g. `binomial()`)
@@ -382,19 +387,23 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL,
   # Loop n_samples times, i.e. how many times we want to re-estimate the model.
   # In the future this should be vectorized.
   for(i in 1:n_samples){
-    # Estimate the model with a random subset of the data
-    # slice_sample() is a dplyr function that returns random rows from a
-    # data frame (the modern replacement for the superseded sample_n()).
+    # Estimate the model on a bootstrap resample of `sample_size` rows drawn
+    # WITH replacement. slice_sample() is the dplyr replacement for the
+    # superseded sample_n(). Resampling with replacement (rather than drawing a
+    # subset without replacement) is what makes this a bootstrap: the standard
+    # deviation of the resampled coefficients estimates the sampling
+    # variability of the estimator at sample size `sample_size`, which is
+    # rescaled to the full-sample standard error below.
     model <- tryCatch(
       {
         if(FE){
           if(is.null(weights)){
             suppressMessages(feols(as.formula(formula),
-                                   slice_sample(data, n=sample_size)))
+                                   slice_sample(data, n=sample_size, replace=TRUE)))
           }
           else{
             suppressMessages(feols(as.formula(formula),
-                                   slice_sample(data, n=sample_size),
+                                   slice_sample(data, n=sample_size, replace=TRUE),
                                    weights=data[[weights]]))
           }
         }
@@ -402,12 +411,12 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL,
           if(is.null(weights)){
             if(is_glm){
               suppressMessages(glm(as.formula(formula),
-                                   slice_sample(data, n=sample_size),
+                                   slice_sample(data, n=sample_size, replace=TRUE),
                                    family=fam_obj))
             }
             else{
               suppressMessages(lm(as.formula(formula),
-                                  slice_sample(data, n=sample_size)))
+                                  slice_sample(data, n=sample_size, replace=TRUE)))
             }
           }
           else{
@@ -415,13 +424,13 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL,
             environment(fmla) <- environment()
             if(is_glm){
               suppressMessages(glm(fmla,
-                                   slice_sample(data, n=sample_size),
+                                   slice_sample(data, n=sample_size, replace=TRUE),
                                    family=fam_obj,
                                    weights=get(weights)))
             }
             else{
               suppressMessages(lm(fmla,
-                                  slice_sample(data, n=sample_size),
+                                  slice_sample(data, n=sample_size, replace=TRUE),
                                   weights=get(weights)))
             }
           }
@@ -476,9 +485,15 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL,
     coefs[i,] <- model$coefficients
   }
 
-  # Use apply to get the std dev of each column in the matrix, i.e. our
-  # bootstrapped standard errors
-  retVal <- apply(coefs, FUN=sd, MARGIN=2)
+  # The standard deviation of the resampled coefficients estimates the
+  # sampling variability of the estimator at sample size `sample_size`. For an
+  # m-out-of-n bootstrap (sample_size = m < n), that overstates the
+  # full-sample standard error by a factor of roughly sqrt(n / m), so we
+  # rescale by sqrt(m / n) to recover the standard error of the estimator fit
+  # to the full data. When sample_size == n this factor is 1 and the procedure
+  # reduces to the ordinary nonparametric bootstrap.
+  scale <- sqrt(sample_size / nrow(data))
+  retVal <- apply(coefs, FUN=sd, MARGIN=2) * scale
 
   names(retVal) <- names(model$coefficients)
 

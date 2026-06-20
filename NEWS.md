@@ -10,6 +10,22 @@
   right-hand-side term is the focal independent variable, the remaining terms
   are controls, and anything after `|` is treated as fixed effects. The original
   `y` / `x` / `controls` / `fixed_effects` argument interface is unchanged.
+* Bug fix: bootstrapped standard errors are now estimated with a proper
+  bootstrap. Resamples are drawn *with* replacement and the standard deviation
+  of the resampled coefficients is rescaled by `sqrt(sample_size / nrow(data))`
+  (an m-out-of-n bootstrap). Previously resamples were drawn without
+  replacement and were not rescaled, which overstated the standard error by
+  roughly `sqrt(nrow(data) / sample_size)` and collapsed it to ~0 when
+  `boot_sample_size` equalled the number of rows.
+* Bug fix: the `"CL_FE"` column of `se_compare()` is now clustered by the first
+  fixed effect, as its name and documentation describe. Modern `fixest`
+  (>= 0.10) defaults `feols()` to IID standard errors, so the previous code
+  (which read off the `feols()` default) was returning IID rather than
+  cluster-robust standard errors under that label.
+* Bug fix: `sca()` now raises an informative error when the focal variable `x`
+  does not correspond to a single model coefficient (for example a factor or
+  interaction term), instead of failing with a cryptic "subscript out of
+  bounds" error or silently returning `NA` for every specification.
 * `se_compare()` gains `family` and `link` arguments mirroring `sca()`, so the
   full range of `glm()` model families (e.g. logistic, Poisson) can be compared
   across standard error types. The iid, heteroskedasticity-consistent,
