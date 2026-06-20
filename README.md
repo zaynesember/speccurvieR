@@ -306,13 +306,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017      0.069288499       0.089980937
-#> T_degC      -0.0599783335 0.007428642      0.006372964       0.007740102
-#> ChlorA       0.0006514447 0.012449618      0.027792333       0.034202220
+#> (Intercept) 34.2940251811 0.097594017      0.109476343        0.10179142
+#> T_degC      -0.0599783335 0.007428642      0.007557431        0.00808435
+#> ChlorA       0.0006514447 0.012449618      0.041658672        0.03093020
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)       0.10735275       0.114235878
-#> T_degC            0.00831092       0.008753498
-#> ChlorA            0.03135949       0.031374120
+#> (Intercept)       0.09441086        0.09654291
+#> T_degC            0.00773051        0.00785464
+#> ChlorA            0.01286966        0.06013803
 ```
 
 Clustered standard errors are also supported:
@@ -408,6 +408,34 @@ plot_coef_fit(s)
 
 <img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
 
+# Variance decomposition
+
+Which modelling choices actually drive the spread of estimates?
+`sca_variance()` decomposes the variance of the focal coefficient across
+the curve into the share attributable to each control (plus a residual
+for interactions among choices and unexplained variation), using an LMG
+/ Shapley decomposition of R² whose shares sum exactly to the model R²:
+
+``` r
+sca_variance(s)
+#>         choice   variance    percent
+#> 1        O2Sat 3.58410425 28.8469584
+#> 2       SiO3uM 2.69567901 21.6963947
+#> 3       ChlorA 1.78621832 14.3765254
+#> 4        NH3uM 0.54315852  4.3716561
+#> 5 NO2uM:SiO3uM 0.22713979  1.8281533
+#> 6        NO2uM 0.05075694  0.4085214
+#> 7     Residual 3.53749134 28.4717906
+```
+
+`plot_variance()` shows the same as a bar chart:
+
+``` r
+plot_variance(s)
+```
+
+<img src="man/figures/README-unnamed-chunk-28-1.png" width="100%" />
+
 # Joint-inference test
 
 Looking at a specification curve tells you whether results are robust
@@ -456,7 +484,7 @@ specification curve sits in the tail:
 plot_sca_test(result)
 ```
 
-<img src="man/figures/README-unnamed-chunk-28-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-30-1.png" width="100%" />
 
 And `plot_sca_test_specs()` (enabled by `keep_curves = TRUE` above)
 gives the specification-curve view: each specification’s observed
@@ -467,7 +495,7 @@ band highlighted.
 plot_sca_test_specs(result)
 ```
 
-<img src="man/figures/README-unnamed-chunk-29-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-31-1.png" width="100%" />
 
 By default the test is two-sided; pass `direction = "positive"` or
 `"negative"` when you have an a-priori predicted direction. Use
@@ -507,31 +535,31 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x124170a00>
+#> <environment: 0x12a406db0>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x124170a00>
+#> <environment: 0x12a406db0>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x124170a00>
+#> <environment: 0x12a406db0>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x124170a00>
+#> <environment: 0x12a406db0>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x124170a00>
+#> <environment: 0x12a406db0>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x124170a00>
+#> <environment: 0x12a406db0>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x124170a00>
+#> <environment: 0x12a406db0>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made

@@ -1,5 +1,18 @@
 # speccurvieR (development version)
 
+* New `sca_variance()` and `plot_variance()`: decompose the variance of the
+  focal coefficient across the specification curve into the share attributable
+  to each control choice (plus a residual). Uses an LMG / Shapley
+  decomposition of R-squared by default (order-invariant shares that sum to the
+  model R-squared), with a Type II partial sums-of-squares option; adds no new
+  dependency. Analogous to `specr::icc_specs()` but suited to speccurvieR's
+  binary control-inclusion choices.
+* Bug fix: `sca()`'s control-indicator columns (used by `plot_vars()` and the
+  `plot_curve()` control panel) are now built by exact term membership instead
+  of substring matching on the model terms. Previously a control whose name was
+  a substring of another term (for example `"O2"` inside `"O2Sat"`) was marked
+  present in specifications that did not contain it.
+
 * New `sca_test()`: a permutation-based joint-inference test for the whole
   specification curve, following Simonsohn, Simmons, and Nelson (2020). It
   tests the sharp null that the focal variable has no effect in any

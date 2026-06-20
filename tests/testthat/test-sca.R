@@ -17,6 +17,25 @@ test_that("sca() returns one row per specification with the expected columns", {
   expect_true(all(c("O2Sat", "STheta") %in% names(s)))
 })
 
+test_that("sca() control-indicator columns use exact term membership", {
+  # Regression test: indicators were built with substring matching on a
+  # deparsed terms list, so a control name that is a substring of another term
+  # (e.g. "O2" inside "O2Sat") set a false 1. They must be exact membership.
+  d <- bottles
+  d$O2 <- d$O2Sat * 0.5
+  s <- suppressMessages(sca(y = "Salnty", x = "T_degC",
+                            controls = c("O2", "O2Sat"), data = d,
+                            progress_bar = FALSE, parallel = FALSE))
+  for(i in seq_len(nrow(s))){
+    terms_i <- s$terms[[i]]
+    expect_equal(s[["O2"]][i], as.integer("O2" %in% terms_i))
+    expect_equal(s[["O2Sat"]][i], as.integer("O2Sat" %in% terms_i))
+  }
+  # Every indicator cell is exactly 0 or 1 (no NA from coercion).
+  ind <- s[, c("O2", "O2Sat")]
+  expect_true(all(unlist(ind) %in% c(0L, 1L)))
+})
+
 test_that("sca(return_formulae = TRUE) returns formulae instead of estimates", {
   f <- sca(y = "Salnty", x = "T_degC", controls = c("O2Sat", "STheta"),
            data = bottles, return_formulae = TRUE)

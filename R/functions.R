@@ -341,11 +341,13 @@ sca <- function(y, x, controls, data, weights=NULL,
   retVal <- cbind(retVal, temp)
 
   for(c in control_names){
-    # Hiding the following warning:
-    # In stri_detect_fixed(string, pattern, negate = negate,
-    # opts_fixed = opts(pattern)): argument is not an atomic vector; coercing
-    suppressWarnings(retVal[c] <- ifelse(str_detect(retVal$terms, fixed(c)),
-                                         1, 0))
+    # Exact membership against each model's term set. `terms` is a list-column
+    # (one character vector of term names per specification), so test `c %in%`
+    # the row's terms rather than substring-matching a deparsed string: the
+    # latter set false 1s whenever a control name was a substring of another
+    # term (e.g. "O2" inside "O2Sat", or a name inside an interaction term).
+    retVal[[c]] <- vapply(retVal$terms,
+                          function(t) as.integer(c %in% t), integer(1))
   }
 
   # Remove duplicate columns
