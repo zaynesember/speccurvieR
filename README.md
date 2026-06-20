@@ -306,13 +306,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017       0.13147179       0.111286012
-#> T_degC      -0.0599783335 0.007428642       0.01051403       0.008314237
-#> ChlorA       0.0006514447 0.012449618       0.03973517       0.038113777
+#> (Intercept) 34.2940251811 0.097594017      0.036850161       0.051147555
+#> T_degC      -0.0599783335 0.007428642      0.005397304       0.004890958
+#> ChlorA       0.0006514447 0.012449618      0.072030672       0.043243725
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)       0.15232977       0.088216930
-#> T_degC            0.01111948       0.007911672
-#> ChlorA            0.03592046       0.045676666
+#> (Intercept)      0.073150912        0.12662209
+#> T_degC           0.008087379        0.01040562
+#> ChlorA           0.045976879        0.04222872
 ```
 
 Clustered standard errors are also supported:
@@ -496,31 +496,31 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x12099a438>
+#> <environment: 0x10e354828>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x12099a438>
+#> <environment: 0x10e354828>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x12099a438>
+#> <environment: 0x10e354828>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x12099a438>
+#> <environment: 0x10e354828>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x12099a438>
+#> <environment: 0x10e354828>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x12099a438>
+#> <environment: 0x10e354828>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x12099a438>
+#> <environment: 0x10e354828>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
@@ -555,11 +555,13 @@ summary(my_own_models[[1]])
 # What’s next?
 
 Feel free to contact me at <zayne@mit.edu> to let me know of features
-you would find useful. Currently, I hope to add the following:
+you would find useful. Some directions I may add next:
 
-- A formal joint-inference test for the specification curve (à la
-  Simonsohn, Simmons, and Nelson 2020), comparing the observed curve to
-  its distribution under the null
+- A Freedman–Lane residual-permutation option for `sca_test()`,
+  preserving the focal variable’s correlation with the controls (useful
+  when they are strongly collinear)
+- A per-specification null-band plot showing each specification’s
+  coefficient against its own permutation null
 
 If you find a bug please create an issue on GitHub and I’ll work to fix
 it ASAP.
