@@ -1,5 +1,17 @@
 # speccurvieR (development version)
 
+* New `sca_test()`: a permutation-based joint-inference test for the whole
+  specification curve, following Simonsohn, Simmons, and Nelson (2020). It
+  tests the sharp null that the focal variable has no effect in any
+  specification by repeatedly permuting that variable (blocked within fixed
+  effects when present) and re-estimating the entire curve, then comparing the
+  observed curve to the resulting null distribution via three statistics: the
+  median estimate, the share of specifications significant in the predicted
+  direction, and a Stouffer combination of the per-specification p-values.
+  Supports the same model interface as `sca()` (formula or arguments, glm
+  families, fixed effects, weights), one- and two-sided tests, parallelisation,
+  and reproducible seeding. `plot_sca_test()` visualises each statistic's null
+  distribution against the observed value.
 * The package now uses snake_case throughout for both function names and
   arguments (e.g. `plotCurve()` -> `plot_curve()`, `fixedEffects` ->
   `fixed_effects`). The previous camelCase names are kept as deprecated aliases
