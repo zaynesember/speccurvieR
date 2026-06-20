@@ -306,13 +306,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017      0.080411962       0.105633767
-#> T_degC      -0.0599783335 0.007428642      0.008550785       0.008151774
-#> ChlorA       0.0006514447 0.012449618      0.036977220       0.059454808
+#> (Intercept) 34.2940251811 0.097594017      0.088790929        0.12672843
+#> T_degC      -0.0599783335 0.007428642      0.007438934        0.01027224
+#> ChlorA       0.0006514447 0.012449618      0.077451981        0.04930364
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)      0.088204400       0.071353251
-#> T_degC           0.006969881       0.005789994
-#> ChlorA           0.035864511       0.040206977
+#> (Intercept)      0.066857759       0.070319131
+#> T_degC           0.005620832       0.005574957
+#> ChlorA           0.028073681       0.027908414
 ```
 
 Clustered standard errors are also supported:
@@ -344,6 +344,24 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA | Sta_ID", data = bottles,
 Note: CL_FE refers to standard errors clustered by fixed effects
 variables, i.e. the default errors reported by `fixest::feols()`.
 
+`se_compare()` is not limited to OLS. Pass a `family` (and optionally a
+`link`), exactly as you would to `sca()`, to compare standard error
+types for any `glm()` model family—logistic regression, Poisson, and so
+on. Every standard error type carries over, including bootstrapped and
+clustered errors:
+
+``` r
+# A binary outcome for a quick logistic-regression example.
+bottles$saline <- as.integer(bottles$Salnty > median(bottles$Salnty, na.rm = TRUE))
+
+se_compare(formula = "saline ~ T_degC + ChlorA", data = bottles,
+           family = "binomial", types = c("iid", "HC0", "HC3"))
+#>               estimate      iid       HC0       HC3
+#> (Intercept) 24.6937899 7.690972 6.0349157 6.3898863
+#> T_degC      -2.6538943 0.814460 0.6444346 0.6820432
+#> ChlorA       0.5100412 0.343188 0.1673462 0.4674847
+```
+
 You can visualize these comparisons too. `plot_se()` shows each
 coefficient’s estimate with a confidence interval under every standard
 error type, coloured by whether the interval excludes zero:
@@ -353,7 +371,7 @@ plot_se(se_compare("Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
                    types = c("iid", "HC0", "HC1", "HC3")))
 ```
 
-<img src="man/figures/README-unnamed-chunk-22-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-23-1.png" width="100%" />
 
 And `plot_multi_se()` draws the whole specification curve faceted by
 standard error type. The estimates are identical across facets, so you
@@ -366,7 +384,7 @@ plot_multi_se(y = "Salnty", x = "T_degC",
               data = bottles, types = c("iid", "HC3"))
 ```
 
-<img src="man/figures/README-unnamed-chunk-23-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-24-1.png" width="100%" />
 
 # Diagnostic plots
 
@@ -378,7 +396,7 @@ which modelling choices move the estimate:
 plot_influence(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-24-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-25-1.png" width="100%" />
 
 `plot_coef_fit()` plots the coefficient against model fit, revealing
 whether your best-fitting specifications give systematically different
@@ -388,7 +406,7 @@ estimates:
 plot_coef_fit(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-25-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
 
 # Other features
 
@@ -424,31 +442,31 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x156ab90b0>
+#> <environment: 0x111a62470>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x156ab90b0>
+#> <environment: 0x111a62470>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x156ab90b0>
+#> <environment: 0x111a62470>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x156ab90b0>
+#> <environment: 0x111a62470>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x156ab90b0>
+#> <environment: 0x111a62470>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x156ab90b0>
+#> <environment: 0x111a62470>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x156ab90b0>
+#> <environment: 0x111a62470>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
@@ -485,7 +503,6 @@ summary(my_own_models[[1]])
 Feel free to contact me at <zayne@mit.edu> to let me know of features
 you would find useful. Currently, I hope to add the following:
 
-- Support for all `glm` model families in `se_compare()`
 - A formal joint-inference test for the specification curve (à la
   Simonsohn, Simmons, and Nelson 2020), comparing the observed curve to
   its distribution under the null

@@ -114,8 +114,11 @@ sca <- function(y, x, controls, data, weights=NULL,
     if(!is.null(parsed$fixed_effects)) fixed_effects <- parsed$fixed_effects
   }
 
-  # Treat the common alias "gaussian" as ordinary least squares.
-  if(family=="gaussian") family <- "linear"
+  # Resolve family/link into a normalised family string and (for glm families)
+  # a family object. Treats "gaussian" as OLS and errors on an unknown family.
+  resolved <- resolve_family(family, link)
+  family <- resolved$family
+  fam_obj <- resolved$fam_obj
 
   if(family!="linear" & !is.null(fixed_effects))
   {
@@ -124,17 +127,6 @@ sca <- function(y, x, controls, data, weights=NULL,
     # Actually drop the fixed effects so downstream estimation/extraction uses
     # the glm path, as the warning promises.
     fixed_effects <- NULL
-  }
-
-  # Build the glm family object, defaulting to the family's canonical link when
-  # `link` is NULL, with a clear error for an unrecognised family.
-  if(family!="linear"){
-    fam_fun <- tryCatch(match.fun(family),
-                        error=function(e)
-                          stop("'", family,
-                               "' is not a recognised model family.",
-                               call.=FALSE))
-    fam_obj <- if(is.null(link)) fam_fun() else fam_fun(link=link)
   }
 
   # Just generate the formulae and return if desired
@@ -804,7 +796,7 @@ plot_control_distributions <- function(sca_data, title="", type="density",
 # coefficients), or NULL if no estimates were produced. `fe_suffix` tags the
 # column names for fixed-effects models.
 boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
-                     weights=NULL, fe_suffix=""){
+                     weights=NULL, fe_suffix="", fam_obj=NULL){
   if(length(boot_samples)==1 & length(boot_sample_size)==1){
     samples <- boot_samples
     sample_sizes <- boot_sample_size
@@ -812,13 +804,14 @@ boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
     if(is.null(weights)){
       boot <- se_boot(data=data, formula=formula, n_x=n_x,
                       n_samples=boot_samples[[1]],
-                      sample_size=boot_sample_size[[1]])
+                      sample_size=boot_sample_size[[1]],
+                      fam_obj=fam_obj)
     }
     else{
       boot <- se_boot(data=data, formula=formula, n_x=n_x,
                       n_samples=boot_samples[[1]],
                       sample_size=boot_sample_size[[1]],
-                      weights=weights)
+                      weights=weights, fam_obj=fam_obj)
     }
 
     if(is.null(boot)) return(NULL)
@@ -831,13 +824,14 @@ boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
     if(is.null(weights)){
       boot <- mapply(FUN=se_boot, n_samples=samples,
                      sample_size=sample_sizes,
-                     MoreArgs=list(data=data, formula=formula, n_x=n_x))
+                     MoreArgs=list(data=data, formula=formula, n_x=n_x,
+                                   fam_obj=fam_obj))
     }
     else{
       boot <- mapply(FUN=se_boot, n_samples=samples,
                      sample_size=sample_sizes,
                      MoreArgs=list(data=data, formula=formula, n_x=n_x,
-                                   weights=weights))
+                                   weights=weights, fam_obj=fam_obj))
     }
 
     if(is.null(boot)) return(NULL)
@@ -863,6 +857,17 @@ boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
 #'             any clustering variables passed to `cluster`.
 #' @param weights Optional string with the column name in `data` that contains
 #'                weights.
+#' @param family A string indicating the family of models to be used. Defaults
+#'               to "linear" for OLS regression but supports all families
+#'               supported by `glm()`. When a non-linear family is supplied the
+#'               models are estimated with `glm()`; fixed effects are not
+#'               supported in that case and are ignored with a warning.
+#' @param link A string specifying the link function to be used for the model.
+#'             Defaults to `NULL`, using OLS regression via `lm()` (or
+#'             `fixest::feols()` when fixed effects are supplied). For a
+#'             non-linear `family` the canonical link is used when `link` is
+#'             `NULL`. Supports all link functions supported by the family
+#'             parameter of `glm()`.
 #' @param types A string or vector of strings specifying what types of
 #'              standard errors are desired. Defaults to "all".
 #'
@@ -951,7 +956,14 @@ boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
 #' se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
 #'            types = c("HC0", "HC1", "HC3"))
 #'
+#' # Logistic regression: compare standard error types for a binary outcome.
+#' bottles$saline <- as.integer(bottles$Salnty >
+#'                                stats::median(bottles$Salnty, na.rm = TRUE))
+#' se_compare(formula = "saline ~ T_degC + ChlorA", data = bottles,
+#'            family = "binomial", types = c("iid", "HC0", "HC3"))
+#'
 se_compare <- function(formula, data, weights=NULL,
+                       family="linear", link=NULL,
                        types="all", cluster=NULL,
                        clustered_only=FALSE, fixed_effects_only=FALSE,
                        boot_samples=NULL, boot_sample_size=NULL, ...){
@@ -983,11 +995,29 @@ se_compare <- function(formula, data, weights=NULL,
   # Create the object we will eventually return
   ses <- NULL
 
+  # Resolve family/link into a normalised family string and (for glm families)
+  # a family object. Treats "gaussian" as OLS and errors on an unknown family.
+  resolved <- resolve_family(family, link)
+  family <- resolved$family
+  fam_obj <- resolved$fam_obj
+  is_glm <- family != "linear"
+
   # Whether the formula specifies fixed effects (a pipe). Captured up front
   # because `formula` is later stripped of its fixed effects for the non-FE
   # model. "CL_FE" is a fixed-effects-only type, so the non-FE branch should
   # not flag it as invalid when fixed effects are present.
   has_fe <- grepl("|", formula, fixed=TRUE)
+
+  # Fixed effects are only supported for OLS. For a glm family, mirror sca():
+  # warn and drop the fixed effects so estimation falls back to the glm path.
+  # Stripping the pipe here means the FE branch below is skipped and "CL_FE"
+  # is (correctly) no longer treated as a valid type.
+  if(is_glm & has_fe){
+    warning(paste0("Fixed effects unsupported for models other than OLS ",
+                   "regression. Ignoring fixed effects."))
+    formula <- str_trim(str_split(formula, fixed("|"))[[1]][[1]])
+    has_fe <- FALSE
+  }
 
   # Validate the columns referenced by the formula and (if supplied) the
   # weights. Clustering variables are validated where they are used, with a
@@ -1104,8 +1134,10 @@ se_compare <- function(formula, data, weights=NULL,
     }
 
   }
-  # Case when a non-FE model is desired
-  if(!fixed_effects_only){
+  # Case when a non-FE model is desired. A glm family always estimates a non-FE
+  # model (any fixed effects were dropped above), so the branch is forced for
+  # glm even when `fixed_effects_only` was requested.
+  if(!fixed_effects_only | is_glm){
 
     # Allocate objects to hold SEs
     ses_other <- NULL
@@ -1117,14 +1149,21 @@ se_compare <- function(formula, data, weights=NULL,
       formula <- str_trim(str_split(formula, fixed("|"))[[1]][[1]])
     }
 
-    # Estimate the non-FE model and get the coefficients
+    # Estimate the non-FE model and get the coefficients. A non-linear family
+    # uses glm() with the resolved family object; otherwise lm(). The HC and
+    # clustered SE machinery below (coeftest + vcovHC/vcovCL) accepts glm and
+    # lm objects alike, so only the model-fitting call differs.
     if(is.null(weights)){
-      model <- lm(formula=as.formula(formula), data=data)
+      model <- if(is_glm) glm(formula=as.formula(formula), data=data,
+                              family=fam_obj)
+               else lm(formula=as.formula(formula), data=data)
     }
     else{
       fmla <- as.formula(formula)
       environment(fmla) <- environment()
-      model <- lm(formula=fmla, data=data, weights=get(weights))
+      model <- if(is_glm) glm(formula=fmla, data=data, family=fam_obj,
+                              weights=get(weights))
+               else lm(formula=fmla, data=data, weights=get(weights))
     }
 
     ses <- cbind(ses, matrix(model$coefficients, ncol=1,
@@ -1167,7 +1206,7 @@ se_compare <- function(formula, data, weights=NULL,
         boot <- boot_ses(data=data, formula=formula,
                          n_x=length(model$coefficients)-1,
                          boot_samples=boot_samples, boot_sample_size=boot_sample_size,
-                         weights=weights, fe_suffix="")
+                         weights=weights, fe_suffix="", fam_obj=fam_obj)
 
         if(!is.null(boot)){
           ses_other <- cbind(ses_other, boot)

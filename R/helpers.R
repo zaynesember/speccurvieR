@@ -18,6 +18,29 @@ check_columns <- function(data, cols, what){
   }
 }
 
+# Internal: resolve the `family`/`link` arguments shared by sca() and
+# se_compare() into a normalised family string and (for glm families) a family
+# object. Treats the common alias "gaussian" as ordinary least squares
+# ("linear"); for any other family it builds the family object, defaulting to
+# the family's canonical link when `link` is NULL and erroring clearly on an
+# unrecognised family. Returns a list with `family` (the normalised string) and
+# `fam_obj` (the family object, or NULL for the linear case).
+resolve_family <- function(family, link){
+  if(family=="gaussian") family <- "linear"
+
+  fam_obj <- NULL
+  if(family!="linear"){
+    fam_fun <- tryCatch(match.fun(family),
+                        error=function(e)
+                          stop("'", family,
+                               "' is not a recognised model family.",
+                               call.=FALSE))
+    fam_obj <- if(is.null(link)) fam_fun() else fam_fun(link=link)
+  }
+
+  list(family=family, fam_obj=fam_obj)
+}
+
 # Internal: decompose a model formula into the string components sca() uses.
 # The response is y; the FIRST right-hand-side term is the focal independent
 # variable x; remaining terms are controls; anything after a `|` is treated as
@@ -309,6 +332,11 @@ scp <- function(sca_data){
 #'                    random subset of the data.
 #' @param weights Optional string with the column name in `data` that contains
 #'                weights.
+#' @param fam_obj Optional `family` object (as returned by e.g. `binomial()`)
+#'                used to fit each resampled model with `glm()`. Defaults to
+#'                `NULL`, fitting linear models with `lm()` (or `feols()` when
+#'                the formula contains fixed effects). Fixed effects are not
+#'                supported together with a `family` object.
 #'
 #' @return A named list containing bootstrapped standard errors for each
 #'         coefficient.
@@ -329,10 +357,16 @@ scp <- function(sca_data){
 #'         n_x = 2, n_samples = 10, sample_size = 1000)
 #' }
 #'
-se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
+se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL,
+                    fam_obj=NULL){
 
   # Check for fixed effects in the formula
   FE <- ifelse(grepl("|", formula, fixed=TRUE), TRUE, FALSE)
+
+  # A non-NULL family object selects the glm() estimation path. Fixed effects
+  # are not supported alongside a glm family (se_compare() strips them before
+  # calling), so the glm branch is always non-FE.
+  is_glm <- !is.null(fam_obj)
 
   # Create a list of NAs to return for cases when bootstrapping fails
   fallback_list <- as.list(rep(NA, n_x + 1))
@@ -366,15 +400,30 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
         }
         else{
           if(is.null(weights)){
-            suppressMessages(lm(as.formula(formula),
-                                slice_sample(data, n=sample_size)))
+            if(is_glm){
+              suppressMessages(glm(as.formula(formula),
+                                   slice_sample(data, n=sample_size),
+                                   family=fam_obj))
+            }
+            else{
+              suppressMessages(lm(as.formula(formula),
+                                  slice_sample(data, n=sample_size)))
+            }
           }
           else{
             fmla <- as.formula(formula)
             environment(fmla) <- environment()
-            suppressMessages(lm(fmla,
-                                slice_sample(data, n=sample_size),
-                                weights=get(weights)))
+            if(is_glm){
+              suppressMessages(glm(fmla,
+                                   slice_sample(data, n=sample_size),
+                                   family=fam_obj,
+                                   weights=get(weights)))
+            }
+            else{
+              suppressMessages(lm(fmla,
+                                  slice_sample(data, n=sample_size),
+                                  weights=get(weights)))
+            }
           }
         }
       },

@@ -10,6 +10,12 @@
   right-hand-side term is the focal independent variable, the remaining terms
   are controls, and anything after `|` is treated as fixed effects. The original
   `y` / `x` / `controls` / `fixed_effects` argument interface is unchanged.
+* `se_compare()` gains `family` and `link` arguments mirroring `sca()`, so the
+  full range of `glm()` model families (e.g. logistic, Poisson) can be compared
+  across standard error types. The iid, heteroskedasticity-consistent,
+  clustered, and bootstrapped standard error machinery all carry over to glm
+  fits. Fixed effects remain OLS-only and are dropped with a warning when a
+  non-linear family is supplied, matching `sca()`'s behaviour.
 * New `plot_se()`: visualises the output of `se_compare()`, plotting each
   coefficient's estimate with a confidence interval for every standard error
   type so the sensitivity of inference to the choice of standard error is easy
