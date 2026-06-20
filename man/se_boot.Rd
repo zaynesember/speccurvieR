@@ -4,7 +4,15 @@
 \alias{se_boot}
 \title{Estimates bootstrapped standard errors for regression models}
 \usage{
-se_boot(data, formula, n_x, n_samples, sample_size, weights = NULL)
+se_boot(
+  data,
+  formula,
+  n_x,
+  n_samples,
+  sample_size,
+  weights = NULL,
+  fam_obj = NULL
+)
 }
 \arguments{
 \item{data}{A data frame containing the variables provided in `formula`.}
@@ -23,6 +31,12 @@ random subset of the data.}
 
 \item{weights}{Optional string with the column name in `data` that contains
 weights.}
+
+\item{fam_obj}{Optional `family` object (as returned by e.g. `binomial()`)
+used to fit each resampled model with `glm()`. Defaults to
+`NULL`, fitting linear models with `lm()` (or `feols()` when
+the formula contains fixed effects). Fixed effects are not
+supported together with a `family` object.}
 }
 \value{
 A named list containing bootstrapped standard errors for each

@@ -8,6 +8,8 @@ se_compare(
   formula,
   data,
   weights = NULL,
+  family = "linear",
+  link = NULL,
   types = "all",
   cluster = NULL,
   clustered_only = FALSE,
@@ -26,6 +28,19 @@ any clustering variables passed to `cluster`.}
 
 \item{weights}{Optional string with the column name in `data` that contains
 weights.}
+
+\item{family}{A string indicating the family of models to be used. Defaults
+to "linear" for OLS regression but supports all families
+supported by `glm()`. When a non-linear family is supplied the
+models are estimated with `glm()`; fixed effects are not
+supported in that case and are ignored with a warning.}
+
+\item{link}{A string specifying the link function to be used for the model.
+Defaults to `NULL`, using OLS regression via `lm()` (or
+`fixest::feols()` when fixed effects are supplied). For a
+non-linear `family` the canonical link is used when `link` is
+`NULL`. Supports all link functions supported by the family
+parameter of `glm()`.}
 
 \item{types}{A string or vector of strings specifying what types of
              standard errors are desired. Defaults to "all".
@@ -126,5 +141,11 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
 
 se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("HC0", "HC1", "HC3"))
+
+# Logistic regression: compare standard error types for a binary outcome.
+bottles$saline <- as.integer(bottles$Salnty >
+                               stats::median(bottles$Salnty, na.rm = TRUE))
+se_compare(formula = "saline ~ T_degC + ChlorA", data = bottles,
+           family = "binomial", types = c("iid", "HC0", "HC3"))
 
 }

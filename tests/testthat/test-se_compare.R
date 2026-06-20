@@ -89,3 +89,82 @@ test_that("se_boot() returns a named standard error per coefficient", {
   expect_named(b, c("(Intercept)", "T_degC", "STheta"))
   expect_true(all(b >= 0))
 })
+
+# glm-family support ----------------------------------------------------------
+
+# A binary outcome for logistic-regression tests.
+bin_bottles <- within(bottles, {
+  bin <- as.integer(Salnty > stats::median(Salnty, na.rm = TRUE))
+})
+
+test_that("se_compare() estimates a glm and matches glm()/sandwich exactly", {
+  r <- suppressWarnings(suppressMessages(
+    se_compare("bin ~ T_degC + STheta", bin_bottles, family = "binomial",
+               types = c("iid", "HC0", "HC3"))))
+  expect_s3_class(r, "data.frame")
+  expect_true(all(c("estimate", "iid", "HC0", "HC3") %in% colnames(r)))
+
+  # The coefficients and iid/HC SEs should reproduce a direct glm + sandwich fit.
+  m <- suppressWarnings(glm(bin ~ T_degC + STheta, data = bin_bottles,
+                            family = binomial()))
+  expect_equal(r$estimate, unname(coef(m)))
+  expect_equal(r$iid, unname(summary(m)$coefficients[, 2]))
+  expect_equal(r$HC0,
+               unname(lmtest::coeftest(m, vcov. = sandwich::vcovHC,
+                                       type = "HC0")[, 2]))
+})
+
+test_that("se_compare() supports clustered SEs for a glm", {
+  r <- suppressWarnings(suppressMessages(
+    se_compare("bin ~ T_degC + STheta", bin_bottles, family = "binomial",
+               types = "HC1", cluster = "Sta_ID")))
+  expect_true("HC1_Sta_ID" %in% colnames(r))
+})
+
+test_that("se_compare() bootstraps SEs for a glm", {
+  set.seed(3)
+  r <- suppressWarnings(suppressMessages(
+    se_compare("bin ~ T_degC + STheta", bin_bottles, family = "binomial",
+               types = "bootstrapped", boot_samples = 4,
+               boot_sample_size = 300)))
+  expect_true("bootstrap_k4n300" %in% colnames(r))
+})
+
+test_that("se_compare() warns and drops fixed effects for a glm family", {
+  expect_warning(
+    suppressMessages(se_compare("bin ~ T_degC | Sta_ID", bin_bottles,
+                                family = "binomial", types = c("iid", "HC0"))),
+    "Fixed effects unsupported"
+  )
+  # After dropping the FE the result is a plain non-FE glm: no FE columns.
+  r <- suppressWarnings(suppressMessages(
+    se_compare("bin ~ T_degC | Sta_ID", bin_bottles, family = "binomial",
+               types = c("iid", "HC0"))))
+  expect_false(any(grepl("_FE", colnames(r))))
+  expect_true(all(c("estimate", "iid", "HC0") %in% colnames(r)))
+})
+
+test_that("se_compare() treats family = 'gaussian' as linear OLS", {
+  a <- suppressMessages(se_compare("Salnty ~ T_degC + STheta", bottles,
+                                   family = "gaussian", types = "iid"))
+  b <- suppressMessages(se_compare("Salnty ~ T_degC + STheta", bottles,
+                                   types = "iid"))
+  expect_equal(a, b)
+})
+
+test_that("se_compare() errors on an unrecognised family", {
+  expect_error(
+    se_compare("bin ~ T_degC", bin_bottles, family = "notafamily"),
+    "not a recognised model family"
+  )
+})
+
+test_that("se_boot() fits glm models when given a family object", {
+  set.seed(4)
+  b <- suppressWarnings(suppressMessages(
+    se_boot(data = bin_bottles, formula = "bin ~ T_degC + STheta",
+            n_x = 2, n_samples = 4, sample_size = 300,
+            fam_obj = binomial())))
+  expect_length(b, 3)
+  expect_named(b, c("(Intercept)", "T_degC", "STheta"))
+})
