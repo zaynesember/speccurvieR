@@ -13,6 +13,26 @@ sca_test_perm_index <- function(n, block_groups){
   idx
 }
 
+# Internal: a canonical key identifying each specification by the set of model
+# terms it includes (the focal x and the intercept are dropped, since they are
+# common to every specification). Because sca() reorders its rows by coefficient
+# magnitude, this terms-based key -- not row position -- is what aligns the same
+# specification across the observed curve and the permuted curves. `terms_list`
+# is sca()'s `terms` list-column.
+#
+# The key is unique per *distinct fitted model*, not necessarily per sca() row:
+# a redundant control set (e.g. an interaction control together with its
+# components, controls = c("a*b", "a", "b")) yields several control subsets that
+# expand to the same model terms and hence the same key. That is exactly why
+# matching by key (taking the first match) is safe in the keep_curves block --
+# the colliding rows are the identical model, so they share the same coefficient.
+sca_spec_key <- function(terms_list, x){
+  unname(vapply(terms_list,
+                function(t) paste(sort(setdiff(t, c("(Intercept)", x))),
+                                  collapse = " + "),
+                character(1)))
+}
+
 # Internal: compute the joint-inference test statistics for a single
 # specification curve (the data frame returned by sca()). Returns a named
 # numeric vector keyed by the requested statistics, with an "n_valid" attribute
@@ -176,16 +196,28 @@ sca_test_pvalues <- function(observed, null_df, test_stats, direction){
 #'         named vector of observed statistics), `null_distribution` (a data
 #'         frame with one row per usable permutation and one column per
 #'         statistic, plus `n_valid`), `p_values` (a named vector of
-#'         permutation p-values), and `params` (a list of run metadata).
+#'         permutation p-values), `params` (a list of run metadata), and, when
+#'         `keep_curves = TRUE`, `null_curves` (a list with `spec`, a data frame
+#'         of each specification's key and observed coefficient, and
+#'         `null_coef`, a specifications-by-permutations matrix of the permuted
+#'         focal coefficients).
 #'
 #' @references
 #' Simonsohn, U., Simmons, J. P., & Nelson, L. D. (2020). Specification curve
 #' analysis. \emph{Nature Human Behaviour}, 4, 1208-1214.
 #' \doi{10.1038/s41562-020-0912-z}
 #'
-#' @seealso [plot_sca_test()] to visualise the result.
+#' @param keep_curves A boolean indicating whether to retain, for every
+#'                    specification, the focal coefficient from each permuted
+#'                    curve (aligned across permutations by specification, not
+#'                    row order). Required by [plot_sca_test_specs()]; increases
+#'                    the size of the returned object. Defaults to `FALSE`.
 #'
-#' @importFrom stats median qnorm
+#' @seealso [plot_sca_test()] to visualise the null distributions of the test
+#'   statistics, and [plot_sca_test_specs()] for the per-specification null-band
+#'   plot (requires `keep_curves = TRUE`).
+#'
+#' @importFrom stats median qnorm quantile
 #' @export
 #'
 #' @examples
@@ -201,6 +233,7 @@ sca_test <- function(y, x, controls, data, weights = NULL,
                      n_permutations = 500,
                      test_stats = c("median", "share_significant", "stouffer"),
                      direction = "two.sided", alpha = 0.05, sca_data = NULL,
+                     keep_curves = FALSE,
                      parallel = FALSE, workers = 2, seed = NULL,
                      progress_bar = TRUE){
 
@@ -318,7 +351,11 @@ sca_test <- function(y, x, controls, data, weights = NULL,
           fixed_effects = fixed_effects, parallel = FALSE, progress_bar = FALSE),
       error = function(e) NULL)
     if(is.null(curve)) return(NULL)
-    list(coef = curve$coef, p = curve$p)
+    out <- list(coef = curve$coef, p = curve$p)
+    # Retain the per-specification term sets so the master can align each
+    # specification's coefficient across permutations (sca() reorders rows).
+    if(keep_curves) out$terms <- curve$terms
+    out
   }
 
   # Run the permutations, parallelising the outer loop if requested.
@@ -365,19 +402,42 @@ sca_test <- function(y, x, controls, data, weights = NULL,
 
   p_values <- sca_test_pvalues(observed, null_df, test_stats, direction)
 
-  structure(
-    list(
-      observed = observed[test_stats],
-      null_distribution = null_df,
-      p_values = p_values,
-      params = list(n_permutations = n_permutations, n_used = n_used,
-                    n_failed = n_failed, direction = direction, alpha = alpha,
-                    x = x, seed = seed, parallel = parallel, workers = workers,
-                    family = family, fixed_effects = fixed_effects,
-                    n_specs = n_specs, blocked = blocked,
-                    test_stats = test_stats)
-    ),
-    class = "sca_test")
+  # When requested, assemble the per-specification null coefficients: a matrix
+  # with one row per specification (keyed by its term set, in the observed
+  # curve's order) and one column per usable permutation. Each permuted curve's
+  # coefficient is matched to its specification by key, so reordering by sca()
+  # cannot misalign specifications; a specification absent from a permuted curve
+  # (dropped/failed) is left NA.
+  null_curves <- NULL
+  if(keep_curves){
+    observed_keys <- sca_spec_key(observed_curve$terms, x)
+    null_coef <- matrix(NA_real_, nrow = n_specs, ncol = n_used,
+                        dimnames = list(observed_keys, NULL))
+    for(j in seq_len(n_used)){
+      cp <- null_list[[j]]
+      null_coef[, j] <- cp$coef[match(observed_keys,
+                                      sca_spec_key(cp$terms, x))]
+    }
+    null_curves <- list(
+      spec = data.frame(spec = observed_keys,
+                        observed = observed_curve$coef,
+                        stringsAsFactors = FALSE),
+      null_coef = null_coef)
+  }
+
+  out <- list(
+    observed = observed[test_stats],
+    null_distribution = null_df,
+    p_values = p_values)
+  # Only present when requested, so the default return is unchanged.
+  if(keep_curves) out$null_curves <- null_curves
+  out$params <- list(n_permutations = n_permutations, n_used = n_used,
+                     n_failed = n_failed, direction = direction, alpha = alpha,
+                     x = x, seed = seed, parallel = parallel, workers = workers,
+                     family = family, fixed_effects = fixed_effects,
+                     n_specs = n_specs, blocked = blocked,
+                     test_stats = test_stats, keep_curves = keep_curves)
+  structure(out, class = "sca_test")
 }
 
 # Internal: human-readable labels for the statistics.
@@ -489,5 +549,108 @@ plot_sca_test <- function(test_result, type = "histogram", title = ""){
               inherit.aes = FALSE) +
     facet_wrap(~statistic, scales = "free") +
     labs(x = "Statistic under the null", y = "", title = title) +
+    theme_sca()
+}
+
+#' Plot the specification curve against its per-specification null band
+#'
+#' @description
+#' `plot_sca_test_specs()` draws the observed specification curve (each
+#' specification's focal coefficient, ranked) together with a shaded band giving
+#' that specification's own null distribution under the permutation test. This
+#' is the specification-curve view of the joint-inference test of Simonsohn,
+#' Simmons, and Nelson (2020): specifications whose observed estimate falls
+#' outside their null band are highlighted, so it is easy to see which parts of
+#' the curve are more extreme than chance.
+#'
+#' It requires an [sca_test()] result computed with `keep_curves = TRUE`.
+#'
+#' @param test_result An object of class `"sca_test"` returned by [sca_test()]
+#'                    with `keep_curves = TRUE`.
+#' @param level The width of the null band, as a probability. Defaults to `0.95`
+#'              (the 2.5th to 97.5th percentile of each specification's null
+#'              coefficients).
+#' @param title A string used as the plot title. Defaults to `""`.
+#'
+#' @return A ggplot object.
+#'
+#' @references
+#' Simonsohn, U., Simmons, J. P., & Nelson, L. D. (2020). Specification curve
+#' analysis. \emph{Nature Human Behaviour}, 4, 1208-1214.
+#' \doi{10.1038/s41562-020-0912-z}
+#'
+#' @export
+#'
+#' @examples
+#' \donttest{
+#' result <- sca_test(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
+#'                    data = bottles, n_permutations = 100, keep_curves = TRUE,
+#'                    progress_bar = FALSE)
+#' plot_sca_test_specs(result)
+#' }
+plot_sca_test_specs <- function(test_result, level = 0.95, title = ""){
+  if(!inherits(test_result, "sca_test")){
+    stop("`test_result` must be an object returned by sca_test().",
+         call. = FALSE)
+  }
+  nc <- test_result$null_curves
+  if(is.null(nc)){
+    stop("This sca_test object has no per-specification null curves. Re-run ",
+         "sca_test() with `keep_curves = TRUE`.", call. = FALSE)
+  }
+  if(!is.numeric(level) || level <= 0 || level >= 1){
+    stop("`level` must be between 0 and 1.", call. = FALSE)
+  }
+
+  a <- (1 - level) / 2
+  null_coef <- nc$null_coef
+  df <- nc$spec
+
+  # Drop specifications that produced no usable null coefficient in any
+  # permutation (dropped or non-estimable on every permuted data set); they
+  # have no null band to compare against.
+  keep <- rowSums(!is.na(null_coef)) > 0
+  if(any(!keep)){
+    warning(sum(!keep), " specification(s) had no usable null coefficients ",
+            "and were omitted from the plot.", call. = FALSE)
+    null_coef <- null_coef[keep, , drop = FALSE]
+    df <- df[keep, , drop = FALSE]
+  }
+  if(nrow(df) == 0){
+    stop("No specifications have a usable null distribution to plot.",
+         call. = FALSE)
+  }
+
+  df$lower <- apply(null_coef, 1, quantile, probs = a, na.rm = TRUE)
+  df$upper <- apply(null_coef, 1, quantile, probs = 1 - a, na.rm = TRUE)
+
+  # Redundant control sets (e.g. an interaction control plus its components)
+  # produce the same fitted model and hence the same key; draw each distinct
+  # specification once rather than as overlapping points.
+  df <- df[!duplicated(df$spec), ]
+
+  # Rank specifications by observed estimate, as in plot_curve().
+  df <- df[order(df$observed), ]
+  df$index <- seq_len(nrow(df))
+  df$outside <- df$observed < df$lower | df$observed > df$upper
+
+  band_fill <- sca_sig_colors()[["p >= .1"]]
+  inside_col <- sca_sig_colors()[["p >= .1"]]
+  outside_col <- sca_sig_colors()[["p < .005"]]
+
+  ggplot(df, aes(x = index)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = band_fill,
+                alpha = .45) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "grey40",
+               linewidth = .4) +
+    geom_point(aes(y = observed, color = outside), size = 1.1) +
+    scale_color_manual(values = c("FALSE" = inside_col, "TRUE" = outside_col),
+                       labels = c("FALSE" = "within null band",
+                                  "TRUE" = "outside null band"),
+                       drop = FALSE,
+                       name = "Observed estimate") +
+    labs(x = "Specification (ranked by estimate)",
+         y = "Focal coefficient",
+         title = title) +
     theme_sca()
 }

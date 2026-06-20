@@ -28,9 +28,12 @@ Imports:
   lmtest,
   sandwich
 Suggests:
-  testthat (>= 3.0.0)
+  testthat (>= 3.0.0),
+  knitr,
+  rmarkdown
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3
 License: MIT + file LICENSE
 URL: https://github.com/zaynesember/speccurvieR
 BugReports: https://github.com/zaynesember/speccurvieR/issues
+VignetteBuilder: knitr

@@ -7,3 +7,5 @@
 ^CRAN-SUBMISSION$
 ^README\.Rmd$
 ^revdep$
+^Rplots\.pdf$
+^figure$
