@@ -219,6 +219,20 @@ sca <- function(y, x, controls, data, weights=NULL,
     }
   }
 
+  # Guard: the focal variable must correspond to a single model coefficient.
+  # A factor, interaction, or transformed `x` expands to differently-named
+  # rows (e.g. "xLevel2", "a:b") or none at all, in which case the name-based
+  # extraction below would error with "subscript out of bounds" or silently
+  # return NA for every specification. Every specification contains x, so the
+  # first model is representative.
+  first_terms <- if(!is.null(fixed_effects)) rownames(models[[1]]$coeftable)
+                 else rownames(models[[1]]$coefficients)
+  if(!x %in% first_terms){
+    stop("`x` (\"", x, "\") does not correspond to a single model coefficient. ",
+         "It may be a factor, interaction, or transformed term; specification ",
+         "curve analysis requires a single focal coefficient.", call.=FALSE)
+  }
+
   # OLS models
   if(family=="linear"){
 
@@ -882,14 +896,13 @@ boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
 #'
 #'              The following types are supported for fixed effects models:
 #'
-#'                With clustering: "CL_FE" (clustered by fixed effects, i.e.
-#'                                 the default standard errors reported by
-#'                                 `feols()` if no clusters are supplied), if
-#'                                 clusters are supplied then the conventional
-#'                                 clustered standard errors from `feols()` are
-#'                                 estimated for each clustering variable. Two-
-#'                                 way clustered standard errors are not
-#'                                 supported at this time.
+#'                With clustering: "CL_FE" (standard errors clustered by the
+#'                                 first fixed effect), if clusters are supplied
+#'                                 then the conventional clustered standard
+#'                                 errors from `feols()` are estimated for each
+#'                                 clustering variable. Two-way clustered
+#'                                 standard errors are not supported at this
+#'                                 time.
 #'
 #'                Without clustering: "HC0, "HC1", "HC2", "HC3",
 #'                                    "HC4", "HC4m", "HC5",
@@ -924,7 +937,7 @@ boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
 #'
 #'          "iid" = normal standard errors, i.e. assuming homoskedasticity
 #'
-#'          "CL_FE" = standard errors clustered by fixed effects
+#'          "CL_FE" = standard errors clustered by the first fixed effect
 #'
 #'          "bootstrap_k8n300_FE" =  bootstrapped standard errors for a fixed
 #'                                   effects model where `boot_samples = 8` and
@@ -1052,6 +1065,14 @@ se_compare <- function(formula, data, weights=NULL,
         message("Fixed effects model estimation failed.")
       }
       else{
+      # The first fixed effect, used below to compute "CL_FE". Historically
+      # feols() clustered its default standard errors by the first fixed
+      # effect, but modern fixest (>= 0.10) defaults to IID, so we cluster by
+      # the first fixed effect explicitly to keep "CL_FE" cluster-robust as its
+      # name and documentation promise, regardless of fixest version.
+      fe_part <- str_trim(str_split(formula, fixed("|"))[[1]][[2]])
+      first_fe <- str_trim(str_split(fe_part, fixed("+"))[[1]][[1]])
+
       # Add FE model coefficients to the matrix
       ses <- cbind(ses, matrix(c("(Intercept)"=NA, model_fe$coefficients), ncol=1,
                                dimnames=list(c("(Intercept)",
@@ -1075,10 +1096,17 @@ se_compare <- function(formula, data, weights=NULL,
 
         }
 
-        # Get the default standard errors from feols() output
+        # Standard errors clustered by the first fixed effect. When the first
+        # fixed effect is a plain column it is used as the clustering variable;
+        # otherwise (e.g. an interaction fixed effect such as "a^b") we fall
+        # back to feols()'s default standard errors.
         if("CL_FE" %in% types_other){
-          ses_other <- cbind(ses_other, "CL_FE"=c("(Intercept)"=NA,
-                                                  coeftable(model_fe)[,2]))
+          cl_fe_se <- if(first_fe %in% colnames(data)){
+            summary(model_fe, cluster=data[first_fe])$coeftable[,2]
+          } else {
+            coeftable(model_fe)[,2]
+          }
+          ses_other <- cbind(ses_other, "CL_FE"=c("(Intercept)"=NA, cl_fe_se))
         }
 
         # Get bootstrapped SEs

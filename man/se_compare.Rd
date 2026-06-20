@@ -56,14 +56,13 @@ parameter of `glm()`.}
 
              The following types are supported for fixed effects models:
 
-               With clustering: "CL_FE" (clustered by fixed effects, i.e.
-                                the default standard errors reported by
-                                `feols()` if no clusters are supplied), if
-                                clusters are supplied then the conventional
-                                clustered standard errors from `feols()` are
-                                estimated for each clustering variable. Two-
-                                way clustered standard errors are not
-                                supported at this time.
+               With clustering: "CL_FE" (standard errors clustered by the
+                                first fixed effect), if clusters are supplied
+                                then the conventional clustered standard
+                                errors from `feols()` are estimated for each
+                                clustering variable. Two-way clustered
+                                standard errors are not supported at this
+                                time.
 
                Without clustering: "HC0, "HC1", "HC2", "HC3",
                                    "HC4", "HC4m", "HC5",
@@ -105,7 +104,7 @@ A data frame where row represents an independent variable in the
 
          "iid" = normal standard errors, i.e. assuming homoskedasticity
 
-         "CL_FE" = standard errors clustered by fixed effects
+         "CL_FE" = standard errors clustered by the first fixed effect
 
          "bootstrap_k8n300_FE" =  bootstrapped standard errors for a fixed
                                   effects model where `boot_samples = 8` and
