@@ -777,7 +777,7 @@ plot_control_distributions <- function(sca_data, title="", type="density",
 
   # A single cohesive fill from the package palette rather than a clashing
   # colour per facet (the colour carried no information).
-  fillColor <- sca_sig_colors()[["p < .05"]]
+  fillColor <- sca_sig_colors()[["p < .005"]]
 
   sc1 <- histData %>%
     ggplot(aes(x=coef)) +
@@ -1316,7 +1316,7 @@ plot_se <- function(se_data, level=0.95, intercept=FALSE, title=""){
     geom_hline(yintercept=0, color="red", linetype="dashed") +
     geom_pointrange(aes(ymin=lower, ymax=upper)) +
     facet_wrap(~term, scales="free_y") +
-    scale_color_manual(values=c("FALSE"="#9E9E9E", "TRUE"="#08519C"),
+    scale_color_manual(values=c("FALSE"="#999999", "TRUE"="#0072B2"),
                        labels=c("FALSE"="CI includes 0",
                                 "TRUE"="CI excludes 0"),
                        drop=FALSE) +

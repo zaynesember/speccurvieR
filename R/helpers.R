@@ -438,15 +438,15 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL){
   return(retVal)
 }
 
-# Internal: an ordered, colour-blind-safe colour mapping for the significance
-# bins used across the package's plots. Sequential blues (darker = more
-# significant) with grey for non-significant, which reads intuitively and is
-# safe for all common colour-vision deficiencies.
+# Internal: a colour-blind-safe colour mapping for the significance bins used
+# across the package's plots. Uses distinct hues from the Okabe-Ito palette
+# (blue / green / orange) for the significant bins -- far easier to tell apart
+# on thin error bars than a sequential ramp -- with grey for non-significant.
 sca_sig_colors <- function(){
-  c("p < .005" = "#08519C",
-    "p < .05"  = "#3182BD",
-    "p < .1"   = "#6BAED6",
-    "p >= .1"  = "#9E9E9E")
+  c("p < .005" = "#0072B2",
+    "p < .05"  = "#009E73",
+    "p < .1"   = "#E69F00",
+    "p >= .1"  = "#999999")
 }
 
 #' A clean, consistent ggplot2 theme for speccurvieR plots.
