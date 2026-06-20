@@ -254,6 +254,20 @@ plot_influence(s)
 plot_coef_fit(s)
 ```
 
+# Variance decomposition
+
+Which modelling choices actually drive the spread of estimates? `sca_variance()` decomposes the variance of the focal coefficient across the curve into the share attributable to each control (plus a residual for interactions among choices and unexplained variation), using an LMG / Shapley decomposition of R² whose shares sum exactly to the model R²:
+
+```{r}
+sca_variance(s)
+```
+
+`plot_variance()` shows the same as a bar chart:
+
+```{r}
+plot_variance(s)
+```
+
 # Joint-inference test
 
 Looking at a specification curve tells you whether results are robust *descriptively*, but how do you know the curve as a whole is more extreme than you'd expect by chance? `sca_test()` implements the permutation-based joint-inference test of Simonsohn, Simmons, and Nelson (2020). It tests the sharp null that the focal variable has no effect in *any* specification by repeatedly shuffling that variable (blocked within fixed effects when present), re-estimating the entire curve each time, and comparing the observed curve to the resulting null distribution.
