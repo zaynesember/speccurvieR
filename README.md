@@ -60,6 +60,13 @@ visualization. Some features that set the package apart currently:
   across model specifications
 - Ability to compare different standard error estimates including
   heteroskedasticity-consistent, clustered, and bootstrapped
+- Diagnostic plots no other package offers: visualize how inference
+  changes across standard error types (`plot_se()`, `plot_multi_se()`),
+  which controls move your estimate (`plot_influence()`), and whether
+  your best-fitting models are outliers (`plot_coef_fit()`)
+- A concise formula interface
+  (`sca(y ~ x + control1 + control2 | fixed_effect, data)`) alongside
+  the original argument interface
 - Ability to compare various model fit parameters across models
 - Support for parallel computing to speed up model estimation and
   progress bars to monitor model estimation
@@ -124,11 +131,21 @@ want to understand how including the concentration of other chemicals
 affects the model
 
 ``` r
-s <- sca(y = "T_degC", x = "Salnty", 
-             controls = c("O2Sat", "ChlorA", "NH3uM", "NO2uM", 
+s <- sca(y = "T_degC", x = "Salnty",
+             controls = c("O2Sat", "ChlorA", "NH3uM", "NO2uM",
                           "SiO3uM", "NO2uM*SiO3uM"),
              data = bottles)
 #> [1] Estimating 63 models
+```
+
+If you prefer, you can specify the whole model with a formula instead.
+The first right-hand-side term is taken as the independent variable, the
+rest as controls, and anything after a `|` as fixed effects, so the call
+above is equivalent to:
+
+``` r
+s <- sca(T_degC ~ Salnty + O2Sat + ChlorA + NH3uM + NO2uM + SiO3uM +
+           NO2uM*SiO3uM, data = bottles)
 ```
 
 The function returns a data frame containing a row for every possible
@@ -167,7 +184,7 @@ coefficient
 plot_curve(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-7-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-8-1.png" width="100%" />
 
 By default, a bottom panel is provided showing which controls are
 present in each model. You can get the bottom panel by itself using
@@ -177,7 +194,7 @@ present in each model. You can get the bottom panel by itself using
 plot_vars(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-8-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
 
 You can also get just the top panel with the specification curve, add a
 title, and more:
@@ -186,7 +203,7 @@ title, and more:
 plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve")
 ```
 
-<img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-10-1.png" width="100%" />
 
 When `plot_vars = FALSE` (i.e. when you are only having a single ggplot
 object returned) you can also customize the plot as you would any
@@ -203,7 +220,7 @@ plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve") +
            x = "Model index")
 ```
 
-<img src="man/figures/README-unnamed-chunk-10-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-11-1.png" width="100%" />
 
 Note you may need to adjust the plot’s margin when customizing like this
 to avoid going off the plot’s edge, this can be done easily:
@@ -213,7 +230,7 @@ plot_curve(s, plot_vars = F) +
       labs(title = "I'm missing")
 ```
 
-<img src="man/figures/README-unnamed-chunk-11-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-12-1.png" width="100%" />
 
 ``` r
 plot_curve(s, plot_vars = F) +
@@ -221,7 +238,7 @@ plot_curve(s, plot_vars = F) +
       labs(title = "I'm found!")
 ```
 
-<img src="man/figures/README-unnamed-chunk-12-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
 
 Let’s see what other stuff we can plot.
 
@@ -231,13 +248,13 @@ We can look at model fits across models:
 plot_rmse(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
 
 ``` r
 plot_r2_adj(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-15-1.png" width="100%" />
 
 We can also look at the distributions of coefficients for our control
 variables:
@@ -246,7 +263,7 @@ variables:
 plot_control_distributions(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-15-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-16-1.png" width="100%" />
 
 Or maybe we want histograms:
 
@@ -255,7 +272,7 @@ plot_control_distributions(s, type="histogram")
 #> `stat_bin()` using `bins = 30`. Pick better value `binwidth`.
 ```
 
-<img src="man/figures/README-unnamed-chunk-16-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-17-1.png" width="100%" />
 
 (Note: because the above plot is a facet wrapped `ggplot` object you can
 customize it like any other `ggplot` object)
@@ -289,13 +306,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017       0.13478575       0.100135837
-#> T_degC      -0.0599783335 0.007428642       0.01050174       0.008020928
-#> ChlorA       0.0006514447 0.012449618       0.05922188       0.063893810
+#> (Intercept) 34.2940251811 0.097594017       0.15188892       0.094237181
+#> T_degC      -0.0599783335 0.007428642       0.01288057       0.007489454
+#> ChlorA       0.0006514447 0.012449618       0.05649164       0.056247179
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)      0.082719538       0.112303742
-#> T_degC           0.006294528       0.009025722
-#> ChlorA           0.005321084       0.048289838
+#> (Intercept)      0.044910786       0.086113600
+#> T_degC           0.003841114       0.005856342
+#> ChlorA           0.049638555       0.025960005
 ```
 
 Clustered standard errors are also supported:
@@ -326,6 +343,52 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA | Sta_ID", data = bottles,
 
 Note: CL_FE refers to standard errors clustered by fixed effects
 variables, i.e. the default errors reported by `fixest::feols()`.
+
+You can visualize these comparisons too. `plot_se()` shows each
+coefficient’s estimate with a confidence interval under every standard
+error type, coloured by whether the interval excludes zero:
+
+``` r
+plot_se(se_compare("Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
+                   types = c("iid", "HC0", "HC1", "HC3")))
+```
+
+<img src="man/figures/README-unnamed-chunk-22-1.png" width="100%" />
+
+And `plot_multi_se()` draws the whole specification curve faceted by
+standard error type. The estimates are identical across facets, so you
+can see exactly which specifications stay significant under each choice
+of standard error:
+
+``` r
+plot_multi_se(y = "Salnty", x = "T_degC",
+              controls = c("ChlorA", "O2Sat", "NO2uM"),
+              data = bottles, types = c("iid", "HC3"))
+```
+
+<img src="man/figures/README-unnamed-chunk-23-1.png" width="100%" />
+
+# Diagnostic plots
+
+`plot_influence()` shows, for each control, how including versus
+excluding it shifts your independent variable’s coefficient—making clear
+which modelling choices move the estimate:
+
+``` r
+plot_influence(s)
+```
+
+<img src="man/figures/README-unnamed-chunk-24-1.png" width="100%" />
+
+`plot_coef_fit()` plots the coefficient against model fit, revealing
+whether your best-fitting specifications give systematically different
+estimates:
+
+``` r
+plot_coef_fit(s)
+```
+
+<img src="man/figures/README-unnamed-chunk-25-1.png" width="100%" />
 
 # Other features
 
@@ -361,31 +424,31 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x12839c700>
+#> <environment: 0x1190f5858>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x12839c700>
+#> <environment: 0x1190f5858>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x12839c700>
+#> <environment: 0x1190f5858>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x12839c700>
+#> <environment: 0x1190f5858>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x12839c700>
+#> <environment: 0x1190f5858>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x12839c700>
+#> <environment: 0x1190f5858>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x12839c700>
+#> <environment: 0x1190f5858>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
@@ -422,10 +485,10 @@ summary(my_own_models[[1]])
 Feel free to contact me at <zayne@mit.edu> to let me know of features
 you would find useful. Currently, I hope to add the following:
 
-- Plotting different types of standard errors
-- Adding support for all `glm` models in `se_compare()`
-- Tools to understand variation in coefficient estimates across model
-  specifications.
+- Support for all `glm` model families in `se_compare()`
+- A formal joint-inference test for the specification curve (à la
+  Simonsohn, Simmons, and Nelson 2020), comparing the observed curve to
+  its distribution under the null
 
-If you find a bug please create and issue on GitHub and I’ll work to fix
+If you find a bug please create an issue on GitHub and I’ll work to fix
 it ASAP.
