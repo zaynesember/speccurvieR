@@ -254,6 +254,28 @@ plot_influence(s)
 plot_coef_fit(s)
 ```
 
+# Joint-inference test
+
+Looking at a specification curve tells you whether results are robust *descriptively*, but how do you know the curve as a whole is more extreme than you'd expect by chance? `sca_test()` implements the permutation-based joint-inference test of Simonsohn, Simmons, and Nelson (2020). It tests the sharp null that the focal variable has no effect in *any* specification by repeatedly shuffling that variable (blocked within fixed effects when present), re-estimating the entire curve each time, and comparing the observed curve to the resulting null distribution.
+
+It reports three statistics—the median estimate, the share of specifications significant in the predicted direction, and a Stouffer combination of the per-specification *p*-values—each with its own permutation *p*-value:
+
+```{r}
+result <- sca_test(y = "Salnty", x = "T_degC",
+                   controls = c("O2Sat", "ChlorA", "NO2uM"),
+                   data = bottles, n_permutations = 500, seed = 1,
+                   progress_bar = FALSE)
+result
+```
+
+`plot_sca_test()` shows each statistic's null distribution with the observed value marked, making it easy to see how far the real specification curve sits in the tail:
+
+```{r}
+plot_sca_test(result)
+```
+
+By default the test is two-sided; pass `direction = "positive"` or `"negative"` when you have an a-priori predicted direction. Use `parallel = TRUE` to spread the permutations across workers.
+
 # Other features
 
 ## Fixed effects with `fixest::feols`

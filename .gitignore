@@ -3,3 +3,7 @@
 .RData
 .Ruserdata
 .DS_Store
+
+# R build/check artifacts
+*.Rcheck/
+*.tar.gz

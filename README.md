@@ -306,13 +306,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017      0.099085522       0.055914594
-#> T_degC      -0.0599783335 0.007428642      0.007235388       0.004576313
-#> ChlorA       0.0006514447 0.012449618      0.031688674       0.043479922
+#> (Intercept) 34.2940251811 0.097594017       0.13147179       0.111286012
+#> T_degC      -0.0599783335 0.007428642       0.01051403       0.008314237
+#> ChlorA       0.0006514447 0.012449618       0.03973517       0.038113777
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)      0.122896514       0.095888953
-#> T_degC           0.008826291       0.008775471
-#> ChlorA           0.017566464       0.010630793
+#> (Intercept)       0.15232977       0.088216930
+#> T_degC            0.01111948       0.007911672
+#> ChlorA            0.03592046       0.045676666
 ```
 
 Clustered standard errors are also supported:
@@ -408,6 +408,60 @@ plot_coef_fit(s)
 
 <img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
 
+# Joint-inference test
+
+Looking at a specification curve tells you whether results are robust
+*descriptively*, but how do you know the curve as a whole is more
+extreme than you’d expect by chance? `sca_test()` implements the
+permutation-based joint-inference test of Simonsohn, Simmons, and Nelson
+(2020). It tests the sharp null that the focal variable has no effect in
+*any* specification by repeatedly shuffling that variable (blocked
+within fixed effects when present), re-estimating the entire curve each
+time, and comparing the observed curve to the resulting null
+distribution.
+
+It reports three statistics—the median estimate, the share of
+specifications significant in the predicted direction, and a Stouffer
+combination of the per-specification *p*-values—each with its own
+permutation *p*-value:
+
+``` r
+result <- sca_test(y = "Salnty", x = "T_degC",
+                   controls = c("O2Sat", "ChlorA", "NO2uM"),
+                   data = bottles, n_permutations = 500, seed = 1,
+                   progress_bar = FALSE)
+result
+#> Specification curve joint-inference test (Simonsohn, Simmons & Nelson 2020)
+#> 
+#> Focal variable:   T_degC
+#> Specifications:   7
+#> Permutations:     500 used (0 failed)   |  blocked within FE: no
+#> Direction:        two.sided   alpha = 0.05
+#> 
+#>   Statistic                Observed    p-value
+#>   Median estimate            0.0543     0.0020
+#>   Share significant          1.0000     0.0040
+#>   Stouffer Z                 0.9213     0.6547
+#> 
+#> p-values are permutation-based; resolution floor = 0.0020.
+#> Interpretation (SSN): conclude a robust effect when the median test AND
+#> at least one of {share significant, Stouffer} are significant.
+```
+
+`plot_sca_test()` shows each statistic’s null distribution with the
+observed value marked, making it easy to see how far the real
+specification curve sits in the tail:
+
+``` r
+plot_sca_test(result)
+```
+
+<img src="man/figures/README-unnamed-chunk-28-1.png" width="100%" />
+
+By default the test is two-sided; pass `direction = "positive"` or
+`"negative"` when you have an a-priori predicted direction. Use
+`parallel = TRUE` to spread the permutations across workers.
+
 # Other features
 
 ## Fixed effects with `fixest::feols`
@@ -442,31 +496,31 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x1372a6d30>
+#> <environment: 0x12099a438>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x1372a6d30>
+#> <environment: 0x12099a438>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x1372a6d30>
+#> <environment: 0x12099a438>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x1372a6d30>
+#> <environment: 0x12099a438>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x1372a6d30>
+#> <environment: 0x12099a438>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x1372a6d30>
+#> <environment: 0x12099a438>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x1372a6d30>
+#> <environment: 0x12099a438>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
