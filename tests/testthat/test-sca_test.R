@@ -190,3 +190,72 @@ test_that("print.sca_test returns its input invisibly", {
   expect_output(print(r), "joint-inference test")
   expect_invisible(print(r))
 })
+
+test_that("keep_curves retains per-specification null coefficients", {
+  controls <- c("ChlorA", "O2Sat", "NO2uM")
+  r <- sca_test("Salnty", "T_degC", controls, bottles, n_permutations = 40,
+                seed = 1, keep_curves = TRUE, progress_bar = FALSE)
+  expect_true(r$params$keep_curves)
+  expect_false(is.null(r$null_curves))
+  nc <- r$null_curves
+  # One row per specification, one column per usable permutation.
+  expect_equal(nrow(nc$null_coef), r$params$n_specs)
+  expect_equal(ncol(nc$null_coef), r$params$n_used)
+  # Specifications are keyed (uniquely) by their term set.
+  expect_equal(nrow(nc$spec), r$params$n_specs)
+  expect_equal(rownames(nc$null_coef), nc$spec$spec)
+  expect_equal(length(unique(nc$spec$spec)), r$params$n_specs)
+  # The default run does not retain curves.
+  r0 <- sca_test("Salnty", "T_degC", controls, bottles, n_permutations = 20,
+                 seed = 1, progress_bar = FALSE)
+  expect_null(r0$null_curves)
+})
+
+test_that("keep_curves aligns redundant (duplicate-key) specifications", {
+  # An interaction control plus its components is redundant: the fitted model
+  # T_degC + ChlorA*O2Sat already contains ChlorA, O2Sat, and ChlorA:O2Sat, so
+  # several control subsets collapse to the same terms-based key.
+  controls <- c("ChlorA*O2Sat", "ChlorA", "O2Sat")
+  r <- sca_test("Salnty", "T_degC", controls, bottles, n_permutations = 40,
+                seed = 1, keep_curves = TRUE, progress_bar = FALSE)
+  nc <- r$null_curves
+  expect_equal(nrow(nc$spec), r$params$n_specs)
+  # Redundant control sets collapse keys: fewer unique keys than specifications.
+  expect_lt(length(unique(nc$spec$spec)), r$params$n_specs)
+  # Rows sharing a key are the same fitted model: identical null and observed
+  # coefficients, so the match()-by-key alignment is correct.
+  dups <- unique(nc$spec$spec[duplicated(nc$spec$spec)])
+  rows <- which(nc$spec$spec == dups[1])
+  expect_gt(length(rows), 1)
+  sub <- nc$null_coef[rows, , drop = FALSE]
+  for(j in seq_len(ncol(sub))) expect_equal(sub[, j], rep(sub[1, j], nrow(sub)))
+  expect_equal(nc$spec$observed[rows],
+               rep(nc$spec$observed[rows[1]], length(rows)))
+  # The per-specification plot draws each distinct specification once.
+  expect_s3_class(plot_sca_test_specs(r), "ggplot")
+})
+
+test_that("keep_curves alignment is identical across serial and parallel", {
+  skip_on_cran()
+  controls <- c("ChlorA", "O2Sat")
+  s <- sca_test("Salnty", "T_degC", controls, bottles, n_permutations = 30,
+                seed = 5, keep_curves = TRUE, progress_bar = FALSE)
+  p <- sca_test("Salnty", "T_degC", controls, bottles, n_permutations = 30,
+                seed = 5, keep_curves = TRUE, parallel = TRUE, workers = 2,
+                progress_bar = FALSE)
+  expect_equal(s$null_curves$null_coef, p$null_curves$null_coef)
+})
+
+test_that("plot_sca_test_specs() returns a ggplot and needs keep_curves", {
+  r <- sca_test("Salnty", "T_degC", c("ChlorA", "O2Sat"), bottles,
+                n_permutations = 40, seed = 1, keep_curves = TRUE,
+                progress_bar = FALSE)
+  g <- plot_sca_test_specs(r)
+  expect_s3_class(g, "ggplot")
+  expect_false(inherits(g, "patchwork"))
+  # A result without retained curves errors with a helpful message.
+  r0 <- sca_test("Salnty", "T_degC", c("ChlorA", "O2Sat"), bottles,
+                 n_permutations = 20, seed = 1, progress_bar = FALSE)
+  expect_error(plot_sca_test_specs(r0), "keep_curves")
+  expect_error(plot_sca_test_specs(r, level = 2), "level")
+})

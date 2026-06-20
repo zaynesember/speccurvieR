@@ -18,6 +18,7 @@ sca_test(
   direction = "two.sided",
   alpha = 0.05,
   sca_data = NULL,
+  keep_curves = FALSE,
   parallel = FALSE,
   workers = 2,
   seed = NULL,
@@ -81,6 +82,12 @@ observed curve. The null distribution is always recomputed
 from `data`, so `data` remains required. Its control
 indicator columns must be consistent with `controls`.}
 
+\item{keep_curves}{A boolean indicating whether to retain, for every
+specification, the focal coefficient from each permuted
+curve (aligned across permutations by specification, not
+row order). Required by [plot_sca_test_specs()]; increases
+the size of the returned object. Defaults to `FALSE`.}
+
 \item{parallel}{A boolean indicating whether to parallelise the permutations.
 Defaults to `FALSE`. The inner [sca()] call is always run
 serially to avoid nested parallelism.}
@@ -99,7 +106,11 @@ An object of class `"sca_test"`: a list with elements `observed` (a
         named vector of observed statistics), `null_distribution` (a data
         frame with one row per usable permutation and one column per
         statistic, plus `n_valid`), `p_values` (a named vector of
-        permutation p-values), and `params` (a list of run metadata).
+        permutation p-values), `params` (a list of run metadata), and, when
+        `keep_curves = TRUE`, `null_curves` (a list with `spec`, a data frame
+        of each specification's key and observed coefficient, and
+        `null_coef`, a specifications-by-permutations matrix of the permuted
+        focal coefficients).
 }
 \description{
 `sca_test()` performs the permutation-based joint-inference test of
@@ -130,5 +141,7 @@ analysis. \emph{Nature Human Behaviour}, 4, 1208-1214.
 \doi{10.1038/s41562-020-0912-z}
 }
 \seealso{
-[plot_sca_test()] to visualise the result.
+[plot_sca_test()] to visualise the null distributions of the test
+  statistics, and [plot_sca_test_specs()] for the per-specification null-band
+  plot (requires `keep_curves = TRUE`).
 }

@@ -11,7 +11,12 @@
   Supports the same model interface as `sca()` (formula or arguments, glm
   families, fixed effects, weights), one- and two-sided tests, parallelisation,
   and reproducible seeding. `plot_sca_test()` visualises each statistic's null
-  distribution against the observed value.
+  distribution against the observed value, and `plot_sca_test_specs()` (with
+  `sca_test(keep_curves = TRUE)`) draws the specification curve against each
+  specification's own permutation null band.
+* The package now ships a vignette, "Specification Curve Analysis with
+  speccurvieR", touring the full workflow from `sca()` through the
+  joint-inference test.
 * The package now uses snake_case throughout for both function names and
   arguments (e.g. `plotCurve()` -> `plot_curve()`, `fixedEffects` ->
   `fixed_effects`). The previous camelCase names are kept as deprecated aliases

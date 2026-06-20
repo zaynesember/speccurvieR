@@ -306,13 +306,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017      0.036850161       0.051147555
-#> T_degC      -0.0599783335 0.007428642      0.005397304       0.004890958
-#> ChlorA       0.0006514447 0.012449618      0.072030672       0.043243725
+#> (Intercept) 34.2940251811 0.097594017      0.069288499       0.089980937
+#> T_degC      -0.0599783335 0.007428642      0.006372964       0.007740102
+#> ChlorA       0.0006514447 0.012449618      0.027792333       0.034202220
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)      0.073150912        0.12662209
-#> T_degC           0.008087379        0.01040562
-#> ChlorA           0.045976879        0.04222872
+#> (Intercept)       0.10735275       0.114235878
+#> T_degC            0.00831092       0.008753498
+#> ChlorA            0.03135949       0.031374120
 ```
 
 Clustered standard errors are also supported:
@@ -421,15 +421,15 @@ time, and comparing the observed curve to the resulting null
 distribution.
 
 It reports three statistics—the median estimate, the share of
-specifications significant in the predicted direction, and a Stouffer
-combination of the per-specification *p*-values—each with its own
-permutation *p*-value:
+statistically significant specifications (restricted to the predicted
+direction when you set `direction`), and a Stouffer combination of the
+per-specification *p*-values—each with its own permutation *p*-value:
 
 ``` r
 result <- sca_test(y = "Salnty", x = "T_degC",
                    controls = c("O2Sat", "ChlorA", "NO2uM"),
                    data = bottles, n_permutations = 500, seed = 1,
-                   progress_bar = FALSE)
+                   keep_curves = TRUE, progress_bar = FALSE)
 result
 #> Specification curve joint-inference test (Simonsohn, Simmons & Nelson 2020)
 #> 
@@ -457,6 +457,17 @@ plot_sca_test(result)
 ```
 
 <img src="man/figures/README-unnamed-chunk-28-1.png" width="100%" />
+
+And `plot_sca_test_specs()` (enabled by `keep_curves = TRUE` above)
+gives the specification-curve view: each specification’s observed
+estimate against its *own* null band, with specifications outside their
+band highlighted.
+
+``` r
+plot_sca_test_specs(result)
+```
+
+<img src="man/figures/README-unnamed-chunk-29-1.png" width="100%" />
 
 By default the test is two-sided; pass `direction = "positive"` or
 `"negative"` when you have an a-priori predicted direction. Use
@@ -496,31 +507,31 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x10e354828>
+#> <environment: 0x124170a00>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x10e354828>
+#> <environment: 0x124170a00>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x10e354828>
+#> <environment: 0x124170a00>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x10e354828>
+#> <environment: 0x124170a00>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x10e354828>
+#> <environment: 0x124170a00>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x10e354828>
+#> <environment: 0x124170a00>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x10e354828>
+#> <environment: 0x124170a00>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
@@ -560,8 +571,6 @@ you would find useful. Some directions I may add next:
 - A Freedman–Lane residual-permutation option for `sca_test()`,
   preserving the focal variable’s correlation with the controls (useful
   when they are strongly collinear)
-- A per-specification null-band plot showing each specification’s
-  coefficient against its own permutation null
 
 If you find a bug please create an issue on GitHub and I’ll work to fix
 it ASAP.

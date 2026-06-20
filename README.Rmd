@@ -258,13 +258,13 @@ plot_coef_fit(s)
 
 Looking at a specification curve tells you whether results are robust *descriptively*, but how do you know the curve as a whole is more extreme than you'd expect by chance? `sca_test()` implements the permutation-based joint-inference test of Simonsohn, Simmons, and Nelson (2020). It tests the sharp null that the focal variable has no effect in *any* specification by repeatedly shuffling that variable (blocked within fixed effects when present), re-estimating the entire curve each time, and comparing the observed curve to the resulting null distribution.
 
-It reports three statistics—the median estimate, the share of specifications significant in the predicted direction, and a Stouffer combination of the per-specification *p*-values—each with its own permutation *p*-value:
+It reports three statistics—the median estimate, the share of statistically significant specifications (restricted to the predicted direction when you set `direction`), and a Stouffer combination of the per-specification *p*-values—each with its own permutation *p*-value:
 
 ```{r}
 result <- sca_test(y = "Salnty", x = "T_degC",
                    controls = c("O2Sat", "ChlorA", "NO2uM"),
                    data = bottles, n_permutations = 500, seed = 1,
-                   progress_bar = FALSE)
+                   keep_curves = TRUE, progress_bar = FALSE)
 result
 ```
 
@@ -272,6 +272,12 @@ result
 
 ```{r}
 plot_sca_test(result)
+```
+
+And `plot_sca_test_specs()` (enabled by `keep_curves = TRUE` above) gives the specification-curve view: each specification's observed estimate against its *own* null band, with specifications outside their band highlighted.
+
+```{r}
+plot_sca_test_specs(result)
 ```
 
 By default the test is two-sided; pass `direction = "positive"` or `"negative"` when you have an a-priori predicted direction. Use `parallel = TRUE` to spread the permutations across workers.
@@ -315,7 +321,6 @@ summary(my_own_models[[1]])
 Feel free to contact me at [zayne@mit.edu](mailto:zayne@mit.edu) to let me know of features you would find useful. Some directions I may add next:
 
 * A Freedman–Lane residual-permutation option for `sca_test()`, preserving the focal variable's correlation with the controls (useful when they are strongly collinear)
-* A per-specification null-band plot showing each specification's coefficient against its own permutation null
 
 If you find a bug please create an issue on GitHub and I'll work to fix it ASAP.
 

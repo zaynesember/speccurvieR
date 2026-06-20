@@ -1,0 +1,188 @@
+---
+title: "Specification Curve Analysis with speccurvieR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Specification Curve Analysis with speccurvieR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.5,
+  message = FALSE,
+  warning = FALSE
+)
+library(speccurvieR)
+```
+
+## What is specification curve analysis?
+
+When you fit a regression you make many choices: which controls to include,
+which fixed effects, which standard errors. Each choice is defensible, and each
+can move your estimate. **Specification curve analysis** (Simonsohn, Simmons, and
+Nelson 2020) makes that garden of forking paths explicit: it estimates the model
+under *every* reasonable combination of choices, plots the resulting curve of
+estimates, and lets you ask whether your result is robust to the choices you
+*didn't* make.
+
+`speccurvieR` makes this easy, fast, and pretty. This vignette walks through the
+whole workflow on the bundled `bottles` data — a sample of the
+[CalCOFI bottle database](https://calcofi.org/data/oceanographic-data/bottle-database/)
+of oceanographic measurements.
+
+```{r}
+data(bottles)
+names(bottles)
+```
+
+## Estimating the curve
+
+`sca()` is the workhorse. Give it a dependent variable `y`, a focal independent
+variable `x`, and a set of `controls`; it estimates the model with every
+combination of those controls and returns a tidy data frame — one row per
+specification.
+
+```{r}
+s <- sca(y = "Salnty", x = "T_degC",
+         controls = c("O2Sat", "ChlorA", "NO2uM", "SiO3uM"),
+         data = bottles, progress_bar = FALSE)
+
+dim(s)
+s[1:3, c("coef", "se", "p", "sig.level")]
+```
+
+With four controls there are `r nrow(s)` specifications. Each row carries the
+focal coefficient, its standard error and p-value, model-fit measures, and
+indicator columns recording which controls were included.
+
+If you prefer, you can specify the whole model as a formula. The first
+right-hand-side term is the focal variable, the rest are controls, and anything
+after a `|` is treated as fixed effects:
+
+```{r}
+s_formula <- sca(Salnty ~ T_degC + O2Sat + ChlorA + NO2uM + SiO3uM,
+                 data = bottles, progress_bar = FALSE)
+```
+
+`sca()` also supports weights, `glm()` families (via `family`/`link`), fixed
+effects through `fixest::feols()`, and parallel estimation (`parallel = TRUE`)
+for very large curves.
+
+## Visualizing the curve
+
+`plot_curve()` draws the specification curve: each specification's estimate,
+ranked, coloured by significance, with a panel below showing which controls are
+active in each model.
+
+```{r}
+plot_curve(s, title = "Effect of temperature on salinity")
+```
+
+You can request just the curve (`plot_vars = FALSE`) and, because every plot is
+a `ggplot2` object, customize it freely.
+
+Model fit is easy to inspect across specifications, as are the distributions of
+the control coefficients:
+
+```{r}
+plot_rmse(s)
+plot_control_distributions(s)
+```
+
+## Diagnostic plots
+
+`speccurvieR` adds a few diagnostics that other packages do not. `plot_influence()`
+shows, for each control, how *including* versus *excluding* it shifts the focal
+coefficient — making clear which modelling choices actually move your estimate:
+
+```{r}
+plot_influence(s)
+```
+
+`plot_coef_fit()` plots the focal coefficient against model fit, so you can see
+whether your best-fitting specifications give systematically different estimates:
+
+```{r}
+plot_coef_fit(s)
+```
+
+## Comparing standard errors
+
+A specification curve compares *point estimates*; `se_compare()` complements it
+by comparing *standard errors*. Pass a formula and the standard-error types you
+want — heteroskedasticity-consistent, clustered, bootstrapped, or all of them:
+
+```{r}
+se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
+           types = c("iid", "HC0", "HC3"))
+```
+
+`se_compare()` mirrors `sca()`'s model interface, so it also accepts `glm()`
+families. `plot_se()` visualizes the result, showing each coefficient's estimate
+with a confidence interval under every standard-error type.
+
+## Joint-inference test
+
+Looking at a curve tells you whether results are robust *descriptively*. But how
+do you know the curve as a whole is more extreme than you would expect by
+chance? `sca_test()` answers this with the permutation-based joint-inference test
+of Simonsohn, Simmons, and Nelson (2020).
+
+It tests the sharp null that the focal variable has **no effect in any
+specification**. To do so it repeatedly shuffles the focal variable — breaking
+its association with the outcome — re-estimates the *entire* curve each time, and
+compares the observed curve to the resulting null distribution. (When fixed
+effects are present the shuffle is blocked within the first fixed effect,
+because the focal variable is only exchangeable within those fixed-effect
+groups.)
+
+Three statistics summarize the curve, each with its own permutation p-value: the
+median estimate, the share of specifications that are statistically significant
+(restricted to the predicted direction when you set `direction`), and a Stouffer
+combination of the per-specification p-values.
+
+```{r}
+result <- sca_test(y = "Salnty", x = "T_degC",
+                   controls = c("O2Sat", "ChlorA", "NO2uM"),
+                   data = bottles, n_permutations = 199, seed = 1,
+                   keep_curves = TRUE, progress_bar = FALSE)
+result
+```
+
+`plot_sca_test()` shows each statistic's null distribution with the observed
+value marked, so you can see how far into the tail the real curve sits:
+
+```{r, fig.height = 3}
+plot_sca_test(result)
+```
+
+And `plot_sca_test_specs()` — requested via `keep_curves = TRUE` above — gives
+the specification-curve view: each specification's observed estimate against its
+*own* null band, with specifications outside their band highlighted.
+
+```{r}
+plot_sca_test_specs(result)
+```
+
+### A few caveats
+
+- The test is two-sided by default. Use `direction = "positive"` or
+  `"negative"` only when you have an a-priori predicted direction; the package
+  never chooses the direction from the data.
+- Permutation p-values have a resolution floor of `1 / (n_permutations + 1)`
+  (more precisely, of the permutations that estimate successfully). Use a few
+  hundred permutations for exploration and `n_permutations >= 1000` to resolve
+  small p-values; `parallel = TRUE` spreads the work across workers.
+- Shuffling the focal variable also breaks its correlation with the controls.
+  The test stays valid under the sharp null, but loses power when the focal
+  variable is strongly collinear with a control.
+
+## References
+
+Simonsohn, U., Simmons, J. P., & Nelson, L. D. (2020). Specification curve
+analysis. *Nature Human Behaviour*, 4, 1208–1214.
+<https://doi.org/10.1038/s41562-020-0912-z>
