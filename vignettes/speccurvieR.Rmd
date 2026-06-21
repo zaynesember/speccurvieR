@@ -184,6 +184,58 @@ plot_sca_test_specs(result)
   that correlation; both are for linear models and fit every specification on a
   common sample.
 
+### Which specifications are real?
+
+The joint test asks whether the curve *as a whole* is more extreme than chance.
+A natural next question is *which individual* specifications are real. You cannot
+just read the per-specification p-values off the curve and call the significant
+ones robust: with dozens of correlated specifications, some are bound to look
+significant by chance — that is the multiple-comparisons problem all over again,
+now *across* specifications.
+
+`speccurvieR` corrects for it with the min-P / max-statistic permutation method
+of Westfall and Young (1993). It reuses the permutations the joint test already
+ran (so there is nothing extra to compute) and, for each one, records the most
+extreme specification anywhere in the curve — the null distribution of "the best
+result a search could turn up by chance" — then compares each specification to
+it. When you run `sca_test()` with `keep_curves = TRUE` **and** a
+confound-preserving null, these family-wise-error-rate-adjusted p-values are
+attached automatically:
+
+```{r}
+result_fwer <- sca_test(y = "Salnty", x = "T_degC",
+                        controls = c("O2Sat", "ChlorA", "NO2uM"),
+                        data = bottles, null_type = "freedman_lane",
+                        n_permutations = 499, seed = 1, keep_curves = TRUE,
+                        progress_bar = FALSE)
+as.data.frame(result_fwer, what = "specs")
+```
+
+`p_raw` is each specification's uncorrected p-value against its *own* null;
+`p_adj` is the corrected one; `significant_adj` flags those that survive. The
+specification curve plot now highlights the survivors in a third colour:
+
+```{r}
+plot_sca_test_specs(result_fwer)
+```
+
+The default correction (`"single_step"`) controls the family-wise error rate in
+the weak sense. `sca_minp()` recomputes it — without re-running the permutations
+— with Westfall and Young's more powerful step-down refinement, or a different
+threshold:
+
+```{r}
+result_fwer <- sca_minp(result_fwer, method = "step_down")
+result_fwer
+```
+
+A caution on interpretation: each specification is compared to its *own* null,
+which under a confound-preserving null is centred on the value that
+specification produces when the focal variable has no partial effect. A flagged
+*under-controlled* specification therefore signals an association beyond that
+conditional null — it is **not** evidence of a causal effect of the size it
+reports, because omitting a confounder re-routes part of the focal coefficient.
+
 ## Reporting and export
 
 speccurvieR objects come with `tidy()` and `glance()` methods (the same generics

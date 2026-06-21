@@ -117,7 +117,27 @@ sca_report.sca_test <- function(x, digits = 3, ...){
                   null_word, p$n_used, clause_str)
   }
 
-  paste(c(parts, ji), collapse = " ")
+  # Per-specification FWER sentence, when attached (keep_curves + a
+  # confound-preserving null). Reports the K-of-N count and the smallest
+  # adjusted p-value in plain language.
+  fwer_sentence <- NULL
+  fwer <- x$null_curves$fwer
+  if(!is.null(fwer)){
+    s <- fwer$summary
+    fwer_sentence <- if(s$n_significant > 0){
+      sprintf(paste0("After family-wise error-rate correction for the %d ",
+                     "specifications searched, %d remained significant ",
+                     "(smallest adjusted p = %s)."),
+              s$n_specs_tested, s$n_significant, sca_fmt_p(s$min_p_adj))
+    } else {
+      sprintf(paste0("After family-wise error-rate correction for the %d ",
+                     "specifications searched, no individual specification ",
+                     "remained significant (smallest adjusted p = %s)."),
+              s$n_specs_tested, sca_fmt_p(s$min_p_adj))
+    }
+  }
+
+  paste(c(parts, ji, fwer_sentence), collapse = " ")
 }
 
 #' @export
