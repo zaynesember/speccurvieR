@@ -38,6 +38,14 @@
 #' @param fixed_effects A string containing the column name of the variable
 #'                     in data desired for fixed effects. Defaults to NULL in
 #'                     which case no fixed effects are included.
+#' @param common_sample A boolean. When `TRUE`, every specification is fit on the
+#'                      same sample: the rows that are complete across all model
+#'                      variables (the dependent, independent, control, fixed-
+#'                      effects, and weights variables). When `FALSE` (the
+#'                      default) each specification uses its own complete cases,
+#'                      so specifications with different controls may be fit on
+#'                      different samples; the returned `n_obs` column reveals
+#'                      this. See also [plot_samplesizes()].
 #' @param return_formulae A boolean. When `TRUE` a list of model formula objects
 #'                       is returned but the models are not estimated. Defaults
 #'                       to `FALSE` in which case a dataframe of model results
@@ -55,8 +63,8 @@
 #'
 #' @return When `return_formulae` is `FALSE`, a dataframe where each row contains
 #'         the independent variable coefficient estimate, standard error,
-#'         test statistic, p-value, model specification, and measures of model
-#'         fit.
+#'         test statistic, p-value, model specification, measures of model fit,
+#'         and `n_obs`, the number of observations the specification was fit on.
 #'
 #' @export
 #'
@@ -77,7 +85,7 @@
 #'     return_formulae = TRUE);
 sca <- function(y, x, controls, data, weights=NULL,
                 family="linear", link=NULL,
-                fixed_effects=NULL, return_formulae=FALSE,
+                fixed_effects=NULL, common_sample=FALSE, return_formulae=FALSE,
                 progress_bar=TRUE, parallel=FALSE, workers=2, ...){
 
   # Backward compatibility: translate deprecated camelCase argument names.
@@ -148,6 +156,17 @@ sca <- function(y, x, controls, data, weights=NULL,
     check_columns(data, fixed_effects, "Fixed-effects variable(s)")
   }
   if(!is.null(weights)) check_columns(data, weights, "Weights variable")
+
+  # Common-sample mode: by default each specification is fit on its own
+  # complete cases, so specifications with different control sets can be fit on
+  # different samples (and the curve then conflates control effects with sample
+  # changes). When `common_sample = TRUE`, restrict `data` to the rows that are
+  # complete across every model variable so all specifications share one sample.
+  if(common_sample){
+    union_vars <- unique(c(vars, fixed_effects, weights))
+    cc <- stats::complete.cases(data[, union_vars, drop=FALSE])
+    data <- data[cc, , drop=FALSE]
+  }
 
   # Build the model formulae (with or without fixed effects)
   if(is.null(fixed_effects)){
@@ -233,6 +252,17 @@ sca <- function(y, x, controls, data, weights=NULL,
          "curve analysis requires a single focal coefficient.", call.=FALSE)
   }
 
+  # Number of observations each specification was actually fit on (after
+  # listwise deletion and, for fixed-effects models, fixest singleton removal),
+  # so users can see when specifications use different samples. Extracted from
+  # each model summary: feols reports `nobs`; for glm the null model has n - 1
+  # degrees of freedom; for lm the rank plus residual degrees of freedom give n.
+  n_obs <- vapply(models, function(m){
+    if(!is.null(fixed_effects)) m$nobs
+    else if(family != "linear") m$df.null + 1
+    else sum(m$df[1:2])
+  }, numeric(1))
+
   # OLS models
   if(family=="linear"){
 
@@ -279,6 +309,7 @@ sca <- function(y, x, controls, data, weights=NULL,
     # R doesn't like it when these kinds of objects are assigned above
     retVal$terms <- terms
     retVal$control_coefs <- control_coefs
+    retVal$n_obs <- n_obs
 
     retVal <- retVal %>%
       mutate(
@@ -317,6 +348,7 @@ sca <- function(y, x, controls, data, weights=NULL,
     # R doesn't like it when these kinds of objects are assigned above
     retVal$terms <- terms
     retVal$control_coefs <- control_coefs
+    retVal$n_obs <- n_obs
 
     retVal <- retVal %>%
       mutate(
@@ -581,6 +613,40 @@ plot_metric <- function(sca_data, metric, ylab, missing_message,
   else{
     return(sc1)
   }
+}
+
+#' Plots the number of observations across model specifications.
+#'
+#' @description
+#' plot_samplesizes() plots `n_obs`, the number of observations each
+#' specification was fit on, against the specification index. It makes visible
+#' whether specifications were fit on different samples -- with default listwise
+#' deletion they often are -- which is a reason to consider `sca(common_sample
+#' = TRUE)`.
+#'
+#' @inheritParams plot_rmse
+#'
+#' @return A ggplot object.
+#'
+#' @seealso [sca()] and its `common_sample` argument.
+#'
+#' @export
+#'
+#' @examples
+#' plot_samplesizes(sca(y = "Salnty", x = "T_degC",
+#'                      controls = c("ChlorA", "O2Sat", "NO2uM"),
+#'                      data = bottles, progress_bar = FALSE, parallel = FALSE))
+plot_samplesizes <- function(sca_data, title=""){
+  df <- as.data.frame(sca_data)
+  if(!"n_obs" %in% names(df)){
+    stop("`sca_data` has no `n_obs` column; was it produced by sca()?",
+         call.=FALSE)
+  }
+  ggplot(df, aes(x=index, y=n_obs)) +
+    geom_col(fill=sca_sig_colors()[["p < .005"]], width=0.8) +
+    labs(x="Specification (ranked by estimate)", y="Observations",
+         title=title) +
+    theme_sca()
 }
 
 #' Plots RMSE across model specifications.

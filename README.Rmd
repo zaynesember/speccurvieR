@@ -106,6 +106,8 @@ Lots of goodies in there, including the formula used to generate each model, ind
 names(s)
 ```
 
+The output also includes `n_obs`, the number of observations each specification was fit on. With default listwise deletion, specifications with different controls can end up fit on different samples—`n_obs` makes that visible, `plot_samplesizes()` plots it, and `sca(..., common_sample = TRUE)` fits every specification on the same complete-case sample so the curve isn't confounded by sample changes.
+
 ## Plotting
 
 Now let’s plot the specification curve for our independent variable’s coefficient
