@@ -60,16 +60,28 @@ parameter of `glm()`.}
                                 first fixed effect), if clusters are supplied
                                 then the conventional clustered standard
                                 errors from `feols()` are estimated for each
-                                clustering variable. Two-way clustered
-                                standard errors are not supported at this
-                                time.
+                                clustering specification. Two-way (and
+                                multiway) clustering is supported; see the
+                                `cluster` argument.
 
                Without clustering: "HC0, "HC1", "HC2", "HC3",
                                    "HC4", "HC4m", "HC5",
                                    "bootstrapped".}
 
-\item{cluster}{A string or vector of strings specifying variables present in
-`data` to be used for clustering standard errors.}
+\item{cluster}{Variables in `data` to cluster the standard errors on. Either
+a character vector, in which case each element is used for a
+separate **one-way** clustering, or a list of character
+vectors, in which case each element is clustered on **jointly**
+(one-way when the element names a single variable, two-way or
+higher when it names several). For example
+`cluster = list("a", "b", c("a", "b"))` produces one-way SEs
+clustered by `a`, one-way by `b`, and two-way clustered by `a`
+and `b`. Multiway columns are labelled with the clustering
+dimensions joined by `_BY_` (e.g. `"HC1_a_BY_b"`, or
+`"CL_a_BY_b_FE"` for a fixed-effects model); the dimensions are
+sorted, so the label is the same regardless of the order they
+are listed in. Unknown variables are dropped with a warning.
+Defaults to `NULL` (no clustering).}
 
 \item{clustered_only}{A boolean indicating whether only standard errors with
 clustering should be estimated, defaults to `FALSE`.}
@@ -116,6 +128,9 @@ A data frame where row represents an independent variable in the
          "HC0_Sta_ID" = HC0 standard errors clustered by the variable
                           "Sta_ID"
 
+         "HC0_Depth_ID_BY_Sta_ID" = HC0 standard errors two-way clustered by
+                                      "Depth_ID" and "Sta_ID"
+
          Note: for fixed effects models the "(Intercept)" row will be all
          `NA` because the intercept is not reported by `feols()` when fixed
          effects are present.
@@ -140,6 +155,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
 
 se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("HC0", "HC1", "HC3"))
+
+# Two-way (and multiway) clustering: pass a list, where each element names
+# the dimensions to cluster on jointly. Here: one-way by Sta_ID, one-way by
+# Depth_ID, and two-way by both.
+se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
+           types = "HC1",
+           cluster = list("Sta_ID", "Depth_ID", c("Sta_ID", "Depth_ID")))
 
 # Logistic regression: compare standard error types for a binary outcome.
 bottles$saline <- as.integer(bottles$Salnty >

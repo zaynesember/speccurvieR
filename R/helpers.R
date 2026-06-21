@@ -42,6 +42,51 @@ check_columns <- function(data, cols, what){
   }
 }
 
+# Internal: normalise the `cluster` argument of se_compare() into a cleaned list
+# of clustering specifications, one per requested set of clustering dimensions.
+#
+# `cluster` may be NULL, a character vector (each element a SEPARATE one-way
+# clustering, the historical behaviour), or a list of character vectors (each
+# element clustered JOINTLY -- one-way when length 1, multiway when longer). A
+# character vector is normalised with as.list(), so a one-way request flows
+# through exactly the same path whether written `"a"`, `c("a", "b")`, or
+# `list("a", "b")`.
+#
+# Within each specification the dimensions are de-duplicated and sorted: a
+# multiway standard error is invariant to the order of its clustering
+# dimensions, so sorting makes the column label canonical and lets duplicate
+# specifications (e.g. `c("a", "b")` and `c("b", "a")`) collapse to one. Unknown
+# columns are dropped with a single warning (matching the historical message),
+# empty specifications are dropped, and duplicate specifications are removed.
+# Returns NULL if nothing usable remains. The order of distinct specifications
+# follows the input, so existing one-way column order is preserved.
+normalize_cluster_spec <- function(cluster, data_cols){
+  if(is.null(cluster)) return(NULL)
+  if(is.character(cluster)) cluster <- as.list(cluster)
+  if(!is.list(cluster) ||
+     !all(vapply(cluster, is.character, logical(1)))){
+    stop("`cluster` must be NULL, a character vector, or a list of character ",
+         "vectors of column names.", call. = FALSE)
+  }
+
+  # One warning for every unknown clustering variable across all specifications.
+  unknown <- setdiff(unique(unlist(cluster)), data_cols)
+  if(length(unknown) > 0){
+    warning(paste0(unknown, " not a valid clustering variable, ignoring.",
+                   collapse = "\n"), call. = FALSE)
+  }
+
+  specs <- lapply(cluster, function(d){
+    d <- sort(unique(d[d %in% data_cols]))
+    if(length(d) == 0L) NULL else d
+  })
+  specs <- specs[!vapply(specs, is.null, logical(1))]
+  if(length(specs) == 0L) return(NULL)
+  # Drop duplicate specifications by their canonical (sorted) dimension key.
+  keys <- vapply(specs, paste, character(1), collapse = "_BY_")
+  specs[!duplicated(keys)]
+}
+
 # Internal: resolve the `family`/`link` arguments shared by sca() and
 # se_compare() into a normalised family string and (for glm families) a family
 # object. Treats the common alias "gaussian" as ordinary least squares

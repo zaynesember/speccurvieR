@@ -328,10 +328,29 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA | Sta_ID", data = bottles,
 ```
 
 (`CL_FE` is clustered by the fixed-effect variable, i.e. the default
-`fixest::feols()` reports.) And it isn’t limited to OLS–pass a `family`
-(and optionally a `link`), exactly as you would to `sca()`, to compare
-standard error types for any `glm()` family, with every error type
-carrying over:
+`fixest::feols()` reports.) `cluster` takes either a character
+vector–one-way clustering by each variable–or a list, where each element
+names the dimensions to cluster on jointly, so you can ask for two-way
+(or higher) clustered errors, and even mix one- and two-way in a single
+call:
+
+``` r
+se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
+           types = "HC1",
+           cluster = list("Sta_ID", "Depth_ID", c("Sta_ID", "Depth_ID")))
+#>                  estimate         HC1  HC1_Sta_ID HC1_Depth_ID
+#> (Intercept) 34.2940251811 0.109239172 0.126354691  0.109239172
+#> T_degC      -0.0599783335 0.008476102 0.009846441  0.008476102
+#> ChlorA       0.0006514447 0.005394963 0.005415379  0.005394963
+#>             HC1_Depth_ID_BY_Sta_ID
+#> (Intercept)            0.126354691
+#> T_degC                 0.009846441
+#> ChlorA                 0.005415379
+```
+
+And it isn’t limited to OLS–pass a `family` (and optionally a `link`),
+exactly as you would to `sca()`, to compare standard error types for any
+`glm()` family, with every error type carrying over:
 
 ``` r
 # A binary outcome for a quick logistic-regression example.
@@ -356,7 +375,7 @@ plot_se(se_compare("Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
                    types = c("iid", "HC0", "HC1", "HC3")))
 ```
 
-<img src="man/figures/README-unnamed-chunk-18-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-19-1.png" width="100%" />
 
 And `plot_multi_se()` draws the whole specification curve faceted by
 standard error type. The estimates are identical across facets, so you
@@ -369,7 +388,7 @@ plot_multi_se(y = "Salnty", x = "T_degC",
               data = bottles, types = c("iid", "HC3"))
 ```
 
-<img src="man/figures/README-unnamed-chunk-19-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-20-1.png" width="100%" />
 
 ## Diagnostic plots
 
@@ -384,7 +403,7 @@ it easy to see which modelling choices are actually doing the moving:
 plot_influence(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-20-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-21-1.png" width="100%" />
 
 `plot_coef_fit()` plots the coefficient against model fit, so you can
 check whether your best-fitting specifications give systematically
@@ -395,7 +414,7 @@ model:
 plot_coef_fit(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-21-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-22-1.png" width="100%" />
 
 ## Variance decomposition
 
@@ -433,7 +452,7 @@ total spread.
 plot_variance(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-23-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-24-1.png" width="100%" />
 
 ## Joint-inference test
 
@@ -532,7 +551,7 @@ so you can see how far into the tail the real curve sits:
 plot_sca_test(result_fl)
 ```
 
-<img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-27-1.png" width="100%" />
 
 ### Which specifications are real?
 
@@ -577,19 +596,18 @@ after correction:
 plot_sca_test_specs(result_fl)
 ```
 
-<img src="man/figures/README-unnamed-chunk-28-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-29-1.png" width="100%" />
 
-All seven specifications survive
-correction (adjusted *p* = 0.002), so none of these estimates is
-noise–but look at the `observed` column: the salinity coefficient is
-around -6 in the specifications without `O2Sat` and around +2 to +4 in
-the ones with it. Every estimate is reliably non-zero *and they disagree
-on sign*, depending entirely on whether you control for oxygen
-saturation. So “all seven significant after correction” is not a green
-light; it’s the curve telling you the salinity–temperature association
-is real but its direction is an artifact of the controls. That’s also
-why the joint median test was equivocal and the Stouffer statistic came
-out negative–the signs cancel.
+All seven specifications survive correction (adjusted *p* = 0.002), so
+none of these estimates is noise–but look at the `observed` column: the
+salinity coefficient is around -6 in the specifications without `O2Sat`
+and around +2 to +4 in the ones with it. Every estimate is reliably
+non-zero *and they disagree on sign*, depending entirely on whether you
+control for oxygen saturation. So “all seven significant after
+correction” is not a green light; it’s the curve telling you the
+salinity–temperature association is real but its direction is an
+artifact of the controls. That’s also why the joint median test was
+equivocal and the Stouffer statistic came out negative–the signs cancel.
 
 That’s the distinction worth internalizing: the joint test asks whether
 the curve as a whole beats chance, while the per-specification
@@ -641,15 +659,15 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae[1:3]
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x114188d00>
+#> <environment: 0x1191a66d8>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x114188d00>
+#> <environment: 0x1191a66d8>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x114188d00>
+#> <environment: 0x1191a66d8>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
@@ -722,7 +740,6 @@ share-significant component doesn’t flip it.
 Feel free to contact me at <zayne@mit.edu> to let me know of features
 you would find useful. Some directions I may add next:
 
-- Two-way and multiway clustered standard errors in `se_compare()`
 - Support for pre-fitted models and custom estimators
   (e.g. instrumental-variables, survival, and mixed models)
 

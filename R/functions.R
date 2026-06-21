@@ -976,15 +976,27 @@ boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
 #'                                 first fixed effect), if clusters are supplied
 #'                                 then the conventional clustered standard
 #'                                 errors from `feols()` are estimated for each
-#'                                 clustering variable. Two-way clustered
-#'                                 standard errors are not supported at this
-#'                                 time.
+#'                                 clustering specification. Two-way (and
+#'                                 multiway) clustering is supported; see the
+#'                                 `cluster` argument.
 #'
 #'                Without clustering: "HC0, "HC1", "HC2", "HC3",
 #'                                    "HC4", "HC4m", "HC5",
 #'                                    "bootstrapped".
-#' @param cluster A string or vector of strings specifying variables present in
-#'                `data` to be used for clustering standard errors.
+#' @param cluster Variables in `data` to cluster the standard errors on. Either
+#'                a character vector, in which case each element is used for a
+#'                separate **one-way** clustering, or a list of character
+#'                vectors, in which case each element is clustered on **jointly**
+#'                (one-way when the element names a single variable, two-way or
+#'                higher when it names several). For example
+#'                `cluster = list("a", "b", c("a", "b"))` produces one-way SEs
+#'                clustered by `a`, one-way by `b`, and two-way clustered by `a`
+#'                and `b`. Multiway columns are labelled with the clustering
+#'                dimensions joined by `_BY_` (e.g. `"HC1_a_BY_b"`, or
+#'                `"CL_a_BY_b_FE"` for a fixed-effects model); the dimensions are
+#'                sorted, so the label is the same regardless of the order they
+#'                are listed in. Unknown variables are dropped with a warning.
+#'                Defaults to `NULL` (no clustering).
 #' @param clustered_only A boolean indicating whether only standard errors with
 #'                      clustering should be estimated, defaults to `FALSE`.
 #' @param fixed_effects_only A boolean indicating whether only standard errors for
@@ -1025,6 +1037,9 @@ boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
 #'          "HC0_Sta_ID" = HC0 standard errors clustered by the variable
 #'                           "Sta_ID"
 #'
+#'          "HC0_Depth_ID_BY_Sta_ID" = HC0 standard errors two-way clustered by
+#'                                       "Depth_ID" and "Sta_ID"
+#'
 #'          Note: for fixed effects models the "(Intercept)" row will be all
 #'          `NA` because the intercept is not reported by `feols()` when fixed
 #'          effects are present.
@@ -1044,6 +1059,13 @@ boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
 #'
 #' se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
 #'            types = c("HC0", "HC1", "HC3"))
+#'
+#' # Two-way (and multiway) clustering: pass a list, where each element names
+#' # the dimensions to cluster on jointly. Here: one-way by Sta_ID, one-way by
+#' # Depth_ID, and two-way by both.
+#' se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
+#'            types = "HC1",
+#'            cluster = list("Sta_ID", "Depth_ID", c("Sta_ID", "Depth_ID")))
 #'
 #' # Logistic regression: compare standard error types for a binary outcome.
 #' bottles$saline <- as.integer(bottles$Salnty >
@@ -1114,6 +1136,14 @@ se_compare <- function(formula, data, weights=NULL,
   formula_vars <- setdiff(all.vars(stats::as.formula(formula)), ".")
   check_columns(data, formula_vars, "Variable(s)")
   if(!is.null(weights)) check_columns(data, weights, "Weights variable")
+
+  # Normalise the clustering request once, before fitting either model, so any
+  # warning about unknown clustering variables fires a single time. `cluster`
+  # becomes a cleaned list of clustering specifications (each a character vector
+  # of dimensions clustered jointly): a length-1 spec is a one-way clustering
+  # (the historical behaviour, preserved byte-for-byte) and a longer spec is a
+  # multiway clustering. See normalize_cluster_spec().
+  cluster <- normalize_cluster_spec(cluster, colnames(data))
 
   # If the formula contains a pipe then fixed effects are assumed to be
   # present and models are estimated with feols() rather than lm()
@@ -1202,34 +1232,25 @@ se_compare <- function(formula, data, weights=NULL,
         ses <- cbind(ses, ses_other)
       }
 
-      # Estimate clustered standard errors for FE model for variables other than
-      # the FEs
+      # Estimate clustered standard errors for the FE model. `cluster` is the
+      # cleaned list of specifications: a one-element spec gives feols' one-way
+      # cluster-robust SE (unchanged), a multi-element spec gives joint multiway
+      # clustering (Cameron-Gelbach-Miller), which fixest computes natively when
+      # passed the multi-column data frame `data[dims]`. These SEs are feols'
+      # cluster-robust SEs and do not depend on `types`, so there is no type
+      # validation here.
       if(!is.null(cluster)){
 
-        if(length(setdiff(cluster, colnames(data)))!=0){
-          warning(paste0(setdiff(cluster, colnames(data)),
-                         " not a valid clustering variable, ignoring.",
-                         collapse="\n"))
-
-          cluster <- cluster[cluster %in% colnames(data)]
+        cl_cols <- list()
+        for(dims in cluster){
+          key <- paste(dims, collapse="_BY_")
+          cl_cols[[paste0("CL_", key, "_FE")]] <-
+            feols(as.formula(formula), data=data,
+                  cluster=data[dims])$coeftable[,2]
         }
 
-        # NB: for fixed-effects models the clustered SEs are feols' default
-        # cluster-robust SEs estimated per clustering variable; they do not
-        # depend on `types`, so there is no type validation here.
-
-        # Estimate standard errors clustered by each desired variable
-        ses_CL <- sapply(cluster, FUN=function(c){
-          (feols(as.formula(formula), data=data,
-                 cluster=data[c]))$coeftable[,2]})
-
-        # Label them nicely
-        labs <- c()
-        for(c in cluster){
-          labs <- c(labs, paste0("CL", "_", c, "_FE"))
-        }
-
-        colnames(ses_CL) <- labs
+        ses_CL <- do.call(cbind, cl_cols)
+        colnames(ses_CL) <- names(cl_cols)
 
         ses_CL <- rbind("(Intercept)"=NA, ses_CL)
 
@@ -1321,16 +1342,9 @@ se_compare <- function(formula, data, weights=NULL,
       ses <- cbind(ses, ses_other, ses_HC)
     }
 
-    # Case when clustered SEs for non-FE model are desired
+    # Case when clustered SEs for non-FE model are desired. `cluster` is the
+    # cleaned list of specifications.
     if(!is.null(cluster)){
-
-      if(length(setdiff(cluster, colnames(data)))!=0){
-        warning(paste0(setdiff(cluster, colnames(data)),
-                       " not a valid clustering variable, ignoring.",
-                       collapse="\n"))
-
-        cluster <- cluster[cluster %in% colnames(data)]
-      }
 
       types_CL <- c("HC0", "HC1", "HC2", "HC3")
 
@@ -1349,26 +1363,26 @@ se_compare <- function(formula, data, weights=NULL,
         types_CL <- types[types %in% types_CL]
       }
 
-      # Estimate and extract clustered SEs
+      # Estimate and extract clustered SEs. A one-element spec reduces exactly to
+      # the historical one-way clustering; a multi-element spec gives joint
+      # multiway clustering (Cameron-Gelbach-Miller), which sandwich::vcovCL
+      # computes natively from the multi-column data frame. Passing data[dims]
+      # as a data FRAME (never a bare vector) is load-bearing: vcovCL aligns it
+      # to the rows the model actually used (via na.action), so specifications
+      # fit on NA-dropped data stay correct.
       if(length(types_CL)>0){
 
-        ses_CL <- sapply(cluster, FUN=function(c, types){
-          sapply(types, function(x){
-            coeftest(model, vcov.=vcovCL, type=x, cluster=data[c])[,2]
-          })
-        }, types=types_CL, simplify=FALSE)
-
-        ses_CL <- do.call(cbind, ses_CL)
-
-        # Label with type and clustering variable
-        labs <- c()
-        for(c in cluster){
+        cl_cols <- list()
+        for(dims in cluster){
+          key <- paste(dims, collapse="_BY_")
           for(t in types_CL){
-            labs <- c(labs, paste0(t, "_", c))
+            cl_cols[[paste0(t, "_", key)]] <-
+              coeftest(model, vcov.=vcovCL, type=t, cluster=data[dims])[,2]
           }
         }
 
-        colnames(ses_CL) <- labs
+        ses_CL <- do.call(cbind, cl_cols)
+        colnames(ses_CL) <- names(cl_cols)
       }
 
       ses <- cbind(ses, ses_CL)
