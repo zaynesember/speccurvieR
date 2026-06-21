@@ -509,6 +509,12 @@ By default the test is two-sided; pass `direction = "positive"` or
 `"negative"` when you have an a-priori predicted direction. Use
 `parallel = TRUE` to spread the permutations across workers.
 
+The default null shuffles the focal variable, which is miscalibrated when
+that variable is collinear with a control (the observational case). For
+observational data, `null_type = "freedman_lane"` and
+`null_type = "residual_bootstrap"` are design-preserving alternatives that
+keep the focal variable’s correlation with the controls.
+
 # Other features
 
 ## Fixed effects with `fixest::feols`

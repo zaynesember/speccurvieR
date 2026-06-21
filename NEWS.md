@@ -1,5 +1,16 @@
 # speccurvieR (development version)
 
+* `sca_test()` gains a `null_type` argument with two design-preserving nulls
+  alongside the default `"shuffle_x"`. `"freedman_lane"` (Freedman & Lane 1983)
+  permutes the residuals of a reduced model `y ~ controls` (the focal variable
+  omitted) and refits the curve, preserving the focal variable's correlation
+  with the controls -- so it stays calibrated under collinearity, where
+  shuffling the focal variable is anti-conservative. `"residual_bootstrap"`
+  imposes the null on the response (`y - betahat * x`) and resamples rows, per
+  Simonsohn, Simmons, and Nelson's (2020) observational scheme. Both are for
+  linear models (including fixed effects) and fit every specification on a
+  common sample; a new `common_sample` argument is also exposed.
+
 * `sca()` now reports `n_obs`, the number of observations each specification was
   fit on, and gains a `common_sample` argument. With default listwise deletion,
   specifications with different control sets can be fit on different samples

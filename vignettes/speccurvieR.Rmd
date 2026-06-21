@@ -177,9 +177,12 @@ plot_sca_test_specs(result)
   (more precisely, of the permutations that estimate successfully). Use a few
   hundred permutations for exploration and `n_permutations >= 1000` to resolve
   small p-values; `parallel = TRUE` spreads the work across workers.
-- Shuffling the focal variable also breaks its correlation with the controls.
-  The test stays valid under the sharp null, but loses power when the focal
-  variable is strongly collinear with a control.
+- The default null shuffles the focal variable, which also breaks its
+  correlation with the controls and is miscalibrated under collinearity. For
+  observational data, `null_type = "freedman_lane"` (permute the residuals of a
+  reduced `y ~ controls` model) or `null_type = "residual_bootstrap"` preserve
+  that correlation; both are for linear models and fit every specification on a
+  common sample.
 
 ## References
 
