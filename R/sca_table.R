@@ -136,6 +136,17 @@ sca_table.sca_test <- function(x, format = c("data.frame", "markdown", "latex",
                                   ")"))))
   }
 
+  # Per-specification FWER rows, when attached (keep_curves + a
+  # confound-preserving null).
+  fwer <- x$null_curves$fwer
+  if(!is.null(fwer)){
+    s <- fwer$summary
+    rows <- c(rows,
+              list(c("Significant after correction",
+                     paste0(s$n_significant, " of ", s$n_specs_tested)),
+                   c("Smallest corrected p", sca_fmt_p(s$min_p_adj))))
+  }
+
   df <- data.frame(label = vapply(rows, `[`, character(1), 1),
                    value = vapply(rows, `[`, character(1), 2),
                    stringsAsFactors = FALSE)

@@ -300,6 +300,8 @@ By default the test is two-sided; pass `direction = "positive"` or `"negative"` 
 
 The default null shuffles the focal variable, which is miscalibrated when that variable is collinear with a control (the observational case). For observational data, `null_type = "freedman_lane"` and `null_type = "residual_bootstrap"` are design-preserving alternatives that keep the focal variable's correlation with the controls.
 
+To go from "is the curve as a whole real?" to "*which* specifications are real?", run `sca_test()` with `keep_curves = TRUE` and a confound-preserving null: it automatically attaches a family-wise-error-rate-adjusted *p*-value for every specification (the min-P / max-statistic permutation correction of Westfall and Young 1993), so you can report which specifications survive correction for having searched all of them. `plot_sca_test_specs()` then highlights the survivors, and `sca_minp()` recomputes the adjustment with a more powerful step-down option or a different threshold without re-running the permutations.
+
 # Other features
 
 ## Fixed effects with `fixest::feols`
@@ -338,7 +340,8 @@ summary(my_own_models[[1]])
 
 Feel free to contact me at [zayne@mit.edu](mailto:zayne@mit.edu) to let me know of features you would find useful. Some directions I may add next:
 
-* A Freedman–Lane residual-permutation option for `sca_test()`, preserving the focal variable's correlation with the controls (useful when they are strongly collinear)
+* Two-way and multiway clustered standard errors in `se_compare()`
+* Support for pre-fitted models and custom estimators (e.g. instrumental-variables, survival, and mixed models)
 
 If you find a bug please create an issue on GitHub and I'll work to fix it ASAP.
 

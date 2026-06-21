@@ -22,7 +22,7 @@
   row.names = NULL,
   optional = FALSE,
   ...,
-  what = c("summary", "null", "params")
+  what = c("summary", "null", "params", "specs")
 )
 }
 \arguments{
@@ -35,7 +35,10 @@ ignored.}
 
 \item{what}{For `as.data.frame.sca_test()`, which component to return:
 `"summary"` (default; observed statistics and p-values), `"null"` (the raw
-null distribution), or `"params"` (the run metadata).}
+null distribution), `"params"` (the run metadata), or `"specs"` (the
+per-specification family-wise-error-rate-adjusted p-values, available only
+when the result was computed with `keep_curves = TRUE` and a
+confound-preserving null; see [sca_minp()]).}
 }
 \value{
 A data frame. For `tidy()`, one row per specification (`sca`) or per

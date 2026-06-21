@@ -28,6 +28,15 @@ Simmons, and Nelson (2020): specifications whose observed estimate falls
 outside their null band are highlighted, so it is easy to see which parts of
 the curve are more extreme than chance.
 
+When the result carries per-specification family-wise-error-rate-adjusted
+p-values (i.e. it was computed with `keep_curves = TRUE` and a
+confound-preserving null, so [sca_minp()] has run -- automatically or
+explicitly), the points are coloured in three tiers -- within the chance
+band, beyond it but not significant after correction, and significant after
+multiple-comparison correction (enlarged) -- so the specifications that
+survive correction stand out. Otherwise the usual two-tier
+within/outside-band colouring is used.
+
 It requires an [sca_test()] result computed with `keep_curves = TRUE`.
 }
 \examples{

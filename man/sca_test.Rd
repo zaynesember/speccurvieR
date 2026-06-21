@@ -152,7 +152,11 @@ An object of class `"sca_test"`: a list with elements `observed` (a
         `keep_curves = TRUE`, `null_curves` (a list with `spec`, a data frame
         of each specification's key and observed coefficient, and
         `null_coef`, a specifications-by-permutations matrix of the permuted
-        focal coefficients).
+        focal coefficients). When `keep_curves = TRUE` *and* the null is
+        confound-preserving (`null_type = "freedman_lane"` or
+        `"residual_bootstrap"`), `null_curves` also gains `fwer`, the
+        per-specification family-wise-error-rate-adjusted p-values attached
+        automatically by [sca_minp()] (see there for its structure).
 }
 \description{
 `sca_test()` performs the permutation-based joint-inference test of

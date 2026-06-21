@@ -314,13 +314,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017       0.10665716        0.16074216
-#> T_degC      -0.0599783335 0.007428642       0.00893342        0.01116217
-#> ChlorA       0.0006514447 0.012449618       0.02585798        0.00969140
+#> (Intercept) 34.2940251811 0.097594017      0.056953477        0.15693158
+#> T_degC      -0.0599783335 0.007428642      0.003781876        0.01261107
+#> ChlorA       0.0006514447 0.012449618      0.025610491        0.00638154
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)       0.10944807        0.18418755
-#> T_degC            0.00810967        0.01371619
-#> ChlorA            0.01620021        0.02412711
+#> (Intercept)      0.066388934       0.085481262
+#> T_degC           0.006303198       0.008229007
+#> ChlorA           0.067997813       0.047773069
 ```
 
 Clustered standard errors are also supported:
@@ -472,6 +472,7 @@ result
 #> Focal variable:   T_degC
 #> Specifications:   7
 #> Permutations:     500 used (0 failed)   |  blocked within FE: no
+#> Null:             shuffle x
 #> Direction:        two.sided   alpha = 0.05
 #> 
 #>   Statistic                Observed    p-value
@@ -509,11 +510,22 @@ By default the test is two-sided; pass `direction = "positive"` or
 `"negative"` when you have an a-priori predicted direction. Use
 `parallel = TRUE` to spread the permutations across workers.
 
-The default null shuffles the focal variable, which is miscalibrated when
-that variable is collinear with a control (the observational case). For
-observational data, `null_type = "freedman_lane"` and
-`null_type = "residual_bootstrap"` are design-preserving alternatives that
-keep the focal variable’s correlation with the controls.
+The default null shuffles the focal variable, which is miscalibrated
+when that variable is collinear with a control (the observational case).
+For observational data, `null_type = "freedman_lane"` and
+`null_type = "residual_bootstrap"` are design-preserving alternatives
+that keep the focal variable’s correlation with the controls.
+
+To go from “is the curve as a whole real?” to “*which* specifications
+are real?”, run `sca_test()` with `keep_curves = TRUE` and a
+confound-preserving null: it automatically attaches a
+family-wise-error-rate-adjusted *p*-value for every specification (the
+min-P / max-statistic permutation correction of Westfall and Young
+1993), so you can report which specifications survive correction for
+having searched all of them. `plot_sca_test_specs()` then highlights the
+survivors, and `sca_minp()` recomputes the adjustment with a more
+powerful step-down option or a different threshold without re-running
+the permutations.
 
 # Other features
 
@@ -549,31 +561,31 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x10e345880>
+#> <environment: 0x11224cb10>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x10e345880>
+#> <environment: 0x11224cb10>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x10e345880>
+#> <environment: 0x11224cb10>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x10e345880>
+#> <environment: 0x11224cb10>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x10e345880>
+#> <environment: 0x11224cb10>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x10e345880>
+#> <environment: 0x11224cb10>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x10e345880>
+#> <environment: 0x11224cb10>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
@@ -610,9 +622,9 @@ summary(my_own_models[[1]])
 Feel free to contact me at <zayne@mit.edu> to let me know of features
 you would find useful. Some directions I may add next:
 
-- A Freedman–Lane residual-permutation option for `sca_test()`,
-  preserving the focal variable’s correlation with the controls (useful
-  when they are strongly collinear)
+- Two-way and multiway clustered standard errors in `se_compare()`
+- Support for pre-fitted models and custom estimators
+  (e.g. instrumental-variables, survival, and mixed models)
 
 If you find a bug please create an issue on GitHub and I’ll work to fix
 it ASAP.

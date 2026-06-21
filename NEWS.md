@@ -1,5 +1,22 @@
 # speccurvieR (development version)
 
+* Per-specification family-wise-error-rate-adjusted p-values. When `sca_test()`
+  is run with `keep_curves = TRUE` and a confound-preserving null
+  (`null_type = "freedman_lane"` or `"residual_bootstrap"`), it now attaches a
+  multiple-comparison-corrected p-value for *every* specification, answering
+  *which* specifications are more extreme than chance once you account for having
+  searched all of them. It uses the min-P / max-statistic permutation method of
+  Westfall and Young (1993), reusing the permutation null already computed (no
+  extra permutations), and compares each specification to its *own* null -- which
+  keeps it calibrated under the confound-preserving nulls, where an
+  under-controlled specification's null is not centred on zero. The new exported
+  `sca_minp()` recomputes the adjustment from an existing result with a different
+  method (`"single_step"`, the default, controls weak FWER; `"step_down"` is the
+  more powerful Westfall-Young free step-down) or significance threshold.
+  `plot_sca_test_specs()` highlights the specifications that survive correction,
+  and `print()`, `sca_report()`, `sca_table()`, `glance()`, and
+  `as.data.frame(what = "specs")` surface the results.
+
 * New reporting and export tools. `tidy()` and `glance()` methods (the generics
   that `broom` and `modelsummary` dispatch on, so no `broom` dependency is
   added) are provided for `sca()` curves and `sca_test()` results, along with

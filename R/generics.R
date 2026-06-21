@@ -51,7 +51,10 @@ sca_fmt_p <- function(p){
 #'   ignored.
 #' @param what For `as.data.frame.sca_test()`, which component to return:
 #'   `"summary"` (default; observed statistics and p-values), `"null"` (the raw
-#'   null distribution), or `"params"` (the run metadata).
+#'   null distribution), `"params"` (the run metadata), or `"specs"` (the
+#'   per-specification family-wise-error-rate-adjusted p-values, available only
+#'   when the result was computed with `keep_curves = TRUE` and a
+#'   confound-preserving null; see [sca_minp()]).
 #'
 #' @return A data frame. For `tidy()`, one row per specification (`sca`) or per
 #'   test statistic (`sca_test`); for `glance()`, a one-row summary.
@@ -133,6 +136,10 @@ tidy.sca_test <- function(x, ...){
 #' @export
 glance.sca_test <- function(x, ...){
   p <- x$params
+  # FWER columns are always emitted (NA when no per-specification adjustment was
+  # attached) so the glance schema is stable across results that do and do not
+  # carry it.
+  fwer <- x$null_curves$fwer
   data.frame(
     n_specs = p$n_specs,
     n_permutations = p$n_permutations,
@@ -146,16 +153,33 @@ glance.sca_test <- function(x, ...){
     focal = p$x,
     common_sample = isTRUE(p$common_sample),
     p_resolution = 1 / (p$n_used + 1),
+    n_significant_adj = if(is.null(fwer)) NA_integer_
+                        else as.integer(fwer$summary$n_significant),
+    min_p_adj = if(is.null(fwer)) NA_real_ else fwer$summary$min_p_adj,
+    fwer_method = if(is.null(fwer)) NA_character_ else fwer$summary$method,
     stringsAsFactors = FALSE)
 }
 
 #' @rdname sca_tidiers
 #' @export
 as.data.frame.sca_test <- function(x, row.names = NULL, optional = FALSE, ...,
-                                   what = c("summary", "null", "params")){
+                                   what = c("summary", "null", "params",
+                                            "specs")){
   what <- match.arg(what)
   if(what == "null") return(as.data.frame(x$null_distribution))
   if(what == "params") return(glance.sca_test(x))
+  if(what == "specs"){
+    fwer <- x$null_curves$fwer
+    if(is.null(fwer)){
+      stop("This sca_test object has no per-specification FWER p-values. ",
+           "Re-run sca_test() with keep_curves = TRUE and a confound-preserving ",
+           "null (null_type = \"freedman_lane\" or \"residual_bootstrap\"), or ",
+           "call sca_minp() on such a result.", call. = FALSE)
+    }
+    out <- fwer$specs
+    rownames(out) <- NULL
+    return(out)
+  }
   stats <- x$params$test_stats
   data.frame(
     statistic = stats,

@@ -268,7 +268,11 @@ sca_test_ynull <- function(data_cs, y, x, controls, fixed_effects, weights){
 #'         `keep_curves = TRUE`, `null_curves` (a list with `spec`, a data frame
 #'         of each specification's key and observed coefficient, and
 #'         `null_coef`, a specifications-by-permutations matrix of the permuted
-#'         focal coefficients).
+#'         focal coefficients). When `keep_curves = TRUE` *and* the null is
+#'         confound-preserving (`null_type = "freedman_lane"` or
+#'         `"residual_bootstrap"`), `null_curves` also gains `fwer`, the
+#'         per-specification family-wise-error-rate-adjusted p-values attached
+#'         automatically by [sca_minp()] (see there for its structure).
 #'
 #' @param keep_curves A boolean indicating whether to retain, for every
 #'                    specification, the focal coefficient from each permuted
@@ -656,6 +660,29 @@ sca_test <- function(y, x, controls, data, weights = NULL,
                         observed = observed_curve$coef,
                         stringsAsFactors = FALSE),
       null_coef = null_coef)
+
+    # Per-specification FWER (min-P) inference comes for free here: it is pure
+    # arithmetic on null_coef, no extra permutations. Attach the single-step
+    # adjustment automatically, but ONLY under a confound-preserving null --
+    # shuffle_x is severely anti-conservative for per-specification inference,
+    # so it is a silent no-op there (the descriptive null band still applies and
+    # the shuffle_x null_curves stay byte-identical to the pre-feature object).
+    if(sca_fwer_valid_null(null_type)){
+      fwer <- sca_fwer_compute(
+        null_curves$null_coef, null_curves$spec, direction = direction,
+        method = "single_step", alpha = alpha, null_type = null_type)
+      # Only attach (and announce) when at least one specification had a usable
+      # null distribution to test; otherwise leave the slot absent so the
+      # reporting surfaces stay silent rather than printing "0 of 0".
+      if(fwer$summary$n_specs_tested > 0){
+        null_curves$fwer <- fwer
+        s <- fwer$summary
+        message("Attached per-specification FWER-adjusted p-values ",
+                "(single-step min-P, ", s$n_used, " permutations, alpha = ",
+                format(alpha), "): ", s$n_significant, " of ", s$n_specs_tested,
+                " specifications significant after correction.")
+      }
+    }
   }
 
   out <- list(
@@ -672,7 +699,9 @@ sca_test <- function(y, x, controls, data, weights = NULL,
                      test_stats = test_stats, keep_curves = keep_curves,
                      null_type = null_type, common_sample = common_sample,
                      reduced_model = if(null_type != "shuffle_x")
-                       "control_superset" else NA_character_)
+                       "control_superset" else NA_character_,
+                     fwer_method = if(keep_curves && sca_fwer_valid_null(null_type))
+                       "single_step" else NA_character_)
   structure(out, class = "sca_test")
 }
 
@@ -721,6 +750,27 @@ print.sca_test <- function(x, ...){
   }
   cat(sprintf("\np-values are permutation-based; resolution floor = %s.\n",
               formatC(floor, format = "f", digits = 4)))
+
+  # Per-specification FWER summary, when it was attached (keep_curves + a
+  # confound-preserving null). Plain language: no min-P / Westfall-Young jargon.
+  fwer <- x$null_curves$fwer
+  if(!is.null(fwer)){
+    s <- fwer$summary
+    if(s$n_significant > 0){
+      cat(sprintf(paste0("\nAfter correcting for searching %d specifications, ",
+                         "%d remain statistically significant\n",
+                         "(smallest corrected p = %s).\n"),
+                  s$n_specs_tested, s$n_significant,
+                  formatC(s$min_p_adj, format = "f", digits = 4)))
+    } else {
+      cat(sprintf(paste0("\nAfter correcting for searching %d specifications, ",
+                         "no individual specification remains significant\n",
+                         "(smallest corrected p = %s).\n"),
+                  s$n_specs_tested,
+                  formatC(s$min_p_adj, format = "f", digits = 4)))
+    }
+  }
+
   # SSN's joint-inference decision rule only applies when the full canonical
   # trio was computed; omit it for any other subset of statistics.
   if(all(c("median", "share_significant", "stouffer") %in% p$test_stats)){
@@ -804,6 +854,15 @@ plot_sca_test <- function(test_result, type = "histogram", title = ""){
 #' outside their null band are highlighted, so it is easy to see which parts of
 #' the curve are more extreme than chance.
 #'
+#' When the result carries per-specification family-wise-error-rate-adjusted
+#' p-values (i.e. it was computed with `keep_curves = TRUE` and a
+#' confound-preserving null, so [sca_minp()] has run -- automatically or
+#' explicitly), the points are coloured in three tiers -- within the chance
+#' band, beyond it but not significant after correction, and significant after
+#' multiple-comparison correction (enlarged) -- so the specifications that
+#' survive correction stand out. Otherwise the usual two-tier
+#' within/outside-band colouring is used.
+#'
 #' It requires an [sca_test()] result computed with `keep_curves = TRUE`.
 #'
 #' @param test_result An object of class `"sca_test"` returned by [sca_test()]
@@ -876,6 +935,45 @@ plot_sca_test_specs <- function(test_result, level = 0.95, title = ""){
   df$outside <- df$observed < df$lower | df$observed > df$upper
 
   band_fill <- sca_sig_colors()[["p >= .1"]]
+
+  # When per-specification FWER p-values are attached (keep_curves + a
+  # confound-preserving null), upgrade the two-tier "within / outside band"
+  # colouring to three tiers so the user can see which specifications survive
+  # multiple-comparison correction, not just which fall outside their raw band.
+  fwer <- test_result$null_curves$fwer
+  if(!is.null(fwer)){
+    sig <- fwer$specs$significant_adj[match(df$spec, fwer$specs$spec)]
+    sig[is.na(sig)] <- FALSE
+    df$band_status <- factor(
+      ifelse(sig, "fwer_significant",
+             ifelse(df$outside, "outside_uncorrected", "within")),
+      levels = c("within", "outside_uncorrected", "fwer_significant"))
+    status_cols <- c(within = sca_sig_colors()[["p >= .1"]],
+                     outside_uncorrected = sca_sig_colors()[["p < .1"]],
+                     fwer_significant = sca_sig_colors()[["p < .005"]])
+    status_labs <- c(within = "within chance band",
+                     outside_uncorrected = "beyond chance (uncorrected)",
+                     fwer_significant = "significant after correction")
+    return(
+      ggplot(df, aes(x = index)) +
+        geom_ribbon(aes(ymin = lower, ymax = upper), fill = band_fill,
+                    alpha = .45) +
+        geom_hline(yintercept = 0, linetype = "dashed", color = "grey40",
+                   linewidth = .4) +
+        # Significant-after-correction points get a size lift and an outline so
+        # they read even in greyscale.
+        geom_point(aes(y = observed, fill = band_status, size = band_status),
+                   shape = 21, colour = "grey20", stroke = .3) +
+        scale_fill_manual(values = status_cols, labels = status_labs,
+                          drop = FALSE, name = "Specification") +
+        scale_size_manual(values = c(within = 1.3, outside_uncorrected = 1.3,
+                                     fwer_significant = 2.6),
+                          guide = "none") +
+        labs(x = "Specification (ranked by estimate)",
+             y = "Focal coefficient", title = title) +
+        theme_sca())
+  }
+
   inside_col <- sca_sig_colors()[["p >= .1"]]
   outside_col <- sca_sig_colors()[["p < .005"]]
 
