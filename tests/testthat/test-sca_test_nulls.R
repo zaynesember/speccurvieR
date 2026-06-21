@@ -93,6 +93,33 @@ test_that("each null_type is reproducible for a fixed seed", {
   }
 })
 
+test_that("serial and parallel agree for freedman_lane and residual_bootstrap", {
+  # Locks the closure-capture contract: perm_fun reaches the PSOCK workers with
+  # the master-side null objects (data_cs, reduced) intact, so the design-
+  # preserving nulls reproduce the serial path exactly. Covers a fixed-effects
+  # run so the kept-row / block-group machinery is exercised on the workers too.
+  skip_on_cran()
+  cases <- list(
+    list(controls = ct, fe = NULL),
+    list(controls = "STheta", fe = "Sta_ID"))
+  for(case in cases){
+    for(nt in c("freedman_lane", "residual_bootstrap")){
+      s <- suppressMessages(sca_test("Salnty", "T_degC", case$controls, bottles,
+                                     fixed_effects = case$fe, n_permutations = 30,
+                                     seed = 5, null_type = nt, keep_curves = TRUE,
+                                     progress_bar = FALSE))
+      p <- suppressMessages(sca_test("Salnty", "T_degC", case$controls, bottles,
+                                     fixed_effects = case$fe, n_permutations = 30,
+                                     seed = 5, null_type = nt, keep_curves = TRUE,
+                                     parallel = TRUE, workers = 2,
+                                     progress_bar = FALSE))
+      expect_equal(s$p_values, p$p_values)
+      expect_equal(s$null_distribution, p$null_distribution)
+      expect_equal(s$null_curves$null_coef, p$null_curves$null_coef)
+    }
+  }
+})
+
 test_that("the new nulls produce a well-formed object and support keep_curves", {
   d <- bottles
   for(nt in c("freedman_lane", "residual_bootstrap")){
