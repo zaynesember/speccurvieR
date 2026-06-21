@@ -184,6 +184,33 @@ plot_sca_test_specs(result)
   that correlation; both are for linear models and fit every specification on a
   common sample.
 
+## Reporting and export
+
+speccurvieR objects come with `tidy()` and `glance()` methods (the same generics
+`broom` and `modelsummary` use), so results drop straight into a reporting
+pipeline:
+
+```{r}
+tidy(result)
+```
+
+`sca_table()` produces a publication-ready results block. By default it returns a
+small, dependency-free data frame, but it can also render to Markdown, LaTeX, or
+(if the package is installed) `gt`, `kableExtra`, or `flextable`:
+
+```{r}
+sca_table(result)
+```
+
+And `sca_report()` writes a one-paragraph, manuscript-ready summary:
+
+```{r}
+sca_report(result)
+```
+
+Both `sca_table()` and `sca_report()` also accept an `sca()` curve, in which case
+they give a descriptive (non-inferential) summary.
+
 ## References
 
 Simonsohn, U., Simmons, J. P., & Nelson, L. D. (2020). Specification curve

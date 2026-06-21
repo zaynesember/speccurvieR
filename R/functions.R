@@ -385,6 +385,14 @@ sca <- function(y, x, controls, data, weights=NULL,
   # Remove duplicate columns
   retVal <- retVal %>% select(where(~!all(is.na(.x))))
 
+  # Tag the result so tidy()/glance()/sca_table()/sca_report() can dispatch on
+  # it. It remains a data frame in every other respect (no print method, so
+  # derived frames behave normally). The focal variable and (normalised) family
+  # are stored as attributes so the reporting helpers need not re-derive them
+  # (which is ambiguous for a single-control curve).
+  attr(retVal, "x") <- x
+  attr(retVal, "family") <- family
+  class(retVal) <- c("sca", "data.frame")
   return(retVal)
 
 }

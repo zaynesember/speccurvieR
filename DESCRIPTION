@@ -26,11 +26,16 @@ Imports:
   pbapply,
   parallel,
   lmtest,
-  sandwich
+  sandwich,
+  generics
 Suggests:
   testthat (>= 3.0.0),
   knitr,
-  rmarkdown
+  rmarkdown,
+  gt,
+  kableExtra,
+  flextable,
+  modelsummary
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3
 License: MIT + file LICENSE
