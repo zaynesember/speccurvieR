@@ -19,6 +19,8 @@ sca_test(
   alpha = 0.05,
   sca_data = NULL,
   keep_curves = FALSE,
+  null_type = c("shuffle_x", "freedman_lane", "residual_bootstrap"),
+  common_sample = FALSE,
   parallel = FALSE,
   workers = 2,
   seed = NULL,
@@ -80,13 +82,53 @@ Defaults to `0.05`.}
 *observed* model, used purely to skip recomputing the
 observed curve. The null distribution is always recomputed
 from `data`, so `data` remains required. Its control
-indicator columns must be consistent with `controls`.}
+indicator columns must be consistent with `controls`. Ignored
+(with a warning) for `null_type = "freedman_lane"` or
+`"residual_bootstrap"`, where the observed curve is recomputed
+on the forced common sample so it matches the null.}
 
 \item{keep_curves}{A boolean indicating whether to retain, for every
 specification, the focal coefficient from each permuted
 curve (aligned across permutations by specification, not
 row order). Required by [plot_sca_test_specs()]; increases
 the size of the returned object. Defaults to `FALSE`.}
+
+\item{null_type}{How the null is generated. One of:
+\describe{
+  \item{`"shuffle_x"`}{(default) Simonsohn-Simmons-Nelson
+    sharp-null permutation: shuffle the focal variable
+    (blocked within the first fixed effect). Appropriate for
+    experimental / as-if-randomly-assigned `x`. It breaks
+    `x`'s correlation with the controls, so it is
+    miscalibrated (anti-conservative) under collinearity --
+    the observational case.}
+  \item{`"freedman_lane"`}{Freedman-Lane (1983) partial
+    permutation. A reduced model `y ~ controls` (the full
+    control superset, `x` omitted, fixed effects retained) is
+    fit once; its residuals are permuted (blocked within the
+    first fixed effect) and added back to its fitted values
+    to form a null response, on which the whole curve is
+    refit. This preserves `x`'s partial correlation with the
+    controls. It tests the sharp null of no partial effect of
+    `x` given the superset controls, so under-controlled
+    specifications may have non-zero null centres by design.}
+  \item{`"residual_bootstrap"`}{The SSN (2020) observational
+    scheme: impose the null on the response
+    (`y - betahat * x`, with `betahat` from the full
+    control-superset specification), then resample rows with
+    replacement and refit. A null-imposed case bootstrap
+    (nearly equivalent to Flachaire 1999); robust to
+    heteroskedasticity but its p-values carry extra
+    Monte-Carlo variability.}
+}
+The `"freedman_lane"` and `"residual_bootstrap"` nulls are
+defined for `family = "linear"` only (including fixed
+effects) and force `common_sample = TRUE`.}
+
+\item{common_sample}{A boolean passed through to [sca()]: fit every
+specification on the rows complete across all model
+variables. Defaults to `FALSE`; forced to `TRUE` for the
+`"freedman_lane"` and `"residual_bootstrap"` nulls.}
 
 \item{parallel}{A boolean indicating whether to parallelise the permutations.
 Defaults to `FALSE`. The inner [sca()] call is always run
@@ -139,6 +181,14 @@ result
 Simonsohn, U., Simmons, J. P., & Nelson, L. D. (2020). Specification curve
 analysis. \emph{Nature Human Behaviour}, 4, 1208-1214.
 \doi{10.1038/s41562-020-0912-z}
+
+Freedman, D., & Lane, D. (1983). A nonstochastic interpretation of reported
+significance levels. \emph{Journal of Business & Economic Statistics}, 1(4),
+292-298.
+
+Winkler, A. M., Ridgway, G. R., Webster, M. A., Smith, S. M., & Nichols, T. E.
+(2014). Permutation inference for the general linear model. \emph{NeuroImage},
+92, 381-397.
 }
 \seealso{
 [plot_sca_test()] to visualise the null distributions of the test

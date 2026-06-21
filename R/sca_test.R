@@ -123,6 +123,71 @@ sca_test_pvalues <- function(observed, null_df, test_stats, direction){
   pv
 }
 
+# Internal: the common-sample subset of `data` -- the rows complete across every
+# model variable (response, focal, controls, fixed effects, weights). This is
+# the same union sca() uses for common_sample = TRUE, and the fixed design the
+# Freedman-Lane and residual-bootstrap nulls require.
+sca_test_common_sample <- function(data, y, x, controls, fixed_effects, weights){
+  vars <- unique(trimws(unlist(strsplit(c(y, x, controls), "[*:]"))))
+  union_vars <- unique(c(vars, fixed_effects, weights))
+  data[stats::complete.cases(data[, union_vars, drop = FALSE]), , drop = FALSE]
+}
+
+# Internal: fit the Freedman-Lane reduced (nuisance) model `y ~ controls (+ FE)`
+# with the focal x omitted, on the common sample, once. Returns the pieces needed
+# to rebuild y* per permutation: the fitted values and raw residuals on the rows
+# the model kept, those row indices into `data_cs`, the per-row weights and their
+# square roots (for the weighted-residual permutation), the FE block groups over
+# the kept rows, and the kept-row count.
+sca_test_reduced_fit <- function(data_cs, y, controls, fixed_effects, weights,
+                                 block){
+  rhs <- paste(controls, collapse = " + ")
+  w <- if(is.null(weights)) NULL else data_cs[[weights]]
+  if(is.null(fixed_effects)){
+    fml <- stats::as.formula(paste(y, "~", rhs))
+    fit <- if(is.null(w)) stats::lm(fml, data = data_cs)
+           else stats::lm(fml, data = data_cs, weights = w)
+    kept <- seq_len(nrow(data_cs))
+  } else {
+    fml <- stats::as.formula(paste(y, "~", rhs, "|",
+                                   paste(fixed_effects, collapse = " + ")))
+    fit <- if(is.null(w)) feols(fml, data = data_cs)
+           else feols(fml, data = data_cs, weights = w)
+    kept <- seq_len(nrow(data_cs))
+    if(!is.null(fit$obs_selection$obsRemoved)){
+      kept <- kept[fit$obs_selection$obsRemoved]  # obsRemoved are negative indices
+    }
+  }
+  w_kept <- if(is.null(w)) rep(1, length(kept)) else w[kept]
+  block_groups <- if(!is.null(block)){
+    unname(split(seq_along(kept), data_cs[[block]][kept]))
+  } else NULL
+  list(fitted = as.numeric(stats::fitted(fit)),
+       resid = as.numeric(stats::residuals(fit)),
+       kept = kept, w_kept = w_kept, sqrt_w = sqrt(w_kept),
+       block_groups = block_groups, n_kept = length(kept))
+}
+
+# Internal: impose the residual-bootstrap null on the response. Fits the full
+# control-superset spec `y ~ x + controls (+ FE)` once on the common sample and
+# returns `y - betahat_super * x` over all common-sample rows.
+sca_test_ynull <- function(data_cs, y, x, controls, fixed_effects, weights){
+  rhs <- paste(c(x, controls), collapse = " + ")
+  w <- if(is.null(weights)) NULL else data_cs[[weights]]
+  if(is.null(fixed_effects)){
+    fml <- stats::as.formula(paste(y, "~", rhs))
+    fit <- if(is.null(w)) stats::lm(fml, data = data_cs)
+           else stats::lm(fml, data = data_cs, weights = w)
+  } else {
+    fml <- stats::as.formula(paste(y, "~", rhs, "|",
+                                   paste(fixed_effects, collapse = " + ")))
+    fit <- if(is.null(w)) feols(fml, data = data_cs)
+           else feols(fml, data = data_cs, weights = w)
+  }
+  beta <- stats::coef(fit)[[x]]
+  data_cs[[y]] - beta * data_cs[[x]]
+}
+
 #' Joint-inference test for a specification curve
 #'
 #' @description
@@ -181,7 +246,10 @@ sca_test_pvalues <- function(observed, null_df, test_stats, direction){
 #'                 *observed* model, used purely to skip recomputing the
 #'                 observed curve. The null distribution is always recomputed
 #'                 from `data`, so `data` remains required. Its control
-#'                 indicator columns must be consistent with `controls`.
+#'                 indicator columns must be consistent with `controls`. Ignored
+#'                 (with a warning) for `null_type = "freedman_lane"` or
+#'                 `"residual_bootstrap"`, where the observed curve is recomputed
+#'                 on the forced common sample so it matches the null.
 #' @param parallel A boolean indicating whether to parallelise the permutations.
 #'                 Defaults to `FALSE`. The inner [sca()] call is always run
 #'                 serially to avoid nested parallelism.
@@ -202,22 +270,65 @@ sca_test_pvalues <- function(observed, null_df, test_stats, direction){
 #'         `null_coef`, a specifications-by-permutations matrix of the permuted
 #'         focal coefficients).
 #'
-#' @references
-#' Simonsohn, U., Simmons, J. P., & Nelson, L. D. (2020). Specification curve
-#' analysis. \emph{Nature Human Behaviour}, 4, 1208-1214.
-#' \doi{10.1038/s41562-020-0912-z}
-#'
 #' @param keep_curves A boolean indicating whether to retain, for every
 #'                    specification, the focal coefficient from each permuted
 #'                    curve (aligned across permutations by specification, not
 #'                    row order). Required by [plot_sca_test_specs()]; increases
 #'                    the size of the returned object. Defaults to `FALSE`.
+#' @param null_type How the null is generated. One of:
+#'                  \describe{
+#'                    \item{`"shuffle_x"`}{(default) Simonsohn-Simmons-Nelson
+#'                      sharp-null permutation: shuffle the focal variable
+#'                      (blocked within the first fixed effect). Appropriate for
+#'                      experimental / as-if-randomly-assigned `x`. It breaks
+#'                      `x`'s correlation with the controls, so it is
+#'                      miscalibrated (anti-conservative) under collinearity --
+#'                      the observational case.}
+#'                    \item{`"freedman_lane"`}{Freedman-Lane (1983) partial
+#'                      permutation. A reduced model `y ~ controls` (the full
+#'                      control superset, `x` omitted, fixed effects retained) is
+#'                      fit once; its residuals are permuted (blocked within the
+#'                      first fixed effect) and added back to its fitted values
+#'                      to form a null response, on which the whole curve is
+#'                      refit. This preserves `x`'s partial correlation with the
+#'                      controls. It tests the sharp null of no partial effect of
+#'                      `x` given the superset controls, so under-controlled
+#'                      specifications may have non-zero null centres by design.}
+#'                    \item{`"residual_bootstrap"`}{The SSN (2020) observational
+#'                      scheme: impose the null on the response
+#'                      (`y - betahat * x`, with `betahat` from the full
+#'                      control-superset specification), then resample rows with
+#'                      replacement and refit. A null-imposed case bootstrap
+#'                      (nearly equivalent to Flachaire 1999); robust to
+#'                      heteroskedasticity but its p-values carry extra
+#'                      Monte-Carlo variability.}
+#'                  }
+#'                  The `"freedman_lane"` and `"residual_bootstrap"` nulls are
+#'                  defined for `family = "linear"` only (including fixed
+#'                  effects) and force `common_sample = TRUE`.
+#' @param common_sample A boolean passed through to [sca()]: fit every
+#'                      specification on the rows complete across all model
+#'                      variables. Defaults to `FALSE`; forced to `TRUE` for the
+#'                      `"freedman_lane"` and `"residual_bootstrap"` nulls.
 #'
 #' @seealso [plot_sca_test()] to visualise the null distributions of the test
 #'   statistics, and [plot_sca_test_specs()] for the per-specification null-band
 #'   plot (requires `keep_curves = TRUE`).
 #'
-#' @importFrom stats median qnorm quantile
+#' @references
+#' Simonsohn, U., Simmons, J. P., & Nelson, L. D. (2020). Specification curve
+#' analysis. \emph{Nature Human Behaviour}, 4, 1208-1214.
+#' \doi{10.1038/s41562-020-0912-z}
+#'
+#' Freedman, D., & Lane, D. (1983). A nonstochastic interpretation of reported
+#' significance levels. \emph{Journal of Business & Economic Statistics}, 1(4),
+#' 292-298.
+#'
+#' Winkler, A. M., Ridgway, G. R., Webster, M. A., Smith, S. M., & Nichols, T. E.
+#' (2014). Permutation inference for the general linear model. \emph{NeuroImage},
+#' 92, 381-397.
+#'
+#' @importFrom stats median qnorm quantile complete.cases lm fitted residuals coef
 #' @export
 #'
 #' @examples
@@ -234,6 +345,9 @@ sca_test <- function(y, x, controls, data, weights = NULL,
                      test_stats = c("median", "share_significant", "stouffer"),
                      direction = "two.sided", alpha = 0.05, sca_data = NULL,
                      keep_curves = FALSE,
+                     null_type = c("shuffle_x", "freedman_lane",
+                                   "residual_bootstrap"),
+                     common_sample = FALSE,
                      parallel = FALSE, workers = 2, seed = NULL,
                      progress_bar = TRUE){
 
@@ -249,8 +363,57 @@ sca_test <- function(y, x, controls, data, weights = NULL,
     if(!is.null(parsed$fixed_effects)) fixed_effects <- parsed$fixed_effects
   }
 
+  # Quiet fixest's per-fit singleton/collinearity NOTEs: sca_test refits the
+  # whole curve up to n_permutations times, so they would otherwise flood the
+  # console (the estimates are unaffected). Restored on exit.
+  old_fixest_notes <- getOption("fixest_notes")
+  options(fixest_notes = FALSE)
+  on.exit(options(fixest_notes = old_fixest_notes), add = TRUE)
+
   # Validate arguments before doing any expensive work.
   direction <- match.arg(direction, c("two.sided", "positive", "negative"))
+  null_type <- match.arg(null_type)
+
+  # sca() (and hence sca_test) supports a single fixed-effects variable; more
+  # than one currently fails inside formula_builder. Fail with a clear message.
+  if(length(fixed_effects) > 1){
+    stop("sca_test() supports a single `fixed_effects` variable; ",
+         length(fixed_effects), " were supplied.", call. = FALSE)
+  }
+
+  # The design-preserving nulls (Freedman-Lane, residual bootstrap) are defined
+  # for linear models on a fixed sample. Restrict to the linear path and force a
+  # common sample (they construct a single null response indexed to fixed rows).
+  resp_col <- ".sca_test_response"
+  if(null_type != "shuffle_x"){
+    if(family != "linear"){
+      stop("null_type = \"", null_type, "\" is defined for linear models only ",
+           "(family = \"linear\"); use null_type = \"shuffle_x\" for glm ",
+           "families.", call. = FALSE)
+    }
+    if(resp_col %in% names(data)){
+      stop("`data` already contains a column named \"", resp_col,
+           "\", which null_type = \"", null_type, "\" needs to build the null ",
+           "response. Please rename it.", call. = FALSE)
+    }
+    if(!isTRUE(common_sample)){
+      message("null_type = \"", null_type, "\" requires a common sample; ",
+              "computing the observed curve and the null on the rows complete ",
+              "across all model variables.")
+      common_sample <- TRUE
+    }
+    # The null is always built on the forced common sample, so a precomputed
+    # `sca_data` (which may have been fit per-spec, on different samples) would
+    # put the observed statistics on a different design than the null. Recompute
+    # the observed curve instead.
+    if(!is.null(sca_data)){
+      warning("`sca_data` is ignored for null_type = \"", null_type,
+              "\"; the observed curve is recomputed on the common sample so it ",
+              "matches the null.", call. = FALSE)
+      sca_data <- NULL
+    }
+  }
+
   valid_stats <- c("median", "share_significant", "stouffer", "share_sign")
   if(!all(test_stats %in% valid_stats)){
     stop("Invalid `test_stats`: ",
@@ -286,6 +449,7 @@ sca_test <- function(y, x, controls, data, weights = NULL,
     observed_curve <- sca(y = y, x = x, controls = controls, data = data,
                           weights = weights, family = family, link = link,
                           fixed_effects = fixed_effects,
+                          common_sample = common_sample,
                           parallel = FALSE, progress_bar = FALSE)
   } else {
     if(!all(c("coef", "p") %in% names(sca_data))){
@@ -320,6 +484,32 @@ sca_test <- function(y, x, controls, data, weights = NULL,
   n <- nrow(data)
   block_groups <- if(blocked) unname(split(seq_len(n), data[[block]])) else NULL
 
+  # Master-side null construction for the design-preserving nulls. These are
+  # deterministic given the data (no RNG), computed once, and reused across all
+  # permutations. Freedman-Lane caches the reduced-model fit; the residual
+  # bootstrap injects the null-imposed response into the common-sample data.
+  data_cs <- NULL
+  reduced <- NULL
+  if(null_type != "shuffle_x"){
+    data_cs <- sca_test_common_sample(data, y, x, controls, fixed_effects,
+                                      weights)
+    if(null_type == "freedman_lane"){
+      reduced <- tryCatch(
+        sca_test_reduced_fit(data_cs, y, controls, fixed_effects, weights,
+                             block),
+        error = function(e)
+          stop("Freedman-Lane reduced model failed to fit: ",
+               conditionMessage(e), call. = FALSE))
+    } else {
+      ynull <- tryCatch(
+        sca_test_ynull(data_cs, y, x, controls, fixed_effects, weights),
+        error = function(e)
+          stop("Residual-bootstrap null model failed to fit: ",
+               conditionMessage(e), call. = FALSE))
+      data_cs[[resp_col]] <- ynull
+    }
+  }
+
   # Pre-generate the permutations in the master under `seed`. This makes the
   # serial and parallel paths produce identical, reproducible results: all RNG
   # happens here and the workers do deterministic work. Setting the seed mutates
@@ -335,20 +525,50 @@ sca_test <- function(y, x, controls, data, weights = NULL,
     }
     set.seed(seed)
   }
-  perm_indices <- lapply(seq_len(n_permutations),
-                         function(i) sca_test_perm_index(n, block_groups))
+  # The index each permutation uses depends on the null mechanism: shuffle_x
+  # permutes the focal column over all rows (FE-blocked); freedman_lane permutes
+  # the reduced-model residuals over the kept rows (FE-blocked); residual
+  # bootstrap resamples common-sample rows with replacement.
+  perm_indices <- if(null_type == "shuffle_x"){
+    lapply(seq_len(n_permutations),
+           function(i) sca_test_perm_index(n, block_groups))
+  } else if(null_type == "freedman_lane"){
+    lapply(seq_len(n_permutations),
+           function(i) sca_test_perm_index(reduced$n_kept, reduced$block_groups))
+  } else {
+    lapply(seq_len(n_permutations),
+           function(i) sample.int(nrow(data_cs), nrow(data_cs), replace = TRUE))
+  }
 
   # One permutation: apply the permuted focal column, re-estimate the curve,
   # and return the per-specification focal coefficient and p-value (or NULL on
   # failure). The summary statistics are computed in the master so the workers
   # only ever call the exported sca(), never the package internals.
   perm_fun <- function(idx){
-    perm_data <- data
-    perm_data[[x]] <- data[[x]][idx]
+    if(null_type == "shuffle_x"){
+      work <- data
+      work[[x]] <- data[[x]][idx]
+      resp <- y
+    } else if(null_type == "freedman_lane"){
+      # y* = reduced fitted + permuted (weighted) residuals, scattered into the
+      # kept rows; rows the reduced model dropped (FE singletons) stay NA and are
+      # dropped uniformly by every specification.
+      estar <- (reduced$sqrt_w * reduced$resid)[idx] / reduced$sqrt_w
+      ystar <- rep(NA_real_, nrow(data_cs))
+      ystar[reduced$kept] <- reduced$fitted + estar
+      work <- data_cs
+      work[[resp_col]] <- ystar
+      resp <- resp_col
+    } else {
+      # Resample common-sample rows (with the null-imposed response) jointly.
+      work <- data_cs[idx, , drop = FALSE]
+      resp <- resp_col
+    }
     curve <- tryCatch(
-      sca(y = y, x = x, controls = controls, data = perm_data,
+      sca(y = resp, x = x, controls = controls, data = work,
           weights = weights, family = family, link = link,
-          fixed_effects = fixed_effects, parallel = FALSE, progress_bar = FALSE),
+          fixed_effects = fixed_effects, common_sample = common_sample,
+          parallel = FALSE, progress_bar = FALSE),
       error = function(e) NULL)
     if(is.null(curve)) return(NULL)
     out <- list(coef = curve$coef, p = curve$p)
@@ -364,9 +584,14 @@ sca_test <- function(y, x, controls, data, weights = NULL,
     on.exit(stopCluster(cl), add = TRUE)
     clusterEvalQ(cl, library(speccurvieR))
     clusterEvalQ(cl, library(fixest))
+    clusterEvalQ(cl, options(fixest_notes = FALSE))
+    # Everything perm_fun closes over, so the workers reproduce the serial path
+    # exactly (including the null-specific objects for freedman_lane/residual
+    # bootstrap, which are NULL for shuffle_x).
     clusterExport(cl,
                   c("data", "x", "y", "controls", "weights", "family", "link",
-                    "fixed_effects"),
+                    "fixed_effects", "null_type", "common_sample", "keep_curves",
+                    "resp_col", "data_cs", "reduced"),
                   envir = environment())
     null_list <- if(progress_bar){
       pblapply(perm_indices, perm_fun, cl = cl)
@@ -436,7 +661,10 @@ sca_test <- function(y, x, controls, data, weights = NULL,
                      x = x, seed = seed, parallel = parallel, workers = workers,
                      family = family, fixed_effects = fixed_effects,
                      n_specs = n_specs, blocked = blocked,
-                     test_stats = test_stats, keep_curves = keep_curves)
+                     test_stats = test_stats, keep_curves = keep_curves,
+                     null_type = null_type, common_sample = common_sample,
+                     reduced_model = if(null_type != "shuffle_x")
+                       "control_superset" else NA_character_)
   structure(out, class = "sca_test")
 }
 
@@ -469,6 +697,11 @@ print.sca_test <- function(x, ...){
   cat(sprintf("Specifications:   %d\n", p$n_specs))
   cat(sprintf("Permutations:     %d used (%d failed)   |  blocked within FE: %s\n",
               p$n_used, p$n_failed, if(p$blocked) "yes" else "no"))
+  null_label <- c(shuffle_x = "shuffle x",
+                  freedman_lane = "Freedman-Lane (control superset, common sample)",
+                  residual_bootstrap = "residual bootstrap (common sample)")
+  null_type <- if(is.null(p$null_type)) "shuffle_x" else p$null_type
+  cat(sprintf("Null:             %s\n", null_label[[null_type]]))
   cat(sprintf("Direction:        %s   alpha = %s\n\n",
               p$direction, format(p$alpha)))
 
