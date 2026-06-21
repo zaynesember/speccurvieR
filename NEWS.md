@@ -1,5 +1,13 @@
 # speccurvieR (development version)
 
+* `sca()` now reports `n_obs`, the number of observations each specification was
+  fit on, and gains a `common_sample` argument. With default listwise deletion,
+  specifications with different control sets can be fit on different samples
+  (which conflates control effects with sample changes); `n_obs` makes this
+  visible and `common_sample = TRUE` fits every specification on the rows that
+  are complete across all model variables. New `plot_samplesizes()` plots the
+  per-specification sample sizes.
+
 * New `sca_variance()` and `plot_variance()`: decompose the variance of the
   focal coefficient across the specification curve into the share attributable
   to each control choice (plus a residual). Uses an LMG / Shapley

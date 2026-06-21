@@ -4,7 +4,7 @@
 # columns naming each control, found by removing the known result columns.
 sca_control_cols <- function(sca_data){
   meta <- c("coef", "se", "statistic", "p", "RMSE", "adjR", "AIC", "deviance",
-            "terms", "control_coefs", "sig.level", "index")
+            "terms", "control_coefs", "sig.level", "index", "n_obs")
   setdiff(names(sca_data), meta)
 }
 

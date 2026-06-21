@@ -36,6 +36,38 @@ test_that("sca() control-indicator columns use exact term membership", {
   expect_true(all(unlist(ind) %in% c(0L, 1L)))
 })
 
+test_that("sca() reports n_obs, which can vary across specifications by default", {
+  s <- suppressMessages(sca(y = "Salnty", x = "T_degC",
+                            controls = c("ChlorA", "O2Sat", "NO2uM"),
+                            data = bottles, progress_bar = FALSE))
+  expect_true("n_obs" %in% names(s))
+  expect_true(all(s$n_obs > 0))
+  # bottles has differential missingness, so specs are fit on different samples.
+  expect_gt(length(unique(s$n_obs)), 1)
+  # n_obs is metadata, not a control indicator.
+  expect_false("n_obs" %in% sca_control_cols(s))
+})
+
+test_that("sca(common_sample = TRUE) fits every specification on one sample", {
+  s <- suppressMessages(sca(y = "Salnty", x = "T_degC",
+                            controls = c("ChlorA", "O2Sat", "NO2uM"),
+                            data = bottles, common_sample = TRUE,
+                            progress_bar = FALSE))
+  expect_equal(length(unique(s$n_obs)), 1)
+  cc <- sum(stats::complete.cases(
+    bottles[, c("Salnty", "T_degC", "ChlorA", "O2Sat", "NO2uM")]))
+  expect_equal(unique(s$n_obs), cc)
+})
+
+test_that("plot_samplesizes() returns a ggplot and needs n_obs", {
+  s <- suppressMessages(sca(y = "Salnty", x = "T_degC",
+                            controls = c("ChlorA", "O2Sat"), data = bottles,
+                            progress_bar = FALSE))
+  expect_s3_class(plot_samplesizes(s), "ggplot")
+  s$n_obs <- NULL
+  expect_error(plot_samplesizes(s), "n_obs")
+})
+
 test_that("sca(return_formulae = TRUE) returns formulae instead of estimates", {
   f <- sca(y = "Salnty", x = "T_degC", controls = c("O2Sat", "STheta"),
            data = bottles, return_formulae = TRUE)

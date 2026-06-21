@@ -13,6 +13,7 @@ sca(
   family = "linear",
   link = NULL,
   fixed_effects = NULL,
+  common_sample = FALSE,
   return_formulae = FALSE,
   progress_bar = TRUE,
   parallel = FALSE,
@@ -56,6 +57,15 @@ Supports all link functions supported by the family parameter of
 in data desired for fixed effects. Defaults to NULL in
 which case no fixed effects are included.}
 
+\item{common_sample}{A boolean. When `TRUE`, every specification is fit on the
+same sample: the rows that are complete across all model
+variables (the dependent, independent, control, fixed-
+effects, and weights variables). When `FALSE` (the
+default) each specification uses its own complete cases,
+so specifications with different controls may be fit on
+different samples; the returned `n_obs` column reveals
+this. See also [plot_samplesizes()].}
+
 \item{return_formulae}{A boolean. When `TRUE` a list of model formula objects
 is returned but the models are not estimated. Defaults
 to `FALSE` in which case a dataframe of model results
@@ -78,8 +88,8 @@ parallelization. Defaults to 2.}
 \value{
 When `return_formulae` is `FALSE`, a dataframe where each row contains
         the independent variable coefficient estimate, standard error,
-        test statistic, p-value, model specification, and measures of model
-        fit.
+        test statistic, p-value, model specification, measures of model fit,
+        and `n_obs`, the number of observations the specification was fit on.
 }
 \description{
 sca() is the workhorse function of the package--this estimates models with every

@@ -171,9 +171,17 @@ that row’s model, as well as the control coefficients for each model.
 names(s)
 #>  [1] "coef"          "se"            "statistic"     "p"            
 #>  [5] "RMSE"          "adjR"          "terms"         "control_coefs"
-#>  [9] "sig.level"     "index"         "O2Sat"         "ChlorA"       
-#> [13] "NH3uM"         "NO2uM"         "SiO3uM"        "NO2uM:SiO3uM"
+#>  [9] "n_obs"         "sig.level"     "index"         "O2Sat"        
+#> [13] "ChlorA"        "NH3uM"         "NO2uM"         "SiO3uM"       
+#> [17] "NO2uM:SiO3uM"
 ```
+
+The output also includes `n_obs`, the number of observations each
+specification was fit on. With default listwise deletion, specifications
+with different controls can end up fit on different samples—`n_obs`
+makes that visible, `plot_samplesizes()` plots it, and
+`sca(..., common_sample = TRUE)` fits every specification on the same
+complete-case sample so the curve isn’t confounded by sample changes.
 
 ## Plotting
 
@@ -306,13 +314,13 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 #>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017      0.109476343        0.10179142
-#> T_degC      -0.0599783335 0.007428642      0.007557431        0.00808435
-#> ChlorA       0.0006514447 0.012449618      0.041658672        0.03093020
+#> (Intercept) 34.2940251811 0.097594017       0.10665716        0.16074216
+#> T_degC      -0.0599783335 0.007428642       0.00893342        0.01116217
+#> ChlorA       0.0006514447 0.012449618       0.02585798        0.00969140
 #>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)       0.09441086        0.09654291
-#> T_degC            0.00773051        0.00785464
-#> ChlorA            0.01286966        0.06013803
+#> (Intercept)       0.10944807        0.18418755
+#> T_degC            0.00810967        0.01371619
+#> ChlorA            0.01620021        0.02412711
 ```
 
 Clustered standard errors are also supported:
@@ -535,31 +543,31 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x12a406db0>
+#> <environment: 0x10e345880>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x12a406db0>
+#> <environment: 0x10e345880>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x12a406db0>
+#> <environment: 0x10e345880>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x12a406db0>
+#> <environment: 0x10e345880>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x12a406db0>
+#> <environment: 0x10e345880>
 #> 
 #> $`T_degC ~ Salnty + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x12a406db0>
+#> <environment: 0x10e345880>
 #> 
 #> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
 #> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x12a406db0>
+#> <environment: 0x10e345880>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
