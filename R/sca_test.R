@@ -585,9 +585,17 @@ sca_test <- function(y, x, controls, data, weights = NULL,
     clusterEvalQ(cl, library(speccurvieR))
     clusterEvalQ(cl, library(fixest))
     clusterEvalQ(cl, options(fixest_notes = FALSE))
-    # Everything perm_fun closes over, so the workers reproduce the serial path
-    # exactly (including the null-specific objects for freedman_lane/residual
-    # bootstrap, which are NULL for shuffle_x).
+    # NOTE on how the workers actually get their data: perm_fun is a closure, so
+    # pblapply()/parLapply() serialise it together with this sca_test() frame --
+    # that closure is the real mechanism that carries `data`, `data_cs`,
+    # `reduced`, and everything else perm_fun references. This clusterExport is
+    # therefore belt-and-suspenders: it makes the worker dependencies explicit
+    # and would keep feeding them if perm_fun were ever refactored into a
+    # top-level function (which would break the closure capture). It lists every
+    # object perm_fun references, including the freedman_lane/residual_bootstrap
+    # objects `data_cs`/`reduced`/`resp_col` (NULL for shuffle_x). The
+    # serial == parallel reproducibility this contract guarantees is locked in by
+    # tests in test-sca_test_nulls.R.
     clusterExport(cl,
                   c("data", "x", "y", "controls", "weights", "family", "link",
                     "fixed_effects", "null_type", "common_sample", "keep_curves",
