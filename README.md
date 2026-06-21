@@ -141,9 +141,11 @@ names(bottles)
 #> [61] "pH2"                 "DIC.Quality.Comment"
 ```
 
-Suppose we’re modeling the effect of salinity on ocean temperatures and
-want to understand how including the concentration of other chemicals
-affects the model
+Suppose we want to describe how ocean temperature relates to salinity,
+and how that association shifts as we add other water-chemistry
+controls. (Salinity and temperature are jointly determined by the same
+ocean physics, so there’s no clean causal story here–which makes it a
+fitting toy for watching how unstable a single coefficient can be.)
 
 ``` r
 s <- sca(y = "T_degC", x = "Salnty",
@@ -212,9 +214,20 @@ plot_curve(s)
 
 <img src="man/figures/README-unnamed-chunk-8-1.png" width="100%" />
 
-By default, a bottom panel is provided showing which controls are
-present in each model. You can get the bottom panel by itself using
-`plot_vars()`:
+Here’s how to read it. Each dot in the top panel is the salinity
+coefficient from one of the 63 models, sorted from most negative to most
+positive; the bars are 95% confidence intervals and the colour marks the
+p-value tier (see the legend). The red dashed line is zero. In the
+bottom panel each row is a control, and a tick means that control is
+included in the specification directly above it–so you can read off
+which choices produce the estimates on the left versus the right. The
+thing to notice is that the salinity coefficient swings from well below
+zero to well above it, even changing sign depending on which controls
+are in the model. That swing is exactly what specification curve
+analysis is built to expose, and it’s why no single regression here
+should be trusted on its own.
+
+You can get the bottom panel by itself using `plot_vars()`:
 
 ``` r
 plot_vars(s)
@@ -222,49 +235,23 @@ plot_vars(s)
 
 <img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
 
-You can also get just the top panel with the specification curve, add a
-title, and more:
-
-``` r
-plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve")
-```
-
-<img src="man/figures/README-unnamed-chunk-10-1.png" width="100%" />
-
-When `plot_vars = FALSE` (i.e. when you are only having a single ggplot
-object returned) you can also customize the plot as you would any
-`ggplot` object:
+`plot_curve()` takes a `title` argument and a `plot_vars = FALSE` option
+to return just the curve. Because what comes back is a plain `ggplot`,
+you can restyle it however you like:
 
 ``` r
 library(ggplot2)
 
-plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve") +
+plot_curve(s, plot_vars = FALSE, title = "Salinity coefficient across specifications") +
       theme_minimal() +
-      theme(legend.position = "bottom",
-            legend.title = element_blank()) +
-      labs(title = "I changed my mind and want a different title",
-           x = "Model index")
+      theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
-<img src="man/figures/README-unnamed-chunk-11-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-10-1.png" width="100%" />
 
-Note you may need to adjust the plot’s margin when customizing like this
-to avoid going off the plot’s edge, this can be done easily:
-
-``` r
-plot_curve(s, plot_vars = F) +
-      labs(title = "I'm missing")
-```
-
-<img src="man/figures/README-unnamed-chunk-12-1.png" width="100%" />
-
-``` r
-plot_curve(s, plot_vars = F) +
-      theme(plot.margin = unit(c(5, 5, 5, 5), unit = "points")) +
-      labs(title = "I'm found!")
-```
-
-<img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
+(One gotcha: if you customize the theme and the title gets clipped at
+the top, widen the plot margin with
+`+ theme(plot.margin = unit(c(5, 5, 5, 5), "points"))`.)
 
 Let’s see what other stuff we can plot.
 
@@ -274,13 +261,13 @@ We can look at model fits across models:
 plot_rmse(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-11-1.png" width="100%" />
 
 ``` r
 plot_r2_adj(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-15-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-12-1.png" width="100%" />
 
 We can also look at the distributions of coefficients for our control
 variables:
@@ -289,7 +276,7 @@ variables:
 plot_control_distributions(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-16-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
 
 Or maybe we want histograms:
 
@@ -298,16 +285,18 @@ plot_control_distributions(s, type="histogram")
 #> `stat_bin()` using `bins = 30`. Pick better value `binwidth`.
 ```
 
-<img src="man/figures/README-unnamed-chunk-17-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
 
 (Note: because the above plot is a facet wrapped `ggplot` object you can
 customize it like any other `ggplot` object)
 
 ## Comparing standard errors
 
-Suppose you want to investigate how your model fares with different
-standard error types, `se_compare()` allows you to do so in a single
-line of code:
+Specification curve analysis is usually about the coefficient, but the
+standard error is a modelling choice too. `se_compare()` re-estimates a
+model under several standard error types in a single call–as far as I
+know, the only spec-curve package that does–so you can see how much your
+inference leans on that choice:
 
 ``` r
 se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles, types = "all")
@@ -321,38 +310,9 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles, types = "all")
 #> ChlorA      0.011852569 0.033524495 0.015191133 0.67019383
 ```
 
-Note that the estimate column provides the coefficient estimate, not a
-standard error estimate.
-
-You can provide bootstrapping parameters if you want to investigate
-bootstrapped errors:
-
-``` r
-se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
-           types = c("iid", "bootstrapped"),
-           boot_samples=c(8, 10), boot_sample_size=c(200, 300))
-#>                  estimate         iid bootstrap_k8n200 bootstrap_k10n200
-#> (Intercept) 34.2940251811 0.097594017      0.104560339        0.11923059
-#> T_degC      -0.0599783335 0.007428642      0.007827583        0.01011978
-#> ChlorA       0.0006514447 0.012449618      0.051695174        0.03916491
-#>             bootstrap_k8n300 bootstrap_k10n300
-#> (Intercept)       0.14229854       0.100211550
-#> T_degC            0.01235051       0.008024381
-#> ChlorA            0.04176535       0.033771406
-```
-
-Clustered standard errors are also supported:
-
-``` r
-se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
-           types = "HC1", cluster=c("Sta_ID", "Depth_ID"))
-#>                  estimate         HC1  HC1_Sta_ID HC1_Depth_ID
-#> (Intercept) 34.2940251811 0.109239172 0.126354691  0.109239172
-#> T_degC      -0.0599783335 0.008476102 0.009846441  0.008476102
-#> ChlorA       0.0006514447 0.005394963 0.005415379  0.005394963
-```
-
-As well as fixed effects:
+(The estimate column is the coefficient, not a standard error.) It also
+does clustered and bootstrapped errors (pass `cluster`, or
+`boot_samples`/`boot_sample_size`), and fixed effects via `fixest`:
 
 ``` r
 se_compare(formula = "Salnty ~ T_degC + ChlorA | Sta_ID", data = bottles,
@@ -367,14 +327,11 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA | Sta_ID", data = bottles,
 #> ChlorA      0.005394963
 ```
 
-Note: CL_FE refers to standard errors clustered by fixed effects
-variables, i.e. the default errors reported by `fixest::feols()`.
-
-`se_compare()` is not limited to OLS. Pass a `family` (and optionally a
-`link`), exactly as you would to `sca()`, to compare standard error
-types for any `glm()` model family–logistic regression, Poisson, and so
-on. Every standard error type carries over, including bootstrapped and
-clustered errors:
+(`CL_FE` is clustered by the fixed-effect variable, i.e. the default
+`fixest::feols()` reports.) And it isn’t limited to OLS–pass a `family`
+(and optionally a `link`), exactly as you would to `sca()`, to compare
+standard error types for any `glm()` family, with every error type
+carrying over:
 
 ``` r
 # A binary outcome for a quick logistic-regression example.
@@ -388,16 +345,18 @@ se_compare(formula = "saline ~ T_degC + ChlorA", data = bottles,
 #> ChlorA       0.5100412 0.343188 0.1673462 0.4674847
 ```
 
-You can visualize these comparisons too. `plot_se()` shows each
-coefficient’s estimate with a confidence interval under every standard
-error type, coloured by whether the interval excludes zero:
+The thing to watch for is a coefficient that’s significant under one
+error type and not another–that’s a robustness red flag. `plot_se()`
+makes it visual, drawing each coefficient’s estimate with a confidence
+interval under every standard error type, coloured by whether the
+interval excludes zero:
 
 ``` r
 plot_se(se_compare("Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
                    types = c("iid", "HC0", "HC1", "HC3")))
 ```
 
-<img src="man/figures/README-unnamed-chunk-23-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-18-1.png" width="100%" />
 
 And `plot_multi_se()` draws the whole specification curve faceted by
 standard error type. The estimates are identical across facets, so you
@@ -410,7 +369,7 @@ plot_multi_se(y = "Salnty", x = "T_degC",
               data = bottles, types = c("iid", "HC3"))
 ```
 
-<img src="man/figures/README-unnamed-chunk-24-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-19-1.png" width="100%" />
 
 ## Diagnostic plots
 
@@ -425,7 +384,7 @@ it easy to see which modelling choices are actually doing the moving:
 plot_influence(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-25-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-20-1.png" width="100%" />
 
 `plot_coef_fit()` plots the coefficient against model fit, so you can
 check whether your best-fitting specifications give systematically
@@ -436,7 +395,7 @@ model:
 plot_coef_fit(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-21-1.png" width="100%" />
 
 ## Variance decomposition
 
@@ -460,13 +419,21 @@ sca_variance(s)
 #> 7     Residual 3.53749134 28.4717906
 ```
 
+Read each share as how much of the curve’s spread that control is
+responsible for–a control with a big share is one that genuinely moves
+your estimate (“Shapley” just means the credit is split fairly no matter
+what order you list the controls in). This complements
+`plot_influence()`: influence shows the *direction* each control pushes
+the estimate, the decomposition shows each control’s *share* of the
+total spread.
+
 `plot_variance()` shows the same thing as a bar chart:
 
 ``` r
 plot_variance(s)
 ```
 
-<img src="man/figures/README-unnamed-chunk-28-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-23-1.png" width="100%" />
 
 ## Joint-inference test
 
@@ -474,164 +441,170 @@ Reading a specification curve tells you whether your result is robust
 *descriptively*. But how do you know the curve as a whole is more
 extreme than you’d expect by chance? `sca_test()` answers that with the
 permutation-based joint-inference test of Simonsohn, Simmons, and Nelson
-(2020). It tests the sharp null that the focal variable has no effect in
-*any* specification: it repeatedly shuffles that variable (blocked
-within fixed effects when present), re-estimates the entire curve each
-time, and compares the observed curve to the resulting null
-distribution.
+(2020). It tests the *sharp null*–that the focal variable has no effect
+in *any* specification, not just on average–by repeatedly shuffling that
+variable (blocked within fixed effects when present), re-estimating the
+entire curve each time, and comparing the observed curve to the
+resulting null distribution.
 
-It reports three statistics–the median estimate, the share of
-statistically significant specifications (restricted to the predicted
-direction when you set `direction`), and a Stouffer combination of the
-per-specification *p*-values–each with its own permutation *p*-value:
+Permutation tests re-fit the whole curve hundreds of times, so for the
+inference examples I trim to a smaller three-control set to keep this
+README quick; the mechanics are identical for the full curve above. The
+test reports three statistics, each with its own permutation *p*-value:
+the median estimate (is the typical coefficient far from zero?), the
+share of statistically significant specifications (are an unusual number
+of them significant?), and a Stouffer combination of the
+per-specification *p*-values (do the pooled *p*-values point the same
+way?).
 
 ``` r
-result <- sca_test(y = "Salnty", x = "T_degC",
+result <- sca_test(y = "T_degC", x = "Salnty",
                    controls = c("O2Sat", "ChlorA", "NO2uM"),
                    data = bottles, n_permutations = 500, seed = 1,
                    progress_bar = FALSE)
 result
 #> Specification curve joint-inference test (Simonsohn, Simmons & Nelson 2020)
 #> 
-#> Focal variable:   T_degC
+#> Focal variable:   Salnty
 #> Specifications:   7
 #> Permutations:     500 used (0 failed)   |  blocked within FE: no
 #> Null:             shuffle x
 #> Direction:        two.sided   alpha = 0.05
 #> 
 #>   Statistic                Observed    p-value
-#>   Median estimate            0.0543     0.0020
-#>   Share significant          1.0000     0.0040
-#>   Stouffer Z                 0.9213     0.6547
+#>   Median estimate            2.6759     0.0020
+#>   Share significant          1.0000     0.0020
+#>   Stouffer Z                 0.9213     0.6347
 #> 
 #> p-values are permutation-based; resolution floor = 0.0020.
 #> Interpretation (SSN): conclude a robust effect when the median test AND
 #> at least one of {share significant, Stouffer} are significant.
 ```
 
-`plot_sca_test()` shows each statistic’s null distribution with the
-observed value marked, so you can see how far into the tail the real
-curve sits:
-
-``` r
-plot_sca_test(result)
-```
-
-<img src="man/figures/README-unnamed-chunk-30-1.png" width="100%" />
-
-One caveat worth taking seriously: the default null shuffles the focal
-variable, which also breaks its correlation with the controls. That’s
-fine for an experiment where the variable really was randomly assigned,
-but for observational data–where the focal variable is collinear with
-the controls–it’s anti-conservative. For that case,
+By the SSN rule printed there–reject when the median test *and* at least
+one of the other two are significant–this curve rejects the sharp null
+(median *p* = 0.002). But that’s the default null, which shuffles the
+focal variable and so also breaks its correlation with the controls.
+That’s fine for an experiment where the variable really was randomly
+assigned; for observational data like this, where salinity is tangled up
+with the rest of the water chemistry, it’s anti-conservative.
 `null_type = "freedman_lane"` and `null_type = "residual_bootstrap"` are
-design-preserving alternatives that hold the focal variable’s
-correlation with the controls fixed. Both are for linear models and fit
-every specification on a common sample.
-
-### Which specifications are real?
-
-The joint test asks whether the curve as a whole is real. The natural
-follow-up is *which* specifications are. You can’t just read the
-per-specification *p*-values off the curve and report the significant
-ones–with dozens of correlated specifications, some are going to look
-significant by chance. That’s the multiple-comparisons problem, now
-spread across specifications.
-
-`speccurvieR` corrects for it with the min-P / max-statistic permutation
-method of Westfall and Young (1993). It reuses the permutations the
-joint test already ran (so there’s nothing extra to compute) and, for
-each one, records the most extreme specification anywhere in the curve,
-building the null distribution of “the best result a search could turn
-up by chance”. When you run `sca_test()` with `keep_curves = TRUE` and a
-confound-preserving null, these family-wise-error-rate-adjusted
-*p*-values are attached automatically:
+design-preserving alternatives that hold that correlation fixed (both
+are for linear models and fit every specification on a common sample),
+and they tell a more cautious story:
 
 ``` r
-result_fl <- sca_test(y = "Salnty", x = "T_degC",
+result_fl <- sca_test(y = "T_degC", x = "Salnty",
                       controls = c("O2Sat", "ChlorA", "NO2uM"),
                       data = bottles, null_type = "freedman_lane",
                       n_permutations = 500, seed = 1, keep_curves = TRUE,
                       progress_bar = FALSE)
+result_fl
+#> Specification curve joint-inference test (Simonsohn, Simmons & Nelson 2020)
+#> 
+#> Focal variable:   Salnty
+#> Specifications:   7
+#> Permutations:     500 used (0 failed)   |  blocked within FE: no
+#> Null:             Freedman-Lane (control superset, common sample)
+#> Direction:        two.sided   alpha = 0.05
+#> 
+#>   Statistic                Observed    p-value
+#>   Median estimate            2.2967     0.0958
+#>   Share significant          1.0000     0.0279
+#>   Stouffer Z                -1.8034     1.0000
+#> 
+#> p-values are permutation-based; resolution floor = 0.0020.
+#> 
+#> After correcting for searching 7 specifications, 7 remain statistically significant
+#> (smallest corrected p = 0.0020).
+#> Interpretation (SSN): conclude a robust effect when the median test AND
+#> at least one of {share significant, Stouffer} are significant.
+```
 
+Now the median test sits just over the line (*p* = 0.096), so by the
+strict SSN rule the curve no longer rejects–keeping the confounding
+intact made the honest answer more equivocal, which is the whole reason
+to use a design-preserving null on observational data. `plot_sca_test()`
+shows each statistic’s null distribution with the observed value marked,
+so you can see how far into the tail the real curve sits:
+
+``` r
+plot_sca_test(result_fl)
+```
+
+<img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
+
+### Which specifications are real?
+
+The joint test asks whether the curve as a whole is real. The natural
+follow-up is *which* specifications are. To get per-specification
+answers, run `sca_test()` with `keep_curves = TRUE` and a
+design-preserving null (as above) and they’re attached automatically.
+You can’t just read the per-specification *p*-values off the curve and
+report the significant ones, though–with dozens of correlated
+specifications, some are bound to look significant by chance. That’s the
+*family-wise error rate* problem: the chance that *any* of your
+specifications is a false positive, the same multiple-comparisons issue
+you know from running many tests at once.
+
+`speccurvieR` corrects for it with the min-P / max-statistic permutation
+method of Westfall and Young (1993): it reuses the permutations the
+joint test already ran and, for each one, records the most extreme
+specification anywhere in the curve–the null distribution of “the best
+result a search could turn up by chance”–then compares each
+specification to its own null.
+
+``` r
 as.data.frame(result_fl, what = "specs")
-#>                     spec    observed       p_raw       p_adj significant_adj
-#> 1         ChlorA + NO2uM -0.06210476 0.015968064 0.045908184            TRUE
-#> 2                  NO2uM -0.06199380 0.019960080 0.057884232           FALSE
-#> 3                 ChlorA -0.06167098 0.015968064 0.045908184            TRUE
-#> 4          NO2uM + O2Sat  0.03066608 0.001996008 0.001996008            TRUE
-#> 5                  O2Sat  0.03141611 0.001996008 0.001996008            TRUE
-#> 6 ChlorA + NO2uM + O2Sat  0.05577464 0.001996008 0.001996008            TRUE
-#> 7         ChlorA + O2Sat  0.05610969 0.001996008 0.001996008            TRUE
+#>                     spec  observed       p_raw       p_adj significant_adj
+#> 1                  NO2uM -6.001098 0.001996008 0.001996008            TRUE
+#> 2         ChlorA + NO2uM -5.978766 0.001996008 0.001996008            TRUE
+#> 3                 ChlorA -5.886598 0.001996008 0.001996008            TRUE
+#> 4          NO2uM + O2Sat  2.296712 0.001996008 0.001996008            TRUE
+#> 5                  O2Sat  2.400111 0.001996008 0.001996008            TRUE
+#> 6 ChlorA + NO2uM + O2Sat  4.210946 0.001996008 0.001996008            TRUE
+#> 7         ChlorA + O2Sat  4.315660 0.001996008 0.001996008            TRUE
 ```
 
 `p_raw` is each specification’s uncorrected *p*-value against its own
 null, `p_adj` is the corrected one, and `significant_adj` flags the
 survivors. `plot_sca_test_specs()` draws each specification’s estimate
-against its own null band and colours the points by which tier they fall
-in–within the band, beyond it but not significant after correction, and
-significant after correction:
+against its own null band and colours the points by tier–within the
+band, beyond it but not significant after correction, and significant
+after correction:
 
 ``` r
 plot_sca_test_specs(result_fl)
 ```
 
-<img src="man/figures/README-unnamed-chunk-32-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-28-1.png" width="100%" />
+
+All seven specifications survive
+correction (adjusted *p* = 0.002), so none of these estimates is
+noise–but look at the `observed` column: the salinity coefficient is
+around -6 in the specifications without `O2Sat` and around +2 to +4 in
+the ones with it. Every estimate is reliably non-zero *and they disagree
+on sign*, depending entirely on whether you control for oxygen
+saturation. So “all seven significant after correction” is not a green
+light; it’s the curve telling you the salinity–temperature association
+is real but its direction is an artifact of the controls. That’s also
+why the joint median test was equivocal and the Stouffer statistic came
+out negative–the signs cancel.
+
+That’s the distinction worth internalizing: the joint test asks whether
+the curve as a whole beats chance, while the per-specification
+correction asks which individual specifications beat their own null.
+They answer different questions, and reading them together–as here,
+where the per-spec test is emphatic but the curve flips sign–is more
+honest than either alone.
 
 `sca_minp()` recomputes the adjustment without re-running the
 permutations, if you want the more powerful Westfall-Young step-down
-procedure or a different threshold. One honest caveat: a flagged
-under-controlled specification means an association beyond its own
-conditional null, *not* a causal effect of the size it reports–leaving
-out a confounder reroutes part of the focal variable’s coefficient, and
+procedure or a different threshold. And one caveat worth stating
+outright: a flagged under-controlled specification means an association
+beyond its own conditional null, not a causal effect of the size it
+reports–leaving a confounder out reroutes part of the coefficient, and
 the correction doesn’t undo that.
-
-## Reporting and export
-
-Once you’ve estimated and tested a curve, you probably need to get it
-into a paper. The package speaks the usual `tidy()`/`glance()`
-dialect–the same generics `broom` and `modelsummary` dispatch on, so no
-extra dependency–for both `sca()` curves and `sca_test()` results:
-
-``` r
-tidy(result_fl)
-#>                term    estimate    p.value direction     null_type
-#> 1            median  0.03066608 0.07984032 two.sided freedman_lane
-#> 2 share_significant  1.00000000 0.00998004 two.sided freedman_lane
-#> 3          stouffer -1.80343387 1.00000000 two.sided freedman_lane
-```
-
-`sca_table()` renders a compact results block. It returns a plain,
-dependency-free data frame by default, but it can also render to
-Markdown, LaTeX, or `gt`/`kableExtra`/`flextable` if you have the
-package installed:
-
-``` r
-sca_table(result_fl)
-#> Focal variable                T_degC
-#> Specifications                7
-#> Observations                  common sample
-#> Permutations                  500
-#> Null hypothesis               Freedman-Lane (control superset, common sample)
-#> Direction                     two.sided
-#> alpha                         0.05
-#> Median estimate               0.0307  (p = 0.0798)
-#> Share significant             100.0%  (p = 0.0100)
-#> Stouffer Z                    -1.8  (p = 1.0000)
-#> Significant after correction  6 of 7
-#> Smallest corrected p          0.0020
-#> 
-#> p-values are permutation-based; resolution floor = 0.0020.
-```
-
-And `sca_report()` writes a one-paragraph, manuscript-ready summary,
-including the joint-inference verdict and the multiple-comparison count
-when they’re available:
-
-``` r
-sca_report(result_fl)
-#> [1] "A specification curve analysis estimated the effect of T_degC across 7 specifications on a common sample. The median estimate was 0.0307 (100.0% of specifications were statistically significant at the 0.05 level). Joint inference via Freedman-Lane permutation tests (500 permutations) did not reject the null of no effect: the median estimate (p = 0.0798), the share of significant specifications (p = 0.0100), and Stouffer's combined test (Z = -1.8, p = 1.0000). After family-wise error-rate correction for the 7 specifications searched, 6 remained significant (smallest adjusted p = 0.0020)."
-```
 
 # Other features
 
@@ -664,34 +637,19 @@ formulae <- sca(y = "T_degC", x = "Salnty",
          controls = c("O2Sat", "NO2uM", "SiO3uM"),
          data = bottles, return_formulae = TRUE)
 
-formulae
+# 7 formulae in all; here are the first three:
+formulae[1:3]
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x12b417c60>
+#> <environment: 0x114188d00>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x12b417c60>
+#> <environment: 0x114188d00>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x12b417c60>
-#> 
-#> $`T_degC ~ Salnty + O2Sat + NO2uM`
-#> T_degC ~ Salnty + O2Sat + NO2uM
-#> <environment: 0x12b417c60>
-#> 
-#> $`T_degC ~ Salnty + O2Sat + SiO3uM`
-#> T_degC ~ Salnty + O2Sat + SiO3uM
-#> <environment: 0x12b417c60>
-#> 
-#> $`T_degC ~ Salnty + NO2uM + SiO3uM`
-#> T_degC ~ Salnty + NO2uM + SiO3uM
-#> <environment: 0x12b417c60>
-#> 
-#> $`T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM`
-#> T_degC ~ Salnty + O2Sat + NO2uM + SiO3uM
-#> <environment: 0x12b417c60>
+#> <environment: 0x114188d00>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
@@ -700,28 +658,64 @@ formulae:
 ``` r
 my_own_models <- lapply(formulae, lm, data = bottles)
 
-summary(my_own_models[[1]])
-#> 
-#> Call:
-#> FUN(formula = X[[i]], data = ..1)
-#> 
-#> Residuals:
-#>     Min      1Q  Median      3Q     Max 
-#> -7.9361 -0.8102  0.0100  0.8297  7.7782 
-#> 
-#> Coefficients:
-#>               Estimate Std. Error t value Pr(>|t|)    
-#> (Intercept) -122.25866   12.59424  -9.708   <2e-16 ***
-#> Salnty         3.71490    0.36636  10.140   <2e-16 ***
-#> O2Sat          0.13018    0.00426  30.559   <2e-16 ***
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#> Residual standard error: 1.757 on 368 degrees of freedom
-#>   (129 observations deleted due to missingness)
-#> Multiple R-squared:  0.8137, Adjusted R-squared:  0.8127 
-#> F-statistic: 803.9 on 2 and 368 DF,  p-value: < 2.2e-16
+coef(summary(my_own_models[[1]]))
+#>                 Estimate  Std. Error   t value      Pr(>|t|)
+#> (Intercept) -122.2586652 12.59424091 -9.707506  5.504263e-20
+#> Salnty         3.7149034  0.36636133 10.139999  1.802083e-21
+#> O2Sat          0.1301782  0.00425984 30.559415 5.314671e-103
 ```
+
+# Reporting and export
+
+Once you’ve estimated and tested a curve, you have to get it into a
+paper. The package speaks the usual `tidy()`/`glance()` dialect–the same
+generics `broom` and `modelsummary` dispatch on, so no extra
+dependency–for both `sca()` curves and `sca_test()` results:
+
+``` r
+tidy(result_fl)
+#>                term  estimate    p.value direction     null_type
+#> 1            median  2.296712 0.09580838 two.sided freedman_lane
+#> 2 share_significant  1.000000 0.02794411 two.sided freedman_lane
+#> 3          stouffer -1.803434 1.00000000 two.sided freedman_lane
+```
+
+`sca_table()` renders a compact results block. It returns a plain,
+dependency-free data frame by default, but it can also render to
+Markdown, LaTeX, or `gt`/`kableExtra`/`flextable` if you have the
+package installed:
+
+``` r
+sca_table(result_fl)
+#> Focal variable                Salnty
+#> Specifications                7
+#> Observations                  common sample
+#> Permutations                  500
+#> Null hypothesis               Freedman-Lane (control superset, common sample)
+#> Direction                     two.sided
+#> alpha                         0.05
+#> Median estimate               2.3  (p = 0.0958)
+#> Share significant             100.0%  (p = 0.0279)
+#> Stouffer Z                    -1.8  (p = 1.0000)
+#> Significant after correction  7 of 7
+#> Smallest corrected p          0.0020
+#> 
+#> p-values are permutation-based; resolution floor = 0.0020.
+```
+
+And `sca_report()` writes a one-paragraph, manuscript-ready summary:
+
+``` r
+sca_report(result_fl)
+#> [1] "A specification curve analysis estimated the effect of Salnty across 7 specifications on a common sample. The median estimate was 2.3 (100.0% of specifications were statistically significant at the 0.05 level). Joint inference via Freedman-Lane permutation tests (500 permutations) did not reject the null of no effect: the median estimate (p = 0.0958), the share of significant specifications (p = 0.0279), and Stouffer's combined test (Z = -1.8, p = 1.0000). After family-wise error-rate correction for the 7 specifications searched, 7 remained significant (smallest adjusted p = 0.0020)."
+```
+
+Note that the report says the joint test “did not reject” the null while
+also reporting that all seven specifications survive correction–those
+aren’t in conflict, they’re the curve-level and per-specification
+answers from above, stated side by side. The joint verdict keys on the
+median test (here just over the line), which is why a significant
+share-significant component doesn’t flip it.
 
 # What’s next?
 

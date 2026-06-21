@@ -75,7 +75,7 @@ Let's look at the sample data provided with the package–[a sample of the CalCO
 names(bottles)
 ```
 
-Suppose we're modeling the effect of salinity on ocean temperatures and want to understand how including the concentration of other chemicals affects the model
+Suppose we want to describe how ocean temperature relates to salinity, and how that association shifts as we add other water-chemistry controls. (Salinity and temperature are jointly determined by the same ocean physics, so there's no clean causal story here–which makes it a fitting toy for watching how unstable a single coefficient can be.)
 
 ```{r}
 s <- sca(y = "T_degC", x = "Salnty",
@@ -117,44 +117,25 @@ Now let's plot the specification curve for our independent variable's coefficien
 plot_curve(s)
 ```
 
-By default, a bottom panel is provided showing which controls are present in each model. You can get the bottom panel by itself using `plot_vars()`:
+Here's how to read it. Each dot in the top panel is the salinity coefficient from one of the 63 models, sorted from most negative to most positive; the bars are 95% confidence intervals and the colour marks the p-value tier (see the legend). The red dashed line is zero. In the bottom panel each row is a control, and a tick means that control is included in the specification directly above it–so you can read off which choices produce the estimates on the left versus the right. The thing to notice is that the salinity coefficient swings from well below zero to well above it, even changing sign depending on which controls are in the model. That swing is exactly what specification curve analysis is built to expose, and it's why no single regression here should be trusted on its own.
+
+You can get the bottom panel by itself using `plot_vars()`:
 
 ```{r}
 plot_vars(s)
 ```
 
-You can also get just the top panel with the specification curve, add a title, and more:
-
-```{r}
-plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve")
-```
-
-When `plot_vars = FALSE` (i.e. when you are only having a single ggplot object returned) you can also customize the plot as you would any `ggplot` object:
+`plot_curve()` takes a `title` argument and a `plot_vars = FALSE` option to return just the curve. Because what comes back is a plain `ggplot`, you can restyle it however you like:
 
 ```{r}
 library(ggplot2)
 
-plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve") +
+plot_curve(s, plot_vars = FALSE, title = "Salinity coefficient across specifications") +
       theme_minimal() +
-      theme(legend.position = "bottom",
-            legend.title = element_blank()) +
-      labs(title = "I changed my mind and want a different title",
-           x = "Model index")
+      theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
-Note you may need to adjust the plot's margin when customizing like this
-to avoid going off the plot's edge, this can be done easily:
-
-```{r}
-plot_curve(s, plot_vars = F) +
-      labs(title = "I'm missing")
-```
-
-```{r}
-plot_curve(s, plot_vars = F) +
-      theme(plot.margin = unit(c(5, 5, 5, 5), unit = "points")) +
-      labs(title = "I'm found!")
-```
+(One gotcha: if you customize the theme and the title gets clipped at the top, widen the plot margin with `+ theme(plot.margin = unit(c(5, 5, 5, 5), "points"))`.)
 
 Let's see what other stuff we can plot.
 
@@ -186,39 +167,20 @@ customize it like any other `ggplot` object)
 
 ## Comparing standard errors
 
-Suppose you want to investigate how your model fares with different standard error types, `se_compare()` allows you to do so in a single line of code:
+Specification curve analysis is usually about the coefficient, but the standard error is a modelling choice too. `se_compare()` re-estimates a model under several standard error types in a single call–as far as I know, the only spec-curve package that does–so you can see how much your inference leans on that choice:
 
 ```{r}
 se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles, types = "all")
 ```
 
-Note that the estimate column provides the coefficient estimate, not a standard error estimate.
-
-You can provide bootstrapping parameters if you want to investigate bootstrapped errors:
-
-```{r}
-se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
-           types = c("iid", "bootstrapped"),
-           boot_samples=c(8, 10), boot_sample_size=c(200, 300))
-```
-
-Clustered standard errors are also supported:
-
-```{r}
-se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
-           types = "HC1", cluster=c("Sta_ID", "Depth_ID"))
-```
-
-As well as fixed effects:
+(The estimate column is the coefficient, not a standard error.) It also does clustered and bootstrapped errors (pass `cluster`, or `boot_samples`/`boot_sample_size`), and fixed effects via `fixest`:
 
 ```{r, message=FALSE, warning=FALSE}
 se_compare(formula = "Salnty ~ T_degC + ChlorA | Sta_ID", data = bottles,
            types = c("CL_FE", "iid", "HC0", "HC1"))
 ```
 
-Note: CL_FE refers to standard errors clustered by fixed effects variables, i.e. the default errors reported by `fixest::feols()`.
-
-`se_compare()` is not limited to OLS. Pass a `family` (and optionally a `link`), exactly as you would to `sca()`, to compare standard error types for any `glm()` model family–logistic regression, Poisson, and so on. Every standard error type carries over, including bootstrapped and clustered errors:
+(`CL_FE` is clustered by the fixed-effect variable, i.e. the default `fixest::feols()` reports.) And it isn't limited to OLS–pass a `family` (and optionally a `link`), exactly as you would to `sca()`, to compare standard error types for any `glm()` family, with every error type carrying over:
 
 ```{r, message=FALSE, warning=FALSE}
 # A binary outcome for a quick logistic-regression example.
@@ -228,7 +190,7 @@ se_compare(formula = "saline ~ T_degC + ChlorA", data = bottles,
            family = "binomial", types = c("iid", "HC0", "HC3"))
 ```
 
-You can visualize these comparisons too. `plot_se()` shows each coefficient's estimate with a confidence interval under every standard error type, coloured by whether the interval excludes zero:
+The thing to watch for is a coefficient that's significant under one error type and not another–that's a robustness red flag. `plot_se()` makes it visual, drawing each coefficient's estimate with a confidence interval under every standard error type, coloured by whether the interval excludes zero:
 
 ```{r}
 plot_se(se_compare("Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
@@ -267,6 +229,8 @@ A related question: of all the spread in the curve, how much is each control res
 sca_variance(s)
 ```
 
+Read each share as how much of the curve's spread that control is responsible for–a control with a big share is one that genuinely moves your estimate ("Shapley" just means the credit is split fairly no matter what order you list the controls in). This complements `plot_influence()`: influence shows the *direction* each control pushes the estimate, the decomposition shows each control's *share* of the total spread.
+
 `plot_variance()` shows the same thing as a bar chart:
 
 ```{r}
@@ -275,69 +239,56 @@ plot_variance(s)
 
 ## Joint-inference test
 
-Reading a specification curve tells you whether your result is robust *descriptively*. But how do you know the curve as a whole is more extreme than you'd expect by chance? `sca_test()` answers that with the permutation-based joint-inference test of Simonsohn, Simmons, and Nelson (2020). It tests the sharp null that the focal variable has no effect in *any* specification: it repeatedly shuffles that variable (blocked within fixed effects when present), re-estimates the entire curve each time, and compares the observed curve to the resulting null distribution.
+Reading a specification curve tells you whether your result is robust *descriptively*. But how do you know the curve as a whole is more extreme than you'd expect by chance? `sca_test()` answers that with the permutation-based joint-inference test of Simonsohn, Simmons, and Nelson (2020). It tests the *sharp null*–that the focal variable has no effect in *any* specification, not just on average–by repeatedly shuffling that variable (blocked within fixed effects when present), re-estimating the entire curve each time, and comparing the observed curve to the resulting null distribution.
 
-It reports three statistics–the median estimate, the share of statistically significant specifications (restricted to the predicted direction when you set `direction`), and a Stouffer combination of the per-specification *p*-values–each with its own permutation *p*-value:
+Permutation tests re-fit the whole curve hundreds of times, so for the inference examples I trim to a smaller three-control set to keep this README quick; the mechanics are identical for the full curve above. The test reports three statistics, each with its own permutation *p*-value: the median estimate (is the typical coefficient far from zero?), the share of statistically significant specifications (are an unusual number of them significant?), and a Stouffer combination of the per-specification *p*-values (do the pooled *p*-values point the same way?).
 
 ```{r}
-result <- sca_test(y = "Salnty", x = "T_degC",
+result <- sca_test(y = "T_degC", x = "Salnty",
                    controls = c("O2Sat", "ChlorA", "NO2uM"),
                    data = bottles, n_permutations = 500, seed = 1,
                    progress_bar = FALSE)
 result
 ```
 
-`plot_sca_test()` shows each statistic's null distribution with the observed value marked, so you can see how far into the tail the real curve sits:
-
-```{r}
-plot_sca_test(result)
-```
-
-One caveat worth taking seriously: the default null shuffles the focal variable, which also breaks its correlation with the controls. That's fine for an experiment where the variable really was randomly assigned, but for observational data–where the focal variable is collinear with the controls–it's anti-conservative. For that case, `null_type = "freedman_lane"` and `null_type = "residual_bootstrap"` are design-preserving alternatives that hold the focal variable's correlation with the controls fixed. Both are for linear models and fit every specification on a common sample.
-
-### Which specifications are real?
-
-The joint test asks whether the curve as a whole is real. The natural follow-up is *which* specifications are. You can't just read the per-specification *p*-values off the curve and report the significant ones–with dozens of correlated specifications, some are going to look significant by chance. That's the multiple-comparisons problem, now spread across specifications.
-
-`speccurvieR` corrects for it with the min-P / max-statistic permutation method of Westfall and Young (1993). It reuses the permutations the joint test already ran (so there's nothing extra to compute) and, for each one, records the most extreme specification anywhere in the curve, building the null distribution of "the best result a search could turn up by chance". When you run `sca_test()` with `keep_curves = TRUE` and a confound-preserving null, these family-wise-error-rate-adjusted *p*-values are attached automatically:
+By the SSN rule printed there–reject when the median test *and* at least one of the other two are significant–this curve rejects the sharp null (median *p* = 0.002). But that's the default null, which shuffles the focal variable and so also breaks its correlation with the controls. That's fine for an experiment where the variable really was randomly assigned; for observational data like this, where salinity is tangled up with the rest of the water chemistry, it's anti-conservative. `null_type = "freedman_lane"` and `null_type = "residual_bootstrap"` are design-preserving alternatives that hold that correlation fixed (both are for linear models and fit every specification on a common sample), and they tell a more cautious story:
 
 ```{r, message=FALSE}
-result_fl <- sca_test(y = "Salnty", x = "T_degC",
+result_fl <- sca_test(y = "T_degC", x = "Salnty",
                       controls = c("O2Sat", "ChlorA", "NO2uM"),
                       data = bottles, null_type = "freedman_lane",
                       n_permutations = 500, seed = 1, keep_curves = TRUE,
                       progress_bar = FALSE)
+result_fl
+```
 
+Now the median test sits just over the line (*p* = 0.096), so by the strict SSN rule the curve no longer rejects–keeping the confounding intact made the honest answer more equivocal, which is the whole reason to use a design-preserving null on observational data. `plot_sca_test()` shows each statistic's null distribution with the observed value marked, so you can see how far into the tail the real curve sits:
+
+```{r}
+plot_sca_test(result_fl)
+```
+
+### Which specifications are real?
+
+The joint test asks whether the curve as a whole is real. The natural follow-up is *which* specifications are. To get per-specification answers, run `sca_test()` with `keep_curves = TRUE` and a design-preserving null (as above) and they're attached automatically. You can't just read the per-specification *p*-values off the curve and report the significant ones, though–with dozens of correlated specifications, some are bound to look significant by chance. That's the *family-wise error rate* problem: the chance that *any* of your specifications is a false positive, the same multiple-comparisons issue you know from running many tests at once.
+
+`speccurvieR` corrects for it with the min-P / max-statistic permutation method of Westfall and Young (1993): it reuses the permutations the joint test already ran and, for each one, records the most extreme specification anywhere in the curve–the null distribution of "the best result a search could turn up by chance"–then compares each specification to its own null.
+
+```{r}
 as.data.frame(result_fl, what = "specs")
 ```
 
-`p_raw` is each specification's uncorrected *p*-value against its own null, `p_adj` is the corrected one, and `significant_adj` flags the survivors. `plot_sca_test_specs()` draws each specification's estimate against its own null band and colours the points by which tier they fall in–within the band, beyond it but not significant after correction, and significant after correction:
+`p_raw` is each specification's uncorrected *p*-value against its own null, `p_adj` is the corrected one, and `significant_adj` flags the survivors. `plot_sca_test_specs()` draws each specification's estimate against its own null band and colours the points by tier–within the band, beyond it but not significant after correction, and significant after correction:
 
 ```{r}
 plot_sca_test_specs(result_fl)
 ```
 
-`sca_minp()` recomputes the adjustment without re-running the permutations, if you want the more powerful Westfall-Young step-down procedure or a different threshold. One honest caveat: a flagged under-controlled specification means an association beyond its own conditional null, *not* a causal effect of the size it reports–leaving out a confounder reroutes part of the focal variable's coefficient, and the correction doesn't undo that.
+All seven specifications survive correction (adjusted *p* = 0.002), so none of these estimates is noise–but look at the `observed` column: the salinity coefficient is around -6 in the specifications without `O2Sat` and around +2 to +4 in the ones with it. Every estimate is reliably non-zero *and they disagree on sign*, depending entirely on whether you control for oxygen saturation. So "all seven significant after correction" is not a green light; it's the curve telling you the salinity–temperature association is real but its direction is an artifact of the controls. That's also why the joint median test was equivocal and the Stouffer statistic came out negative–the signs cancel.
 
-## Reporting and export
+That's the distinction worth internalizing: the joint test asks whether the curve as a whole beats chance, while the per-specification correction asks which individual specifications beat their own null. They answer different questions, and reading them together–as here, where the per-spec test is emphatic but the curve flips sign–is more honest than either alone.
 
-Once you've estimated and tested a curve, you probably need to get it into a paper. The package speaks the usual `tidy()`/`glance()` dialect–the same generics `broom` and `modelsummary` dispatch on, so no extra dependency–for both `sca()` curves and `sca_test()` results:
-
-```{r}
-tidy(result_fl)
-```
-
-`sca_table()` renders a compact results block. It returns a plain, dependency-free data frame by default, but it can also render to Markdown, LaTeX, or `gt`/`kableExtra`/`flextable` if you have the package installed:
-
-```{r}
-sca_table(result_fl)
-```
-
-And `sca_report()` writes a one-paragraph, manuscript-ready summary, including the joint-inference verdict and the multiple-comparison count when they're available:
-
-```{r}
-sca_report(result_fl)
-```
+`sca_minp()` recomputes the adjustment without re-running the permutations, if you want the more powerful Westfall-Young step-down procedure or a different threshold. And one caveat worth stating outright: a flagged under-controlled specification means an association beyond its own conditional null, not a causal effect of the size it reports–leaving a confounder out reroutes part of the coefficient, and the correction doesn't undo that.
 
 # Other features
 
@@ -361,7 +312,8 @@ formulae <- sca(y = "T_degC", x = "Salnty",
          controls = c("O2Sat", "NO2uM", "SiO3uM"),
          data = bottles, return_formulae = TRUE)
 
-formulae
+# 7 formulae in all; here are the first three:
+formulae[1:3]
 ```
 
 Then it's easy to estimate the models yourself with the pre-made
@@ -370,8 +322,30 @@ formulae:
 ```{r}
 my_own_models <- lapply(formulae, lm, data = bottles)
 
-summary(my_own_models[[1]])
+coef(summary(my_own_models[[1]]))
 ```
+
+# Reporting and export
+
+Once you've estimated and tested a curve, you have to get it into a paper. The package speaks the usual `tidy()`/`glance()` dialect–the same generics `broom` and `modelsummary` dispatch on, so no extra dependency–for both `sca()` curves and `sca_test()` results:
+
+```{r}
+tidy(result_fl)
+```
+
+`sca_table()` renders a compact results block. It returns a plain, dependency-free data frame by default, but it can also render to Markdown, LaTeX, or `gt`/`kableExtra`/`flextable` if you have the package installed:
+
+```{r}
+sca_table(result_fl)
+```
+
+And `sca_report()` writes a one-paragraph, manuscript-ready summary:
+
+```{r}
+sca_report(result_fl)
+```
+
+Note that the report says the joint test "did not reject" the null while also reporting that all seven specifications survive correction–those aren't in conflict, they're the curve-level and per-specification answers from above, stated side by side. The joint verdict keys on the median test (here just over the line), which is why a significant share-significant component doesn't flip it.
 
 # What's next?
 
