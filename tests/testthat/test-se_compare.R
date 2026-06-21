@@ -227,3 +227,130 @@ test_that("se_boot() rescales an m-out-of-n bootstrap to the full-sample SE", {
                                       sample_size = round(n / 4)))
   expect_equal(unname(quarter), unname(full), tolerance = 0.25)
 })
+
+# --- Two-way / multiway clustered standard errors -----------------------------
+
+test_that("se_compare() two-way clustering matches sandwich::vcovCL (non-FE)", {
+  r <- suppressWarnings(se_compare("Salnty ~ T_degC + ChlorA", bottles,
+                                   types = "HC1",
+                                   cluster = list(c("Sta_ID", "Depth_ID"))))
+  expect_true("HC1_Depth_ID_BY_Sta_ID" %in% colnames(r))
+  m <- lm(Salnty ~ T_degC + ChlorA, bottles)
+  ref <- lmtest::coeftest(m, vcov. = sandwich::vcovCL, type = "HC1",
+                          cluster = ~ Sta_ID + Depth_ID)[, 2]
+  expect_equal(unname(r[["HC1_Depth_ID_BY_Sta_ID"]]), unname(ref))
+})
+
+test_that("se_compare() two-way clustering matches fixest (FE)", {
+  r <- suppressMessages(suppressWarnings(
+    se_compare("Salnty ~ T_degC + ChlorA | Sta_ID", bottles,
+               types = "CL_FE", cluster = list(c("Sta_ID", "Depth_ID")))))
+  expect_true("CL_Depth_ID_BY_Sta_ID_FE" %in% colnames(r))
+  m <- suppressMessages(feols(Salnty ~ T_degC + ChlorA | Sta_ID, bottles))
+  ref <- summary(m, cluster = ~ Sta_ID + Depth_ID)$coeftable[, 2]
+  got <- r[["CL_Depth_ID_BY_Sta_ID_FE"]]
+  got <- got[!is.na(got)]
+  expect_equal(unname(got), unname(ref))
+})
+
+test_that("se_compare() two-way clustering works for a glm", {
+  d <- bottles
+  d$saline <- as.integer(d$Salnty > stats::median(d$Salnty, na.rm = TRUE))
+  r <- suppressWarnings(se_compare("saline ~ T_degC + ChlorA", d,
+                                   family = "binomial", types = "HC0",
+                                   cluster = list(c("Sta_ID", "Depth_ID"))))
+  m <- glm(saline ~ T_degC + ChlorA, d, family = stats::binomial())
+  ref <- lmtest::coeftest(m, vcov. = sandwich::vcovCL, type = "HC0",
+                          cluster = ~ Sta_ID + Depth_ID)[, 2]
+  expect_equal(unname(r[["HC0_Depth_ID_BY_Sta_ID"]]), unname(ref))
+})
+
+test_that("se_compare() mixes one-way and multiway clustering in one call", {
+  r <- suppressWarnings(se_compare("Salnty ~ T_degC + ChlorA", bottles,
+                  types = "HC1",
+                  cluster = list("Sta_ID", "Depth_ID", c("Sta_ID", "Depth_ID"))))
+  expect_true(all(c("HC1_Sta_ID", "HC1_Depth_ID", "HC1_Depth_ID_BY_Sta_ID")
+                  %in% colnames(r)))
+})
+
+test_that("se_compare() clustering is back-compatible (vector = one-way each)", {
+  # A character vector still produces one separate one-way clustering per
+  # element, with the historical column names and values.
+  vec <- suppressWarnings(se_compare("Salnty ~ T_degC + ChlorA", bottles,
+                                     types = "HC1",
+                                     cluster = c("Sta_ID", "Depth_ID")))
+  expect_equal(colnames(vec),
+               c("estimate", "HC1", "HC1_Sta_ID", "HC1_Depth_ID"))
+  m <- lm(Salnty ~ T_degC + ChlorA, bottles)
+  expect_equal(unname(vec[["HC1_Sta_ID"]]),
+               unname(lmtest::coeftest(m, vcov. = sandwich::vcovCL, type = "HC1",
+                                       cluster = ~ Sta_ID)[, 2]))
+  # A length-1 list element is identical to the bare-vector one-way (dedup).
+  lst <- suppressWarnings(se_compare("Salnty ~ T_degC + ChlorA", bottles,
+                                     types = "HC1", cluster = list("Sta_ID")))
+  bare <- suppressWarnings(se_compare("Salnty ~ T_degC + ChlorA", bottles,
+                                      types = "HC1", cluster = "Sta_ID"))
+  expect_equal(colnames(lst), colnames(bare))
+  expect_equal(lst, bare)
+})
+
+test_that("se_compare() collapses duplicate clustering specifications", {
+  # c("a","b") and c("b","a") are the same joint clustering -> one column.
+  r <- suppressWarnings(se_compare("Salnty ~ T_degC", bottles, types = "HC1",
+                  cluster = list(c("Sta_ID", "Depth_ID"),
+                                 c("Depth_ID", "Sta_ID"))))
+  expect_equal(sum(grepl("_BY_", colnames(r))), 1L)
+})
+
+test_that("se_compare() multiway clustering is row-aligned under NA dropping", {
+  set.seed(7)
+  d <- data.frame(y = stats::rnorm(60), x = stats::rnorm(60),
+                  g1 = rep(1:6, 10), g2 = rep(1:10, each = 6))
+  d$y[c(3, 17, 40)] <- NA           # NAs in a model variable
+  r <- suppressWarnings(se_compare("y ~ x", d, types = "HC1",
+                                   cluster = list(c("g1", "g2"))))
+  m <- lm(y ~ x, d)                 # drops the NA rows
+  ref <- lmtest::coeftest(m, vcov. = sandwich::vcovCL, type = "HC1",
+                          cluster = ~ g1 + g2)[, 2]
+  expect_equal(unname(r[["HC1_g1_BY_g2"]]), unname(ref))
+})
+
+test_that("se_compare() warns and drops an unknown dimension in a list element", {
+  expect_warning(
+    r <- se_compare("Salnty ~ T_degC", bottles, types = "HC1",
+                    cluster = list(c("Sta_ID", "not_a_col"))),
+    "not a valid clustering variable")
+  # The unknown dim is dropped, leaving a one-way clustering by Sta_ID.
+  expect_true("HC1_Sta_ID" %in% colnames(r))
+  expect_false(any(grepl("not_a_col", colnames(r))))
+})
+
+test_that("se_compare() errors on a non-character cluster specification", {
+  expect_error(se_compare("Salnty ~ T_degC", bottles, cluster = list(1:2)),
+               "character")
+})
+
+test_that("plot_se() handles a multiway-clustered se_compare() result", {
+  r <- suppressWarnings(se_compare("Salnty ~ T_degC + ChlorA", bottles,
+                                   types = c("HC1"),
+                                   cluster = list("Sta_ID",
+                                                  c("Sta_ID", "Depth_ID"))))
+  expect_s3_class(plot_se(r), "ggplot")
+})
+
+test_that("normalize_cluster_spec() cleans specs", {
+  cols <- c("a", "b", "c")
+  # Character vector -> list of one-way specs.
+  expect_equal(speccurvieR:::normalize_cluster_spec(c("a", "b"), cols),
+               list("a", "b"))
+  # Dims de-duplicated and sorted within a spec; empty specs dropped.
+  expect_equal(speccurvieR:::normalize_cluster_spec(list(c("b", "a", "a")), cols),
+               list(c("a", "b")))
+  expect_null(speccurvieR:::normalize_cluster_spec(list(character(0)), cols))
+  expect_null(speccurvieR:::normalize_cluster_spec(NULL, cols))
+  # Unknown dims dropped (with a warning); duplicate specs collapsed.
+  expect_warning(
+    out <- speccurvieR:::normalize_cluster_spec(list(c("a", "z"), c("a")), cols),
+    "not a valid clustering variable")
+  expect_equal(out, list("a"))
+})

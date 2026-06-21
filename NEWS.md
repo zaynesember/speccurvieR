@@ -88,6 +88,15 @@ introduced this cycle continue to work (with a warning).
 
 ## Modelling and interface
 
+* `se_compare()` now supports two-way and multiway clustered standard errors.
+  In addition to a character vector (each element a separate one-way
+  clustering, unchanged), `cluster` accepts a list whose elements are each a
+  character vector of dimensions to cluster on *jointly*, so
+  `cluster = list("a", "b", c("a", "b"))` returns one-way SEs by `a`, by `b`,
+  and two-way clustered by both. Multiway estimates use the native
+  Cameron-Gelbach-Miller computation in `sandwich::vcovCL` (non-fixed-effects,
+  including glm) and `fixest` (fixed effects); multiway columns are labelled
+  with the dimensions joined by `_BY_` (e.g. `"HC1_a_BY_b"`).
 * `se_compare()` gains `family` and `link` arguments mirroring `sca()`, so the
   full range of `glm()` model families (e.g. logistic, Poisson) can be compared
   across standard error types. The iid, heteroskedasticity-consistent,
