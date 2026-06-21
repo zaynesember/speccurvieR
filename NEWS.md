@@ -1,5 +1,14 @@
 # speccurvieR (development version)
 
+* New reporting and export tools. `tidy()` and `glance()` methods (the generics
+  that `broom` and `modelsummary` dispatch on, so no `broom` dependency is
+  added) are provided for `sca()` curves and `sca_test()` results, along with
+  `as.data.frame()` for `sca_test`. `sca_table()` renders a publication results
+  block -- a dependency-free data frame by default, or Markdown / LaTeX / `gt` /
+  `kableExtra` / `flextable` -- and `sca_report()` writes a one-paragraph,
+  manuscript-ready summary. `sca()` output now carries an `"sca"` class (it
+  remains a data frame in every other respect) so these methods can dispatch.
+
 * `sca_test()` gains a `null_type` argument with two design-preserving nulls
   alongside the default `"shuffle_x"`. `"freedman_lane"` (Freedman & Lane 1983)
   permutes the residuals of a reduced model `y ~ controls` (the focal variable

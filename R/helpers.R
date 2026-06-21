@@ -8,6 +8,30 @@ sca_control_cols <- function(sca_data){
   setdiff(names(sca_data), meta)
 }
 
+# Internal: recover the focal independent variable from an sca() result. Every
+# specification contains the focal variable but each control is absent from some
+# specifications, so the focal variable is the single non-intercept term common
+# to every specification's `terms`. Returns NA (with a warning) if it cannot be
+# uniquely resolved.
+sca_focal_var <- function(sca_data){
+  # Prefer the focal variable stored by sca() (unambiguous even for a
+  # single-control curve); fall back to the terms heuristic for older objects.
+  ax <- attr(sca_data, "x", exact = TRUE)
+  if(!is.null(ax) && length(ax) == 1L){
+    return(ax)
+  }
+  if(is.null(sca_data$terms)){
+    return(NA_character_)
+  }
+  common <- setdiff(Reduce(intersect, sca_data$terms), "(Intercept)")
+  if(length(common) != 1L){
+    warning("Could not uniquely identify the focal variable from `sca_data`.",
+            call. = FALSE)
+    return(NA_character_)
+  }
+  common
+}
+
 # Internal: stop with an informative message if any of `cols` are absent from
 # `data`. `what` labels the offending argument in the error message.
 check_columns <- function(data, cols, what){
