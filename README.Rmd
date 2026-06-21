@@ -18,12 +18,11 @@ load("data/bottles.RData")
 
 # What is `speccurvieR`?
 
-`speccurvieR` is an R package aimed at making specification curve
-analysis easy, fast, and pretty. In other words, it helps you understand how your model changes under different specifications.
+`speccurvieR` is an R package aimed at making specification curve analysis easy, fast, and pretty. When you fit a model you make a lot of choices–which controls to include, which fixed effects, which standard errors–and any of them could be moving your estimate. Specification curve analysis takes those choices seriously: it fits the model under every reasonable combination of them, plots the resulting curve of estimates, and lets you ask whether your result survives the choices you didn't make. `speccurvieR` runs that curve, tests it, and gets it into your paper, with `ggplot` graphics throughout.
 
 # How do I install it?
 
-`speccurvieR` is available [via CRAN](https://cran.r-project.org/package=speccurvieR), just run the following and you’re good to go:
+`speccurvieR` is available [via CRAN](https://cran.r-project.org/package=speccurvieR), just run the following and you're good to go:
 
 ```{r, eval=FALSE}
 install.packages("speccurvieR")
@@ -39,42 +38,44 @@ If you find this package useful and use it in your own work, a citation would be
 
 # Why did you make it?
 
-Data visualization and tinkering in `R` have been some of the most enjoyable parts of my time working on a PhD. The seeds for this package were planted when I took a course on replication in social science with Professor Gareth Nellis. An assignment involved performing a specification curve analysis for which the professor provided us with some code to generate a specification curve. Not feeling like modifying someone else’s code to get the final plot looking how I wanted, I was disappointed to see the available packages weren’t much better. My biggest gripe was their use of base `R` plots which aren’t exactly the prettiest ducklings and for which customization is a confusing hassle. Give me my `ggplot`! I want to arrange all the grobs! Long story short I gave in and used the professor’s code. Fast forward a couple years and I need to run a specification curve analysis but I can’t find the assignment with the professor’s code–guess I’ll just write it myself.
+Data visualization and tinkering in `R` have been some of the most enjoyable parts of my time working on a PhD. The seeds for this package were planted when I took a course on replication in social science with Professor Gareth Nellis. An assignment involved performing a specification curve analysis for which the professor provided us with some code to generate a specification curve. Not feeling like modifying someone else's code to get the final plot looking how I wanted, I was disappointed to see the available packages weren't much better. My biggest gripe was their use of base `R` plots which aren't exactly the prettiest ducklings and for which customization is a confusing hassle. Give me my `ggplot`! I want to arrange all the grobs! Long story short I gave in and used the professor's code. Fast forward a couple years and I need to run a specification curve analysis but I can't find the assignment with the professor's code–guess I'll just write it myself.
 
 `speccurvieR` builds on standard specification curve analysis (i.e. comparing coefficient estimates) by offering an easy way to compare different types of standard errors. To date no `R` package offers this functionality, leaving modelers to manually try different standard errors to check the robustness of their results . . . or more realistically to stick to IID standard errors or a single variety of heteroskedasticity-consistent errors.
 
 # Why should I use it over other packages?
 
-speccurvieR seeks to provide everything alternative specification curve analysis packages do with major improvements to usability and visualization. Some features that set the package apart currently: 
+speccurvieR tries to do everything the other specification curve packages do, with the rough edges sanded down and better plots. Some of what sets it apart:
 
-* Ability to compare coefficient estimates and statistical significance across model specifications
-* Ability to compare different standard error estimates including heteroskedasticity-consistent, clustered, and bootstrapped
-* Diagnostic plots no other package offers: visualize how inference changes across standard error types (`plot_se()`, `plot_multi_se()`), which controls move your estimate (`plot_influence()`), and whether your best-fitting models are outliers (`plot_coef_fit()`)
+* Compare coefficient estimates and statistical significance across every combination of controls
+* Compare standard error types–IID, heteroskedasticity-consistent, clustered, and bootstrapped–in a single call, for OLS and for `glm()` model families alike
+* Diagnostic plots no other package offers: how inference shifts across standard error types (`plot_se()`, `plot_multi_se()`), which controls move your estimate (`plot_influence()`), and whether your best-fitting models are outliers (`plot_coef_fit()`)
+* A joint-inference test (`sca_test()`) for whether the curve as a whole is more extreme than chance, with confound-preserving nulls for observational data and a per-specification multiple-comparison correction
+* A variance decomposition (`sca_variance()`) that attributes the spread of estimates to each modelling choice
+* A reporting layer–`tidy()`/`glance()`, a results table, and a one-paragraph write-up–so the curve drops straight into a manuscript
 * A concise formula interface (`sca(y ~ x + control1 + control2 | fixed_effect, data)`) alongside the original argument interface
-* Ability to compare various model fit parameters across models
-* Support for parallel computing to speed up model estimation and progress bars to monitor model estimation
-* Support for fixed effects
-* All plots are generated using ggplot2, allowing a high degree of customization
+* An `n_obs` column and a `common_sample` option so a changing sample doesn't masquerade as a control effect
+* Parallel computing and progress bars for large curves, and fixed effects via `fixest`
+* Every plot is a `ggplot`, so customizing it is the customizing you already know
 
 # Is this just a tool for p-hacking?
 
-Any sensitivity analysis (or statistics in general) can be used for good or evil–specification curve analysis lets the researcher assess the robustness of their estimates and by easily trying variety of model specifications. Using this package to find a model specification with a significant p-value won’t mean that result is a robust or consistent with your theory. These tools are meant to allow you to demonstrate that you’re *not* cherry-picking models!
+Any sensitivity analysis (or statistics in general) can be used for good or evil–specification curve analysis lets the researcher assess the robustness of their estimates by easily trying a variety of model specifications. Using this package to find a model specification with a significant p-value won't mean that result is robust or consistent with your theory. These tools are meant to allow you to demonstrate that you're *not* cherry-picking models!
 
 # Can I see it in action?
 
-I thought you’d never ask, let’s walk through some examples.
+I thought you'd never ask, let's walk through some examples.
 
 ## Estimating models
 
 The main function of the package is `sca()` (short for specification curve analysis, not the music genre). This is where you specify the models you want estimated and get back a data frame with useful data for each model. This can then be fed to plotting functions like `plot_curve()` and `plot_rmse()`.
 
-Let’s look at the sample data provided with the package–[a sample of the CalCOFI bottle database](https://calcofi.org/data/oceanographic-data/bottle-database/) with plenty of variables to play around with.
+Let's look at the sample data provided with the package–[a sample of the CalCOFI bottle database](https://calcofi.org/data/oceanographic-data/bottle-database/) with plenty of variables to play around with.
 
 ```{r}
 names(bottles)
 ```
 
-Suppose we’re modeling the effect of salinity on ocean temperatures and want to understand how including the concentration of other chemicals affects the model
+Suppose we're modeling the effect of salinity on ocean temperatures and want to understand how including the concentration of other chemicals affects the model
 
 ```{r}
 s <- sca(y = "T_degC", x = "Salnty",
@@ -94,23 +95,23 @@ s <- sca(T_degC ~ Salnty + O2Sat + ChlorA + NH3uM + NO2uM + SiO3uM +
 
 The function returns a data frame containing a row for every possible combination of controls with all the information needed to generate plots.
 
-Let’s take a look at the first four rows and columns:
+Let's take a look at the first four rows and columns:
 
 ```{r}
 s[1:4,1:4]
 ```
 
-Lots of goodies in there, including the formula used to generate each model, indicator variables for the presence of each of the controls in that row’s model, as well as the control coefficients for each model.
+Lots of goodies in there, including the formula used to generate each model, indicator variables for the presence of each of the controls in that row's model, as well as the control coefficients for each model.
 
 ```{r}
 names(s)
 ```
 
-The output also includes `n_obs`, the number of observations each specification was fit on. With default listwise deletion, specifications with different controls can end up fit on different samples—`n_obs` makes that visible, `plot_samplesizes()` plots it, and `sca(..., common_sample = TRUE)` fits every specification on the same complete-case sample so the curve isn't confounded by sample changes.
+The output also includes `n_obs`, the number of observations each specification was fit on. This one is easy to overlook and it matters: with default listwise deletion, specifications with different controls can end up fit on different samples, so part of what looks like a control effect is really just the sample changing underneath you. `n_obs` makes that visible, `plot_samplesizes()` plots it, and `sca(..., common_sample = TRUE)` fits every specification on the same complete-case sample so the curve isn't confounded by which rows happened to have which variables.
 
 ## Plotting
 
-Now let’s plot the specification curve for our independent variable’s coefficient
+Now let's plot the specification curve for our independent variable's coefficient
 
 ```{r}
 plot_curve(s)
@@ -135,14 +136,14 @@ library(ggplot2)
 
 plot_curve(s, plot_vars=F, title="Salinity Coefficient Specification Curve") +
       theme_minimal() +
-      theme(legend.position = "bottom", 
+      theme(legend.position = "bottom",
             legend.title = element_blank()) +
       labs(title = "I changed my mind and want a different title",
            x = "Model index")
 ```
 
-Note you may need to adjust the plot’s margin when customizing like this
-to avoid going off the plot’s edge, this can be done easily:
+Note you may need to adjust the plot's margin when customizing like this
+to avoid going off the plot's edge, this can be done easily:
 
 ```{r}
 plot_curve(s, plot_vars = F) +
@@ -155,7 +156,7 @@ plot_curve(s, plot_vars = F) +
       labs(title = "I'm found!")
 ```
 
-Let’s see what other stuff we can plot.
+Let's see what other stuff we can plot.
 
 We can look at model fits across models:
 
@@ -169,7 +170,7 @@ plot_r2_adj(s)
 
 We can also look at the distributions of coefficients for our control
 variables:
-    
+
 ```{r}
 plot_control_distributions(s)
 ```
@@ -196,7 +197,7 @@ Note that the estimate column provides the coefficient estimate, not a standard 
 You can provide bootstrapping parameters if you want to investigate bootstrapped errors:
 
 ```{r}
-se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles, 
+se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("iid", "bootstrapped"),
            boot_samples=c(8, 10), boot_sample_size=c(200, 300))
 ```
@@ -204,20 +205,20 @@ se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
 Clustered standard errors are also supported:
 
 ```{r}
-se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles, 
+se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = "HC1", cluster=c("Sta_ID", "Depth_ID"))
 ```
 
 As well as fixed effects:
 
 ```{r, message=FALSE, warning=FALSE}
-se_compare(formula = "Salnty ~ T_degC + ChlorA | Sta_ID", data = bottles, 
+se_compare(formula = "Salnty ~ T_degC + ChlorA | Sta_ID", data = bottles,
            types = c("CL_FE", "iid", "HC0", "HC1"))
 ```
 
 Note: CL_FE refers to standard errors clustered by fixed effects variables, i.e. the default errors reported by `fixest::feols()`.
 
-`se_compare()` is not limited to OLS. Pass a `family` (and optionally a `link`), exactly as you would to `sca()`, to compare standard error types for any `glm()` model family—logistic regression, Poisson, and so on. Every standard error type carries over, including bootstrapped and clustered errors:
+`se_compare()` is not limited to OLS. Pass a `family` (and optionally a `link`), exactly as you would to `sca()`, to compare standard error types for any `glm()` model family–logistic regression, Poisson, and so on. Every standard error type carries over, including bootstrapped and clustered errors:
 
 ```{r, message=FALSE, warning=FALSE}
 # A binary outcome for a quick logistic-regression example.
@@ -242,65 +243,101 @@ plot_multi_se(y = "Salnty", x = "T_degC",
               data = bottles, types = c("iid", "HC3"))
 ```
 
-# Diagnostic plots
+## Diagnostic plots
 
-`plot_influence()` shows, for each control, how including versus excluding it shifts your independent variable's coefficient—making clear which modelling choices move the estimate:
+A specification curve tells you the estimate moves, but not why. These plots try to answer that.
+
+`plot_influence()` shows, for each control, how including versus excluding it shifts your independent variable's coefficient, which makes it easy to see which modelling choices are actually doing the moving:
 
 ```{r}
 plot_influence(s)
 ```
 
-`plot_coef_fit()` plots the coefficient against model fit, revealing whether your best-fitting specifications give systematically different estimates:
+`plot_coef_fit()` plots the coefficient against model fit, so you can check whether your best-fitting specifications give systematically different estimates–a useful thing to know before you lean on any one model:
 
 ```{r}
 plot_coef_fit(s)
 ```
 
-# Variance decomposition
+## Variance decomposition
 
-Which modelling choices actually drive the spread of estimates? `sca_variance()` decomposes the variance of the focal coefficient across the curve into the share attributable to each control (plus a residual for interactions among choices and unexplained variation), using an LMG / Shapley decomposition of R² whose shares sum exactly to the model R²:
+A related question: of all the spread in the curve, how much is each control responsible for? `sca_variance()` decomposes the variance of the focal coefficient across the curve into the share attributable to each control (plus a residual for interactions among choices and unexplained variation). By default it uses an LMG / Shapley decomposition of R², whose shares sum exactly to the model R² and don't depend on the order you list the controls:
 
 ```{r}
 sca_variance(s)
 ```
 
-`plot_variance()` shows the same as a bar chart:
+`plot_variance()` shows the same thing as a bar chart:
 
 ```{r}
 plot_variance(s)
 ```
 
-# Joint-inference test
+## Joint-inference test
 
-Looking at a specification curve tells you whether results are robust *descriptively*, but how do you know the curve as a whole is more extreme than you'd expect by chance? `sca_test()` implements the permutation-based joint-inference test of Simonsohn, Simmons, and Nelson (2020). It tests the sharp null that the focal variable has no effect in *any* specification by repeatedly shuffling that variable (blocked within fixed effects when present), re-estimating the entire curve each time, and comparing the observed curve to the resulting null distribution.
+Reading a specification curve tells you whether your result is robust *descriptively*. But how do you know the curve as a whole is more extreme than you'd expect by chance? `sca_test()` answers that with the permutation-based joint-inference test of Simonsohn, Simmons, and Nelson (2020). It tests the sharp null that the focal variable has no effect in *any* specification: it repeatedly shuffles that variable (blocked within fixed effects when present), re-estimates the entire curve each time, and compares the observed curve to the resulting null distribution.
 
-It reports three statistics—the median estimate, the share of statistically significant specifications (restricted to the predicted direction when you set `direction`), and a Stouffer combination of the per-specification *p*-values—each with its own permutation *p*-value:
+It reports three statistics–the median estimate, the share of statistically significant specifications (restricted to the predicted direction when you set `direction`), and a Stouffer combination of the per-specification *p*-values–each with its own permutation *p*-value:
 
 ```{r}
 result <- sca_test(y = "Salnty", x = "T_degC",
                    controls = c("O2Sat", "ChlorA", "NO2uM"),
                    data = bottles, n_permutations = 500, seed = 1,
-                   keep_curves = TRUE, progress_bar = FALSE)
+                   progress_bar = FALSE)
 result
 ```
 
-`plot_sca_test()` shows each statistic's null distribution with the observed value marked, making it easy to see how far the real specification curve sits in the tail:
+`plot_sca_test()` shows each statistic's null distribution with the observed value marked, so you can see how far into the tail the real curve sits:
 
 ```{r}
 plot_sca_test(result)
 ```
 
-And `plot_sca_test_specs()` (enabled by `keep_curves = TRUE` above) gives the specification-curve view: each specification's observed estimate against its *own* null band, with specifications outside their band highlighted.
+One caveat worth taking seriously: the default null shuffles the focal variable, which also breaks its correlation with the controls. That's fine for an experiment where the variable really was randomly assigned, but for observational data–where the focal variable is collinear with the controls–it's anti-conservative. For that case, `null_type = "freedman_lane"` and `null_type = "residual_bootstrap"` are design-preserving alternatives that hold the focal variable's correlation with the controls fixed. Both are for linear models and fit every specification on a common sample.
 
-```{r}
-plot_sca_test_specs(result)
+### Which specifications are real?
+
+The joint test asks whether the curve as a whole is real. The natural follow-up is *which* specifications are. You can't just read the per-specification *p*-values off the curve and report the significant ones–with dozens of correlated specifications, some are going to look significant by chance. That's the multiple-comparisons problem, now spread across specifications.
+
+`speccurvieR` corrects for it with the min-P / max-statistic permutation method of Westfall and Young (1993). It reuses the permutations the joint test already ran (so there's nothing extra to compute) and, for each one, records the most extreme specification anywhere in the curve, building the null distribution of "the best result a search could turn up by chance". When you run `sca_test()` with `keep_curves = TRUE` and a confound-preserving null, these family-wise-error-rate-adjusted *p*-values are attached automatically:
+
+```{r, message=FALSE}
+result_fl <- sca_test(y = "Salnty", x = "T_degC",
+                      controls = c("O2Sat", "ChlorA", "NO2uM"),
+                      data = bottles, null_type = "freedman_lane",
+                      n_permutations = 500, seed = 1, keep_curves = TRUE,
+                      progress_bar = FALSE)
+
+as.data.frame(result_fl, what = "specs")
 ```
 
-By default the test is two-sided; pass `direction = "positive"` or `"negative"` when you have an a-priori predicted direction. Use `parallel = TRUE` to spread the permutations across workers.
+`p_raw` is each specification's uncorrected *p*-value against its own null, `p_adj` is the corrected one, and `significant_adj` flags the survivors. `plot_sca_test_specs()` draws each specification's estimate against its own null band and colours the points by which tier they fall in–within the band, beyond it but not significant after correction, and significant after correction:
 
-The default null shuffles the focal variable, which is miscalibrated when that variable is collinear with a control (the observational case). For observational data, `null_type = "freedman_lane"` and `null_type = "residual_bootstrap"` are design-preserving alternatives that keep the focal variable's correlation with the controls.
+```{r}
+plot_sca_test_specs(result_fl)
+```
 
-To go from "is the curve as a whole real?" to "*which* specifications are real?", run `sca_test()` with `keep_curves = TRUE` and a confound-preserving null: it automatically attaches a family-wise-error-rate-adjusted *p*-value for every specification (the min-P / max-statistic permutation correction of Westfall and Young 1993), so you can report which specifications survive correction for having searched all of them. `plot_sca_test_specs()` then highlights the survivors, and `sca_minp()` recomputes the adjustment with a more powerful step-down option or a different threshold without re-running the permutations.
+`sca_minp()` recomputes the adjustment without re-running the permutations, if you want the more powerful Westfall-Young step-down procedure or a different threshold. One honest caveat: a flagged under-controlled specification means an association beyond its own conditional null, *not* a causal effect of the size it reports–leaving out a confounder reroutes part of the focal variable's coefficient, and the correction doesn't undo that.
+
+## Reporting and export
+
+Once you've estimated and tested a curve, you probably need to get it into a paper. The package speaks the usual `tidy()`/`glance()` dialect–the same generics `broom` and `modelsummary` dispatch on, so no extra dependency–for both `sca()` curves and `sca_test()` results:
+
+```{r}
+tidy(result_fl)
+```
+
+`sca_table()` renders a compact results block. It returns a plain, dependency-free data frame by default, but it can also render to Markdown, LaTeX, or `gt`/`kableExtra`/`flextable` if you have the package installed:
+
+```{r}
+sca_table(result_fl)
+```
+
+And `sca_report()` writes a one-paragraph, manuscript-ready summary, including the joint-inference verdict and the multiple-comparison count when they're available:
+
+```{r}
+sca_report(result_fl)
+```
 
 # Other features
 
@@ -316,18 +353,18 @@ Note: parallelization is only recommended for specification curve analysis invol
 
 ## Getting formulae
 
-If you hate the plotting functions I’ve made or need something from the model not provided by the default output of `sca()` you can always have it just return a list of all possible formulae with
+If you hate the plotting functions I've made or need something from the model not provided by the default output of `sca()` you can always have it just return a list of all possible formulae with
 `return_formulae = TRUE`:
 
 ```{r}
-formulae <- sca(y = "T_degC", x = "Salnty", 
+formulae <- sca(y = "T_degC", x = "Salnty",
          controls = c("O2Sat", "NO2uM", "SiO3uM"),
          data = bottles, return_formulae = TRUE)
 
 formulae
 ```
 
-Then it’s easy to estimate the models yourself with the pre-made
+Then it's easy to estimate the models yourself with the pre-made
 formulae:
 
 ```{r}
@@ -344,5 +381,3 @@ Feel free to contact me at [zayne@mit.edu](mailto:zayne@mit.edu) to let me know 
 * Support for pre-fitted models and custom estimators (e.g. instrumental-variables, survival, and mixed models)
 
 If you find a bug please create an issue on GitHub and I'll work to fix it ASAP.
-
-
