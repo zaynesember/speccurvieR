@@ -20,8 +20,9 @@ se_compare(
 )
 }
 \arguments{
-\item{formula}{A string containing a regression formula, with or without
-fixed effects.}
+\item{formula}{A regression formula, with or without fixed effects, given
+either as a string (`"y ~ x | fe"`) or as a formula object
+(`y ~ x | fe`).}
 
 \item{data}{A data frame containing the variables provided in `formula` and
 any clustering variables passed to `cluster`.}

@@ -354,3 +354,51 @@ test_that("normalize_cluster_spec() cleans specs", {
     "not a valid clustering variable")
   expect_equal(out, list("a"))
 })
+
+# --- formula-object interface + clustered-HC guard ----------------------------
+
+test_that("se_compare() accepts a formula object as well as a string", {
+  # Regression: a formula object used to crash at `has_fe <- grepl("|", formula)`
+  # ("the condition has length > 1") because as.character() on a formula is a
+  # length-3 vector. The formula and string forms must agree.
+  expect_equal(
+    suppressMessages(se_compare(Salnty ~ T_degC + ChlorA, bottles,
+                                types = c("iid", "HC1", "HC3"))),
+    suppressMessages(se_compare("Salnty ~ T_degC + ChlorA", bottles,
+                                types = c("iid", "HC1", "HC3"))))
+  # Fixed-effects formula object (the `| fe` must survive deparsing).
+  expect_equal(
+    suppressMessages(suppressWarnings(
+      se_compare(Salnty ~ T_degC + ChlorA | Sta_ID, bottles, types = "CL_FE"))),
+    suppressMessages(suppressWarnings(
+      se_compare("Salnty ~ T_degC + ChlorA | Sta_ID", bottles,
+                 types = "CL_FE"))))
+  # Clustered formula object.
+  expect_equal(
+    suppressWarnings(se_compare(Salnty ~ T_degC, bottles, types = "HC1",
+                                cluster = list(c("Sta_ID", "Depth_ID")))),
+    suppressWarnings(se_compare("Salnty ~ T_degC", bottles, types = "HC1",
+                                cluster = list(c("Sta_ID", "Depth_ID")))))
+})
+
+test_that("se_compare() skips a clustered SE type that fails, keeping the rest", {
+  # A clustered HC type (e.g. HC3) can fail with a singular-matrix LAPACK error
+  # on some designs. The failing column is skipped with a clear warning rather
+  # than crashing the whole call. Simulate the failure by mocking coeftest().
+  skip_if_not_installed("lmtest")
+  real_ct <- lmtest::coeftest
+  testthat::local_mocked_bindings(
+    coeftest = function(x, vcov., type, ...){
+      if(!missing(type) && identical(type, "HC3")){
+        stop("system is computationally singular")
+      }
+      real_ct(x, vcov. = vcov., type = type, ...)
+    },
+    .package = "speccurvieR")
+  expect_warning(
+    r <- se_compare("Salnty ~ T_degC", bottles, types = c("HC1", "HC3"),
+                    cluster = "Sta_ID", clustered_only = TRUE),
+    "HC3 standard errors clustered by Sta_ID could not be computed")
+  expect_true("HC1_Sta_ID" %in% colnames(r))   # the stable type survives
+  expect_false("HC3_Sta_ID" %in% colnames(r))  # the failing type is dropped
+})
