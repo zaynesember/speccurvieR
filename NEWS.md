@@ -126,6 +126,13 @@ introduced this cycle continue to work (with a warning).
 
 ## Bug fixes
 
+* Bug fix: `se_compare()` accepts a formula *object* (`y ~ x | fe`), not only a
+  formula string (`"y ~ x | fe"`). Previously a formula object crashed with
+  "the condition has length > 1", because `as.character()` on a formula returns
+  a length-3 vector that broke the internal fixed-effects check. `se_compare()`
+  also now skips an individual clustered standard-error type that fails to
+  compute (e.g. a numerically singular clustered `HC3`) with a clear warning,
+  instead of letting the whole call error on a raw LAPACK message.
 * Bug fix: bootstrapped standard errors are now estimated with a proper
   bootstrap. Resamples are drawn *with* replacement and the standard deviation
   of the resampled coefficients is rescaled by `sqrt(sample_size / nrow(data))`

@@ -941,8 +941,9 @@ boot_ses <- function(data, formula, n_x, boot_samples, boot_sample_size,
 #' frame with coefficient and standard error estimates for easy comparison and
 #' plotting.
 #'
-#' @param formula A string containing a regression formula, with or without
-#'                fixed effects.
+#' @param formula A regression formula, with or without fixed effects, given
+#'                either as a string (`"y ~ x | fe"`) or as a formula object
+#'                (`y ~ x | fe`).
 #' @param data A data frame containing the variables provided in `formula` and
 #'             any clustering variables passed to `cluster`.
 #' @param weights Optional string with the column name in `data` that contains
@@ -1096,6 +1097,16 @@ se_compare <- function(formula, data, weights=NULL,
   if("bootSampleSize" %in% names(.dots)){
     .Deprecated(msg="`bootSampleSize` is deprecated; use `boot_sample_size`.")
     boot_sample_size <- .dots$bootSampleSize
+  }
+
+  # `formula` may be supplied either as a string ("y ~ x | fe") or as a formula
+  # object (y ~ x | fe). se_compare() works with the string form throughout --
+  # grepl()/str_split() detect the fixed-effects pipe and as.formula() refits --
+  # so normalise a formula object to a one-line string up front. (as.character()
+  # on a formula returns a length-3 vector, "~"/lhs/rhs, which would make the
+  # scalar grepl("|", formula) below length 3 and error in the if() that uses it.)
+  if(inherits(formula, "formula")){
+    formula <- paste(deparse(formula), collapse = " ")
   }
 
   # Create objects that will store the standard errors
@@ -1376,13 +1387,28 @@ se_compare <- function(formula, data, weights=NULL,
         for(dims in cluster){
           key <- paste(dims, collapse="_BY_")
           for(t in types_CL){
-            cl_cols[[paste0(t, "_", key)]] <-
-              coeftest(model, vcov.=vcovCL, type=t, cluster=data[dims])[,2]
+            # Some clustered HC variants (notably HC3, whose leverage adjustment
+            # divides by 1 - h_ii) are numerically unstable and can fail with a
+            # raw LAPACK "singular" error on certain designs. Catch that per
+            # type/cluster combination: warn clearly and skip just that column,
+            # so the other requested standard errors are still returned.
+            se <- tryCatch(
+              coeftest(model, vcov.=vcovCL, type=t, cluster=data[dims])[,2],
+              error = function(e){
+                warning(t, " standard errors clustered by ",
+                        gsub("_BY_", " + ", key, fixed=TRUE),
+                        " could not be computed and were skipped (",
+                        conditionMessage(e), ").", call.=FALSE)
+                NULL
+              })
+            if(!is.null(se)) cl_cols[[paste0(t, "_", key)]] <- se
           }
         }
 
-        ses_CL <- do.call(cbind, cl_cols)
-        colnames(ses_CL) <- names(cl_cols)
+        if(length(cl_cols) > 0){
+          ses_CL <- do.call(cbind, cl_cols)
+          colnames(ses_CL) <- names(cl_cols)
+        }
       }
 
       ses <- cbind(ses, ses_CL)
