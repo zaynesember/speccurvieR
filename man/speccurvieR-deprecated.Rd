@@ -9,10 +9,6 @@
 \alias{plotAIC}
 \alias{plotDeviance}
 \alias{plotControlDistributions}
-\alias{plotSE}
-\alias{plotInfluence}
-\alias{plotCoefFit}
-\alias{plotMultiSE}
 \alias{controlExtractor}
 \alias{unAsIs}
 \title{Deprecated functions in speccurvieR}
@@ -31,14 +27,6 @@ plotDeviance(...)
 
 plotControlDistributions(...)
 
-plotSE(...)
-
-plotInfluence(...)
-
-plotCoefFit(...)
-
-plotMultiSE(...)
-
 controlExtractor(...)
 
 unAsIs(...)
@@ -50,10 +38,10 @@ unAsIs(...)
 The value returned by the corresponding replacement function.
 }
 \description{
-As of version 0.6.0 the package uses snake_case names throughout. These
+As of version 1.0.0 the package uses snake_case names throughout. These
 camelCase aliases are retained for backward compatibility: they emit a
 deprecation warning and forward to their snake_case replacements (translating
-any deprecated camelCase argument names automatically). They will be removed
-in a future release.
+any deprecated camelCase argument names automatically). They are scheduled
+for removal in version 2.0.0.
 }
 \keyword{internal}

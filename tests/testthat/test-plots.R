@@ -38,3 +38,26 @@ test_that("plot_control_distributions draws a zero line only when requested", {
   expect_true(has_vline(plot_control_distributions(s, zero_line = TRUE)))
   expect_false(has_vline(plot_control_distributions(s, zero_line = FALSE)))
 })
+
+test_that("plot_aic/plot_deviance/plot_r2_adj return the expected output", {
+  d <- bottles
+  d$bin <- as.integer(d$Salnty > stats::median(d$Salnty, na.rm = TRUE))
+  g <- suppressWarnings(suppressMessages(
+    sca("bin", "T_degC", c("ChlorA", "O2Sat"), d, family = "binomial",
+        progress_bar = FALSE)))
+  expect_s3_class(plot_aic(g), "ggplot")
+  expect_s3_class(plot_deviance(g), "ggplot")
+
+  lin <- suppressMessages(sca("Salnty", "T_degC", c("ChlorA", "O2Sat"), bottles,
+                              progress_bar = FALSE))
+  expect_s3_class(plot_r2_adj(lin), "ggplot")
+  # A fit metric absent from the curve (AIC on a linear curve) messages and
+  # returns NULL rather than erroring.
+  expect_message(out <- plot_aic(lin), "AIC not found")
+  expect_null(out)
+})
+
+test_that("plot_curve/plot_vars reject a non-sca data frame with a clear error", {
+  expect_error(plot_curve(mtcars), "does not look like sca\\(\\) output")
+  expect_error(plot_vars(mtcars), "does not look like sca\\(\\) output")
+})

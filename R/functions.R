@@ -242,14 +242,20 @@ sca <- function(y, x, controls, data, weights=NULL,
   # A factor, interaction, or transformed `x` expands to differently-named
   # rows (e.g. "xLevel2", "a:b") or none at all, in which case the name-based
   # extraction below would error with "subscript out of bounds" or silently
-  # return NA for every specification. Every specification contains x, so the
-  # first model is representative.
-  first_terms <- if(!is.null(fixed_effects)) rownames(models[[1]]$coeftable)
-                 else rownames(models[[1]]$coefficients)
-  if(!x %in% first_terms){
-    stop("`x` (\"", x, "\") does not correspond to a single model coefficient. ",
-         "It may be a factor, interaction, or transformed term; specification ",
-         "curve analysis requires a single focal coefficient.", call.=FALSE)
+  # return NA for every specification. Check EVERY specification, not just the
+  # first: a control name that collides with x, or a collinear drop, can leave
+  # the focal coefficient out of some specifications but not others.
+  has_x <- vapply(models, function(m){
+    tms <- if(!is.null(fixed_effects)) rownames(m$coeftable)
+           else rownames(m$coefficients)
+    x %in% tms
+  }, logical(1))
+  if(!all(has_x)){
+    stop("`x` (\"", x, "\") does not correspond to a single model coefficient ",
+         "in every specification. It may be a factor, interaction, or ",
+         "transformed term, or its name may collide with a control variable; ",
+         "specification curve analysis requires a single focal coefficient.",
+         call.=FALSE)
   }
 
   # Number of observations each specification was actually fit on (after
@@ -335,8 +341,7 @@ sca <- function(y, x, controls, data, weights=NULL,
     AIC <- lapply(X=models, FUN=function(x2) x2$aic)
     deviance <- lapply(X=models, FUN=function(x2) x2$deviance)
     control_coefs <- lapply(X=models,
-                            FUN=function(x2,x3,
-                                         x4) control_extractor(x2,x3),x3=x)
+                            FUN=function(x2) control_extractor(x2, x))
 
 
     # Store values in a data frame to be returned
@@ -457,6 +462,11 @@ plot_curve <- function(sca_data, title="", show_index=TRUE, plot_vars=TRUE,
                          ylab="Coefficient", plot_se="bar", median_line=FALSE,
                          point_size=NULL){
 
+  if(!all(c("coef", "index", "sig.level") %in% names(sca_data))){
+    stop("`sca_data` does not look like sca() output (missing one of the ",
+         "`coef`, `index`, or `sig.level` columns).", call.=FALSE)
+  }
+
   if("control_coefs" %in% names(sca_data)){
     sca_data <- sca_data %>% select(-control_coefs)
   }
@@ -542,6 +552,11 @@ plot_curve <- function(sca_data, title="", show_index=TRUE, plot_vars=TRUE,
 #'                         progress_bar = TRUE, parallel = TRUE, workers = 2));
 #' }
 plot_vars <- function(sca_data, title="", color_controls=FALSE){
+
+  if(!all(c("coef", "index", "sig.level") %in% names(sca_data))){
+    stop("`sca_data` does not look like sca() output (missing one of the ",
+         "`coef`, `index`, or `sig.level` columns).", call.=FALSE)
+  }
 
   if("control_coefs" %in% names(sca_data)){
     sca_data <- sca_data %>% select(-control_coefs)
@@ -1163,8 +1178,8 @@ se_compare <- function(formula, data, weights=NULL,
     if(is.null(weights)){
       model_fe <- tryCatch(feols(as.formula(formula), data=data),
                            error=function(cond){
-                             message("Fixed effects model estimation failed.",
-                                     cond)
+                             message("Fixed effects model estimation failed: ",
+                                     conditionMessage(cond))
                              return(NULL)
                            })
     }
@@ -1172,16 +1187,13 @@ se_compare <- function(formula, data, weights=NULL,
       model_fe <- tryCatch(
         feols(as.formula(formula), data=data, weights=data[[weights]]),
                            error=function(cond){
-                             message("Fixed effects model estimation failed.",
-                                     cond)
+                             message("Fixed effects model estimation failed: ",
+                                     conditionMessage(cond))
                              return(NULL)
                            })
     }
 
-      if(is.null(model_fe)){
-        message("Fixed effects model estimation failed.")
-      }
-      else{
+      if(!is.null(model_fe)){
       # The first fixed effect, used below to compute "CL_FE". Historically
       # feols() clustered its default standard errors by the first fixed
       # effect, but modern fixest (>= 0.10) defaults to IID, so we cluster by

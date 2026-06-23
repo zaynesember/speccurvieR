@@ -10,8 +10,7 @@ test_that("deprecated function aliases warn and forward to the new names", {
   expect_equal(class(suppressWarnings(plotCurve(s_new))),
                class(plot_curve(s_new)))
 
-  expect_warning(plotSE(suppressMessages(
-    se_compare("Salnty ~ T_degC", bottles, types = "HC0"))), "deprecated")
+  expect_warning(plotRMSE(s_new), "deprecated")
   expect_warning(unAsIs(I(1:3)), "deprecated")
 })
 

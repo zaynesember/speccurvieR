@@ -19,3 +19,4 @@ Removes the `AsIs` class attribute from the input. Taken from:
 \examples{
 un_as_is(x = I(c(1:4)));
 }
+\keyword{internal}

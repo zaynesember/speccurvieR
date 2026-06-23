@@ -119,13 +119,18 @@ introduced this cycle continue to work (with a warning).
   arguments (e.g. `plotCurve()` -> `plot_curve()`, `fixedEffects` ->
   `fixed_effects`). The previous camelCase names are kept as deprecated aliases
   that warn and forward to the new names, so existing code keeps working; they
-  will be removed in a future release.
+  are scheduled for removal in version 2.0.0.
 * The package now ships a vignette, "Specification Curve Analysis with
   speccurvieR", touring the full workflow from `sca()` through the
   joint-inference test.
 
 ## Bug fixes
 
+* Bug fix: `sca()` no longer drops the focal variable (and crash with
+  "subscript out of bounds") when a control variable's name contains the focal
+  variable's name as a substring (e.g. focal `"Temp"` with a control `"TempX"`)
+  or the focal name contains regular-expression metacharacters. The focal term
+  is now matched by exact equality rather than a substring/regex test.
 * Bug fix: `se_compare()` accepts a formula *object* (`y ~ x | fe`), not only a
   formula string (`"y ~ x | fe"`). Previously a formula object crashed with
   "the condition has length > 1", because `as.character()` on a formula returns

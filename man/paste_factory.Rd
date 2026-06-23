@@ -23,3 +23,4 @@ a string i.e. "x + control1 + control2".
 paste_factory(controls = c("control1", "control2"),
               x = "independentVariable");
 }
+\keyword{internal}

@@ -33,3 +33,4 @@ formula_builder("dependentVariable", "independentVariable",
 formula_builder("dependentVariable", "independentVariable",
                 c("control1*control2"), fixed_effects="month");
 }
+\keyword{internal}

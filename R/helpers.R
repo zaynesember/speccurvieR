@@ -168,6 +168,7 @@ formula_to_args <- function(formula){
 #' @return A vector of formula objects using every possible combination of
 #'         controls.
 #'
+#' @keywords internal
 #' @export
 #'
 #' @examples
@@ -220,16 +221,28 @@ formula_builder <- function(y, x, controls, fixed_effects=NA, ...){
 #' @returns A string concatenating independent and control variables separated
 #'          by '+'.
 #'
+#' @keywords internal
 #' @export
 #'
 #' @examples
 #' paste_factory(controls = c("control1", "control2"),
 #'               x = "independentVariable");
 paste_factory <- function(controls, x){
-  if(TRUE %in% str_detect(controls, x)){
-    return(paste(controls, collapse=" + "))
+  # Prepend the focal variable x to the right-hand side unless it already
+  # appears among the controls (as a standalone term, or as a component of an
+  # interaction such as "x*a"). Membership is tested by exact term equality,
+  # splitting each control on its interaction operators, NOT by str_detect()'s
+  # regex substring test: the old test treated x as already present whenever a
+  # control name merely contained x as a substring (e.g. x = "Temp" with a
+  # control "TempX") or x held regex metacharacters, which silently dropped the
+  # focal term from the formula and crashed sca() with "subscript out of bounds"
+  # during coefficient extraction.
+  control_terms <- unique(trimws(unlist(strsplit(controls, "[*:]"))))
+  if(x %in% control_terms){
+    paste(controls, collapse=" + ")
+  } else {
+    paste(x, paste(controls, collapse=" + "), sep=" + ")
   }
-  else return(paste(x, paste(controls, collapse=" + "), sep=" + "))
 }
 
 
@@ -242,26 +255,29 @@ paste_factory <- function(controls, x){
 #'
 #' @return A vector of strings containing control variable names
 #'
+#' @keywords internal
 #' @export
 #'
 #' @examples
 #' duplicate_remover(controls = c("control1", "control2*control3"),
 #'                   x = "independentVariable");
 duplicate_remover <- function(controls, x){
-  # Check for interactions
-  if(TRUE %in% str_detect(controls, "\\*")){
-    # Find interaction terms
-    indices <- which(TRUE==str_detect(controls, "\\*"))
-    # Find controls that are in interaction terms
-    extraTerms <- str_replace(str_replace(controls[indices],
-                                          pattern=x,
-                                          replacement=""),
-                              pattern="\\*",
-                              replacement="")
-    # Remove controls that are already present in interaction
-    return(controls[!controls %in% extraTerms])
+  # When the focal variable x appears inside an interaction control (e.g.
+  # "x*b"), its interaction partner ("b") is already implied by that term, so a
+  # redundant standalone copy of the partner is dropped. Matching is by exact
+  # term -- splitting each interaction on its "*" operator and comparing parts
+  # for equality -- never by str_replace()'s regex substitution of x, which
+  # mishandled a focal name that was a substring of, or shared regex
+  # metacharacters with, another term.
+  has_interaction <- str_detect(controls, fixed("*"))
+  if(any(has_interaction)){
+    partners <- unlist(lapply(controls[has_interaction], function(term){
+      parts <- trimws(strsplit(term, "*", fixed=TRUE)[[1]])
+      if(x %in% parts) setdiff(parts, x) else character(0)
+    }))
+    return(controls[!controls %in% partners])
   }
-  else return(controls)
+  controls
 }
 
 
@@ -280,6 +296,7 @@ duplicate_remover <- function(controls, x){
 #' @return A dataframe with two columns, `term` contains the name of the control
 #'         and `coef` contains the coefficient estimate.
 #'
+#' @keywords internal
 #' @export
 #'
 #' @examples
@@ -316,6 +333,7 @@ control_extractor <- function(model, x, feols_model=FALSE){
 #'
 #' @return An object without the `AsIs` class attribute.
 #'
+#' @keywords internal
 #' @export
 #'
 #' @examples
@@ -339,6 +357,7 @@ un_as_is <- function(x) {
 #' @return A list containing a data frame, control coefficients, and control
 #'         names.
 #'
+#' @keywords internal
 #' @export
 #'
 #' @examples
@@ -414,6 +433,7 @@ scp <- function(sca_data){
 #'
 #' @return A named list containing bootstrapped standard errors for each
 #'         coefficient.
+#' @keywords internal
 #' @export
 #'
 #' @examples
@@ -507,18 +527,18 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL,
       },
       error=function(cond){
         if(FE){
-          message(paste0("Estimation failed during bootstrap for fixed effects
-                         model with n_samples=",
+          message(paste0("Estimation failed during bootstrap for fixed ",
+                         "effects model with n_samples=",
                          n_samples, " and sample_size=", sample_size,
-                         ".\nConsider respecifying bootstrap parameters or model
-                         .\n"))
+                         ".\nConsider respecifying bootstrap parameters or ",
+                         "model.\n"))
         }
         else{
-        message(paste0("Estimation failed during bootstrap for non-fixed effects
-                       model with n_samples=",
+        message(paste0("Estimation failed during bootstrap for non-fixed ",
+                       "effects model with n_samples=",
                        n_samples, " and sample_size=", sample_size,
-                       ".\nConsider respecifying bootstrap parameters or model
-                       .\n"))
+                       ".\nConsider respecifying bootstrap parameters or ",
+                       "model.\n"))
         }
 
         return(fallback_list)

@@ -120,3 +120,25 @@ test_that("sca() warns for fixed effects + non-linear family and then ignores th
   expect_s3_class(res, "data.frame")
   expect_true("AIC" %in% names(res))
 })
+
+test_that("sca() keeps the focal variable when a control name contains it", {
+  # Regression: paste_factory() used str_detect (a regex substring test), so a
+  # control whose name contains the focal name -- or a focal name with regex
+  # metacharacters -- dropped the focal term and crashed sca() with "subscript
+  # out of bounds". Now matched by exact equality.
+  set.seed(1); n <- 120
+  d <- data.frame(y = stats::rnorm(n), Temp = stats::rnorm(n),
+                  TempX = stats::rnorm(n), Z = stats::rnorm(n))
+  s <- suppressMessages(sca("y", "Temp", c("Z", "TempX"), d,
+                            progress_bar = FALSE))
+  expect_s3_class(s, "sca")
+  expect_true(all(vapply(s$terms, function(t) "Temp" %in% t, logical(1))))
+  expect_false(anyNA(s$coef))
+  # Helper-level checks of the exact-match behaviour.
+  expect_equal(paste_factory(c("Z", "TempX"), "Temp"), "Temp + Z + TempX")
+  expect_equal(paste_factory(c("Temp", "Z"), "Temp"), "Temp + Z")
+  # A focal variable that is an interaction partner is dropped as a duplicate.
+  expect_equal(duplicate_remover(c("x*b", "b"), "x"), "x*b")
+  # An interaction not involving the focal is left untouched.
+  expect_setequal(duplicate_remover(c("a*b", "a", "b"), "x"), c("a*b", "a", "b"))
+})
