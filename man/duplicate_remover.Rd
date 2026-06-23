@@ -21,3 +21,4 @@ Removes duplicate control variables from user input.
 duplicate_remover(controls = c("control1", "control2*control3"),
                   x = "independentVariable");
 }
+\keyword{internal}

@@ -29,3 +29,4 @@ control_extractor(model = m, x = "STheta");
 m <- summary(lm(Salnty ~ STheta*T_degC + O2Sat, bottles))
 control_extractor(model = m, x = "STheta");
 }
+\keyword{internal}

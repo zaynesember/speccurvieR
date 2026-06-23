@@ -17,11 +17,11 @@ remap_args <- function(args, mapping){
 #' Deprecated functions in speccurvieR
 #'
 #' @description
-#' As of version 0.6.0 the package uses snake_case names throughout. These
+#' As of version 1.0.0 the package uses snake_case names throughout. These
 #' camelCase aliases are retained for backward compatibility: they emit a
 #' deprecation warning and forward to their snake_case replacements (translating
-#' any deprecated camelCase argument names automatically). They will be removed
-#' in a future release.
+#' any deprecated camelCase argument names automatically). They are scheduled
+#' for removal in version 2.0.0.
 #'
 #' @param ... Arguments passed on to the replacement function.
 #'
@@ -85,34 +85,6 @@ plotControlDistributions <- function(...){
   .Deprecated("plot_control_distributions")
   do.call(plot_control_distributions,
           remap_args(list(...), c(zeroLine="zero_line")))
-}
-
-#' @rdname speccurvieR-deprecated
-#' @export
-plotSE <- function(...){
-  .Deprecated("plot_se")
-  do.call(plot_se, list(...))
-}
-
-#' @rdname speccurvieR-deprecated
-#' @export
-plotInfluence <- function(...){
-  .Deprecated("plot_influence")
-  do.call(plot_influence, list(...))
-}
-
-#' @rdname speccurvieR-deprecated
-#' @export
-plotCoefFit <- function(...){
-  .Deprecated("plot_coef_fit")
-  do.call(plot_coef_fit, list(...))
-}
-
-#' @rdname speccurvieR-deprecated
-#' @export
-plotMultiSE <- function(...){
-  .Deprecated("plot_multi_se")
-  do.call(plot_multi_se, remap_args(list(...), c(fixedEffects="fixed_effects")))
 }
 
 #' @rdname speccurvieR-deprecated

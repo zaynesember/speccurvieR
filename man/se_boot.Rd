@@ -68,3 +68,4 @@ se_boot(data = data.frame(x1 = rnorm(50000, mean=4, sd=10),
 }
 
 }
+\keyword{internal}

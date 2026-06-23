@@ -22,3 +22,4 @@ spec curve model.
 scp(sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
         data = bottles, progress_bar=TRUE, parallel=FALSE));
 }
+\keyword{internal}
