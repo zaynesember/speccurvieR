@@ -1,6 +1,12 @@
 
 # What is `speccurvieR`?
 
+<!-- badges: start -->
+
+[![CRAN
+downloads](https://cranlogs.r-pkg.org/badges/grand-total/speccurvieR)](https://cran.r-project.org/package=speccurvieR)
+<!-- badges: end -->
+
 `speccurvieR` is an R package aimed at making specification curve
 analysis easy, fast, and pretty. In other words, it helps you understand
 how your model changes under different specifications.
