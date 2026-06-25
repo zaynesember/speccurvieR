@@ -964,8 +964,11 @@ plot_sca_test_specs <- function(test_result, level = 0.95, title = ""){
         # they read even in greyscale.
         geom_point(aes(y = observed, fill = band_status, size = band_status),
                    shape = 21, colour = "grey20", stroke = .3) +
+        # drop = TRUE so a tier with no specifications (e.g. when every
+        # specification survives correction) is omitted from the legend rather
+        # than shown as a blank key.
         scale_fill_manual(values = status_cols, labels = status_labs,
-                          drop = FALSE, name = "Specification") +
+                          drop = TRUE, name = "Specification") +
         scale_size_manual(values = c(within = 1.3, outside_uncorrected = 1.3,
                                      fwer_significant = 2.6),
                           guide = "none") +
@@ -986,7 +989,7 @@ plot_sca_test_specs <- function(test_result, level = 0.95, title = ""){
     scale_color_manual(values = c("FALSE" = inside_col, "TRUE" = outside_col),
                        labels = c("FALSE" = "within null band",
                                   "TRUE" = "outside null band"),
-                       drop = FALSE,
+                       drop = TRUE,
                        name = "Observed estimate") +
     labs(x = "Specification (ranked by estimate)",
          y = "Focal coefficient",

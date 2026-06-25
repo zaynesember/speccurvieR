@@ -249,32 +249,34 @@ plot_variance(s)
 
 Reading a specification curve tells you whether your result is robust *descriptively*. But how do you know the curve as a whole is more extreme than you'd expect by chance? `sca_test()` answers that with the permutation-based joint-inference test of Simonsohn, Simmons, and Nelson (2020). It tests the *sharp null*–that the focal variable has no effect in *any* specification, not just on average–by repeatedly shuffling that variable (blocked within fixed effects when present), re-estimating the entire curve each time, and comparing the observed curve to the resulting null distribution.
 
-Permutation tests re-fit the whole curve hundreds of times, so for the inference examples I trim to a smaller three-control set to keep this README quick; the mechanics are identical for the full curve above. The test reports three statistics, each with its own permutation *p*-value: the median estimate (is the typical coefficient far from zero?), the share of statistically significant specifications (are an unusual number of them significant?), and a Stouffer combination of the per-specification *p*-values (do the pooled *p*-values point the same way?).
+The salinity curve above makes the descriptive point, but salinity's effect on temperature is so strong that every specification clears every bar–not much for an inference test to weigh. So for the inference tools I'll switch to a subtler relationship in the same data: how dissolved nitrate (`NO3uM`) tracks oxygen saturation (`O2Sat`), holding combinations of temperature, salinity, phosphate, and silicate fixed. The test reports three statistics, each with its own permutation *p*-value: the median estimate (is the typical coefficient far from zero?), the share of statistically significant specifications (are an unusual number of them significant?), and a Stouffer combination of the per-specification *p*-values (do the pooled *p*-values point the same way?).
 
 ```{r}
-result <- sca_test(y = "T_degC", x = "Salnty",
-                   controls = c("O2Sat", "ChlorA", "NO2uM"),
+result <- sca_test(y = "O2Sat", x = "NO3uM",
+                   controls = c("T_degC", "Salnty", "PO4uM", "SiO3uM"),
                    data = bottles, n_permutations = 500, seed = 1,
                    progress_bar = FALSE)
 result
 ```
 
-By the SSN rule printed there–reject when the median test *and* at least one of the other two are significant–this curve rejects the sharp null (median *p* = 0.002). But that's the default null, which shuffles the focal variable and so also breaks its correlation with the controls. That's fine for an experiment where the variable really was randomly assigned; for observational data like this, where salinity is tangled up with the rest of the water chemistry, it's anti-conservative. `null_type = "freedman_lane"` and `null_type = "residual_bootstrap"` are design-preserving alternatives that hold that correlation fixed (both are for linear models and fit every specification on a common sample), and they tell a more cautious story:
+By the SSN rule printed there–reject when the median test *and* at least one of the other two are significant–this curve rejects the sharp null. But that's the default null, which shuffles the focal variable and so also breaks its correlation with the controls. That's fine for an experiment where the variable was randomly assigned; for observational data like this, where nitrate moves with the other nutrients, it's anti-conservative, so it's worth confirming with a design-preserving null. `null_type = "freedman_lane"` and `null_type = "residual_bootstrap"` hold the focal variable's correlation with the controls fixed (both are for linear models and fit every specification on a common sample):
 
 ```{r, message=FALSE}
-result_fl <- sca_test(y = "T_degC", x = "Salnty",
-                      controls = c("O2Sat", "ChlorA", "NO2uM"),
+result_fl <- sca_test(y = "O2Sat", x = "NO3uM",
+                      controls = c("T_degC", "Salnty", "PO4uM", "SiO3uM"),
                       data = bottles, null_type = "freedman_lane",
                       n_permutations = 500, seed = 1, keep_curves = TRUE,
                       progress_bar = FALSE)
 result_fl
 ```
 
-Now the median test sits just over the line (*p* = 0.096), so by the strict SSN rule the curve no longer rejects–keeping the confounding intact made the honest answer more equivocal, which is the whole reason to use a design-preserving null on observational data. `plot_sca_test()` shows each statistic's null distribution with the observed value marked, so you can see how far into the tail the real curve sits:
+The Freedman-Lane null rejects too, so the rejection isn't just an artifact of breaking nitrate's correlation with the controls–the curve as a whole really is more extreme than chance. `plot_sca_test()` unpacks the test into one panel per statistic. In each, the histogram is that statistic's distribution across the 500 permuted curves–its spread when the focal variable has no effect–and the vertical line is the value the real curve produced, with the *p*-value giving the share of permutations at least as extreme:
 
 ```{r}
 plot_sca_test(result_fl)
 ```
+
+All three land well out in their tails: the median estimate is comfortably negative, the share of significant specifications is pinned at one (every specification clears *p* < .05 on its own), and the Stouffer combination is extreme (Z = -23) because all fifteen point the same way. Whether all fifteen *stay* significant once you correct for having searched them is the next question.
 
 ### Which specifications are real?
 
@@ -292,11 +294,71 @@ as.data.frame(result_fl, what = "specs")
 plot_sca_test_specs(result_fl)
 ```
 
-All seven specifications survive correction (adjusted *p* = 0.002), so none of these estimates is noise–but look at the `observed` column: the salinity coefficient is around -6 in the specifications without `O2Sat` and around +2 to +4 in the ones with it. Every estimate is reliably non-zero *and they disagree on sign*, depending entirely on whether you control for oxygen saturation. So "all seven significant after correction" is not a green light; it's the curve telling you the salinity–temperature association is real but its direction is an artifact of the controls. That's also why the joint median test was equivocal and the Stouffer statistic came out negative–the signs cancel.
+Here the correction changes the answer. Eight of the fifteen specifications survive it and seven don't, and the split isn't where the estimates alone would point you: the specifications that leave out phosphate (`PO4uM`) give the *largest* nitrate coefficients–around -2 to -3, against about -1 once phosphate is in–but those large estimates have wide null bands and don't hold up. The `Salnty + SiO3uM + T_degC` row is the one worth pausing on: its raw *p*-value is 0.036, individually significant, but corrected it's 0.15. On its own it looks real; once you account for having searched all fifteen specifications, it isn't. The eight that survive are exactly the ones that control for phosphate, and they settle on a smaller, steadier estimate.
 
-That's the distinction worth internalizing: the joint test asks whether the curve as a whole beats chance, while the per-specification correction asks which individual specifications beat their own null. They answer different questions, and reading them together–as here, where the per-spec test is emphatic but the curve flips sign–is more honest than either alone.
+That's the division of labour worth keeping straight: the joint test says whether the curve as a whole beats chance, and the per-specification correction says *which* specifications you can quote on their own. Here they're consistent–the curve is robust, and eight specifications carry it–but the correction adds the part a single *p*-value hides, that the biggest-looking estimates are the least trustworthy ones.
 
-`sca_minp()` recomputes the adjustment without re-running the permutations, if you want the more powerful Westfall-Young step-down procedure or a different threshold. And one caveat worth stating outright: a flagged under-controlled specification means an association beyond its own conditional null, not a causal effect of the size it reports–leaving a confounder out reroutes part of the coefficient, and the correction doesn't undo that.
+`sca_minp()` recomputes the adjustment without re-running the permutations, if you want the more powerful Westfall-Young step-down procedure or a different threshold. And one caveat worth stating outright: a flagged specification means an association beyond its own conditional null, not a causal effect of the size it reports–leaving a confounder out reroutes part of the coefficient, and the correction doesn't undo that.
+
+## Reporting and export
+
+Once you've estimated and tested a curve, you have to get it into a paper. The package speaks the usual `tidy()`/`glance()` dialect–the same generics `broom` and `modelsummary` dispatch on, so no `broom` dependency–for both `sca()` curves and `sca_test()` results:
+
+```{r}
+tidy(result_fl)
+```
+
+`sca_table()` renders a compact results block. It returns a plain, dependency-free data frame by default, but it can also render to Markdown, LaTeX, or `gt`/`kableExtra`/`flextable` if you have the package installed:
+
+```{r}
+sca_table(result_fl)
+```
+
+And `sca_report()` writes a one-paragraph, manuscript-ready summary:
+
+```{r}
+sca_report(result_fl)
+```
+
+The report states both answers from above in one place: the joint test rejected the null, and after correction eight of the fifteen specifications remain significant. The first is the verdict on the curve as a whole; the second tells you how many individual specifications you can stand behind.
+
+# Trying it on a published study
+
+The oceanographic data keeps the examples self-contained, but specification curves earn their keep on the observational data social scientists actually argue over. Here is the package on one such case–Gilens and Page's (2014) study of whose preferences predict federal policy change, run on their own replication data. The outcome is whether a proposed policy change was adopted within four years, so this is a logistic curve. To be clear up front: this is an illustration of the tooling, not a verdict on the paper, and I come back to that distinction at the end.
+
+The question is whether the preferences of the average (50th-percentile) citizen predict adoption once you also account for the preferences of the affluent (90th percentile). The complication–which Gilens and Page note themselves, and which Bashir (2015) examines closely–is that those two measures correlate at about .94. A specification curve is a direct way to see what that does to the estimate.
+
+```{r, eval = FALSE}
+# Gilens & Page (2014) replication file (Perspectives on Politics supplement,
+# doi:10.1017/S1537592714001595). adopted = policy change within four years;
+# pref50 / pref90 = logit of the imputed % of 50th / 90th income-percentile
+# citizens favoring a change; ig_net = net interest-group alignment.
+gp <- haven::read_dta("S1537592714001595sup006.dta")   # plus the recode described above
+
+s <- sca(y = "adopted", x = "pref50",
+         controls = c("pref90", "ig_net", "dom_econ", "dom_socwel",
+                      "dom_forpol", "dom_relig", "dom_guns"),
+         data = gp, family = "binomial", common_sample = TRUE)
+plot_curve(s)
+```
+
+```{r, echo = FALSE, out.width = "100%"}
+knitr::include_graphics("man/figures/README-gp-curve.png")
+```
+
+The focal coefficient is significant in every one of the 127 specifications–and it lands on both sides of zero. Including the affluent-citizen measure pushes it negative; dropping it pushes it positive. `sca_variance()` says where that movement comes from:
+
+```{r, eval = FALSE}
+plot_variance(s)
+```
+
+```{r, echo = FALSE, out.width = "100%"}
+knitr::include_graphics("man/figures/README-gp-variance.png")
+```
+
+A single control–the affluent-citizen measure–accounts for 99% of the variation in the average-citizen coefficient. That is the signature of two regressors too collinear to separate: the sign of either one "net of" the other is settled by whether you include it, not by the data. It is also a case where `sca_test()` misleads on its own–it reports a robust effect, because the coefficient is reliably "different from zero"; it just isn't reliably "signed". The curve shows that at a glance where a single p-value buries it.
+
+One caveat, in both directions, since this is someone else's careful work. None of this overturns Gilens and Page's broader argument: economic elites and organized groups track adopted policy more closely than average citizens do, and that asymmetry holds across the curve. What the curve shows is narrower–the specific average-citizen coefficient can't be identified apart from a measure it is 94% redundant with, so reading its sign or significance off any one specification claims more than the data support. Surfacing that, rather than hiding it behind a single chosen model, is the point of the package.
 
 # Other features
 
@@ -332,28 +394,6 @@ my_own_models <- lapply(formulae, lm, data = bottles)
 
 coef(summary(my_own_models[[1]]))
 ```
-
-# Reporting and export
-
-Once you've estimated and tested a curve, you have to get it into a paper. The package speaks the usual `tidy()`/`glance()` dialect–the same generics `broom` and `modelsummary` dispatch on, so no extra dependency–for both `sca()` curves and `sca_test()` results:
-
-```{r}
-tidy(result_fl)
-```
-
-`sca_table()` renders a compact results block. It returns a plain, dependency-free data frame by default, but it can also render to Markdown, LaTeX, or `gt`/`kableExtra`/`flextable` if you have the package installed:
-
-```{r}
-sca_table(result_fl)
-```
-
-And `sca_report()` writes a one-paragraph, manuscript-ready summary:
-
-```{r}
-sca_report(result_fl)
-```
-
-Note that the report says the joint test "did not reject" the null while also reporting that all seven specifications survive correction–those aren't in conflict, they're the curve-level and per-specification answers from above, stated side by side. The joint verdict keys on the median test (here just over the line), which is why a significant share-significant component doesn't flip it.
 
 # What's next?
 

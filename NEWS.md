@@ -126,6 +126,9 @@ introduced this cycle continue to work (with a warning).
 
 ## Bug fixes
 
+* Bug fix: `plot_sca_test_specs()` no longer shows blank legend keys for tiers
+  with no specifications (e.g. when every specification survives correction);
+  unused tiers are dropped from the legend.
 * Bug fix: `sca()` no longer drops the focal variable (and crash with
   "subscript out of bounds") when a control variable's name contains the focal
   variable's name as a substring (e.g. focal `"Temp"` with a control `"TempX"`)
