@@ -4,7 +4,13 @@
 <!-- badges: start -->
 
 [![CRAN
+version](https://www.r-pkg.org/badges/version/speccurvieR)](https://cran.r-project.org/package=speccurvieR)
+[![CRAN
+checks](https://badges.cranchecks.info/summary/speccurvieR.svg)](https://cran.r-project.org/web/checks/check_results_speccurvieR.html)
+[![CRAN
 downloads](https://cranlogs.r-pkg.org/badges/grand-total/speccurvieR)](https://cran.r-project.org/package=speccurvieR)
+[![Monthly
+downloads](https://cranlogs.r-pkg.org/badges/speccurvieR)](https://cran.r-project.org/package=speccurvieR)
 <!-- badges: end -->
 
 `speccurvieR` is an R package aimed at making specification curve
