@@ -958,8 +958,8 @@ plot_sca_test_specs <- function(test_result, level = 0.95, title = ""){
       ggplot(df, aes(x = index)) +
         geom_ribbon(aes(ymin = lower, ymax = upper), fill = band_fill,
                     alpha = .45) +
-        geom_hline(yintercept = 0, linetype = "dashed", color = "grey40",
-                   linewidth = .4) +
+        geom_hline(yintercept = 0, linetype = "dashed", color = "red",
+                   linewidth = .5, alpha = .4) +
         # Significant-after-correction points get a size lift and an outline so
         # they read even in greyscale.
         geom_point(aes(y = observed, fill = band_status, size = band_status),
@@ -983,8 +983,8 @@ plot_sca_test_specs <- function(test_result, level = 0.95, title = ""){
   ggplot(df, aes(x = index)) +
     geom_ribbon(aes(ymin = lower, ymax = upper), fill = band_fill,
                 alpha = .45) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "grey40",
-               linewidth = .4) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red",
+               linewidth = .5, alpha = .4) +
     geom_point(aes(y = observed, color = outside), size = 1.1) +
     scale_color_manual(values = c("FALSE" = inside_col, "TRUE" = outside_col),
                        labels = c("FALSE" = "within null band",

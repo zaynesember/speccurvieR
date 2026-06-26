@@ -591,15 +591,17 @@ se_boot <- function(data, formula, n_x, n_samples, sample_size, weights=NULL,
   return(retVal)
 }
 
-# Internal: a colour-blind-safe colour mapping for the significance bins used
-# across the package's plots. Uses distinct hues from the Okabe-Ito palette
-# (blue / green / orange) for the significant bins -- far easier to tell apart
-# on thin error bars than a sequential ramp -- with grey for non-significant.
+# Internal: the colour mapping for the significance bins used across the
+# package's plots. Distinct hues -- deep purple for the strongest evidence,
+# through teal and amber, to a muted warm grey for non-significant -- so the
+# bins are easy to tell apart on thin error bars, and the strength of evidence
+# reads from the colour. The three significant hues are colour-blind
+# distinguishable.
 sca_sig_colors <- function(){
-  c("p < .005" = "#0072B2",
-    "p < .05"  = "#009E73",
+  c("p < .005" = "#4A1486",
+    "p < .05"  = "#1D9E75",
     "p < .1"   = "#E69F00",
-    "p >= .1"  = "#999999")
+    "p >= .1"  = "#B4B2A9")
 }
 
 #' A clean, consistent ggplot2 theme for speccurvieR plots.
@@ -611,6 +613,13 @@ sca_sig_colors <- function(){
 #'
 #' @param base_size Base font size, passed to [ggplot2::theme_minimal()].
 #'                  Defaults to `11`.
+#' @param base_family Base font family, passed to [ggplot2::theme_minimal()].
+#'                    Defaults to the value of the `speccurvieR.base_family`
+#'                    option, or `""` (the graphics device's default font) if
+#'                    that option is unset, so plots stay portable across
+#'                    machines. Set the option (e.g.
+#'                    `options(speccurvieR.base_family = "Roboto")`) or pass a
+#'                    family directly to use a specific font.
 #'
 #' @return A ggplot2 theme object.
 #'
@@ -619,10 +628,12 @@ sca_sig_colors <- function(){
 #' @examples
 #' library(ggplot2)
 #' ggplot(bottles, aes(T_degC, Salnty)) + geom_point() + theme_sca();
-theme_sca <- function(base_size = 11){
-  theme_minimal(base_size = base_size) +
+theme_sca <- function(base_size = 11,
+                      base_family = getOption("speccurvieR.base_family", "")){
+  theme_minimal(base_size = base_size, base_family = base_family) +
     theme(
       panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "grey92", linewidth = 0.4),
       plot.title       = element_text(face = "bold"),
       legend.position  = "top",
       legend.title     = element_blank(),

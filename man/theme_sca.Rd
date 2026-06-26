@@ -4,11 +4,22 @@
 \alias{theme_sca}
 \title{A clean, consistent ggplot2 theme for speccurvieR plots.}
 \usage{
-theme_sca(base_size = 11)
+theme_sca(
+  base_size = 11,
+  base_family = getOption("speccurvieR.base_family", "")
+)
 }
 \arguments{
 \item{base_size}{Base font size, passed to [ggplot2::theme_minimal()].
 Defaults to `11`.}
+
+\item{base_family}{Base font family, passed to [ggplot2::theme_minimal()].
+Defaults to the value of the `speccurvieR.base_family`
+option, or `""` (the graphics device's default font) if
+that option is unset, so plots stay portable across
+machines. Set the option (e.g.
+`options(speccurvieR.base_family = "Roboto")`) or pass a
+family directly to use a specific font.}
 }
 \value{
 A ggplot2 theme object.

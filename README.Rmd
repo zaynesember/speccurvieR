@@ -9,8 +9,14 @@ knitr::opts_chunk$set(
   comment = "#>",
   fig.path = "man/figures/README-",
   out.width = "100%",
+  dev = "ragg_png",
   dpi = 200
 )
+
+# Render the README figures in Roboto. The package itself stays font-agnostic
+# (theme_sca() defaults to the device font); this option just opts these
+# rendered figures into Roboto via the ragg device.
+options(speccurvieR.base_family = "Roboto")
 
 devtools::load_all()
 load("data/bottles.RData")

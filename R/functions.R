@@ -484,7 +484,8 @@ plot_curve <- function(sca_data, title="", show_index=TRUE, plot_vars=TRUE,
   }
 
   sc1 <- ggplot(data=sca_data, aes(y=coef, x=index)) +
-    geom_hline(yintercept = 0, color="red", linetype="dashed", linewidth=.6) +
+    geom_hline(yintercept = 0, color="red", linetype="dashed", linewidth=.6,
+               alpha=.4) +
     {if(median_line) geom_hline(yintercept = stats::median(sca_data$coef),
                                color="grey40", linetype="dotted",
                                linewidth=.6)} +
@@ -495,19 +496,17 @@ plot_curve <- function(sca_data, title="", show_index=TRUE, plot_vars=TRUE,
     {if(tolower(plot_se)=="bar") geom_errorbar(aes(ymin=coef-se, ymax=coef+se,
                                           color=sig.level),
                                       width=0.25)} +
-    {if(!tolower(plot_se) %in% c("ribbon", "bar"))
-      geom_point(aes(color=sig.level), size=point_size)} +
-    {if(tolower(plot_se) %in% c("ribbon", "bar"))
-      geom_point(color="black", size=point_size)} +
-    {if(tolower(plot_se)!="ribbon")
-      scale_color_manual(values=sca_sig_colors(), drop=TRUE)} +
-    {if(tolower(plot_se)=="ribbon")
-      scale_fill_manual(values=sca_sig_colors(), drop=TRUE)} +
+    # Points are filled by significance with a thin white outline so they read
+    # as distinct markers against their own error bars.
+    geom_point(aes(fill=sig.level), shape=21, color="white", stroke=.4,
+               size=point_size) +
+    {if(tolower(plot_se)=="bar")
+      scale_color_manual(values=sca_sig_colors(), drop=TRUE, guide="none")} +
+    scale_fill_manual(values=sca_sig_colors(), drop=TRUE) +
     labs(title=title, x="", y=ylab) +
     theme_sca() +
     theme(axis.text.x = {if(show_index) element_text() else element_blank()}) +
-    guides(color = guide_legend(override.aes = list(size=2)),
-           fill  = guide_legend(override.aes = list(size=2)))
+    guides(fill = guide_legend(override.aes = list(size=2)))
 
   if(plot_vars){
     sc2 <- plot_vars(sca_data)
@@ -879,11 +878,11 @@ plot_control_distributions <- function(sca_data, title="", type="density",
   sc1 <- histData %>%
     ggplot(aes(x=coef)) +
       {if(tolower(type)=="hist" | tolower(type)=="histogram")
-         geom_histogram(fill=fillColor, color="white")
+         geom_histogram(fill=fillColor, color="white", alpha=.85)
        else if (tolower(type)=="density")
          geom_density(fill=fillColor, color="grey20", alpha=.85)} +
       {if(zero_line) geom_vline(xintercept=0, color="red", linetype="dashed",
-                               linewidth=.5)} +
+                               linewidth=.5, alpha=.4)} +
       labs(x="", y="", title=title) +
       theme_sca() +
       theme(legend.position="none") +
@@ -1508,10 +1507,11 @@ plot_se <- function(se_data, level=0.95, intercept=FALSE, title=""){
   }
 
   ggplot(data=long, aes(x=se_type, y=estimate, color=sig)) +
-    geom_hline(yintercept=0, color="red", linetype="dashed") +
+    geom_hline(yintercept=0, color="red", linetype="dashed", alpha=.4) +
     geom_pointrange(aes(ymin=lower, ymax=upper)) +
     facet_wrap(~term, scales="free_y") +
-    scale_color_manual(values=c("FALSE"="#999999", "TRUE"="#0072B2"),
+    scale_color_manual(values=c("FALSE"=sca_sig_colors()[["p >= .1"]],
+                                "TRUE"=sca_sig_colors()[["p < .005"]]),
                        labels=c("FALSE"="CI includes 0",
                                 "TRUE"="CI excludes 0"),
                        drop=FALSE) +
@@ -1555,10 +1555,12 @@ plot_influence <- function(sca_data, title=""){
                              levels = c("Excluded", "Included")))
 
   ggplot(long, aes(x=included, y=coef, fill=included)) +
-    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5) +
+    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5,
+               alpha=.4) +
     geom_boxplot(outlier.size=.6, alpha=.9) +
     facet_wrap(~control) +
-    scale_fill_manual(values=c("Excluded"="#9E9E9E", "Included"="#3182BD")) +
+    scale_fill_manual(values=c("Excluded"=sca_sig_colors()[["p >= .1"]],
+                               "Included"=sca_sig_colors()[["p < .005"]])) +
     labs(title=title, x="", y="Coefficient") +
     theme_sca() +
     theme(legend.position="none")
@@ -1606,10 +1608,12 @@ plot_coef_fit <- function(sca_data, metric=NULL, title=""){
   sca_data <- sca_data %>%
     mutate(sig.level = factor(sig.level, levels = names(sca_sig_colors())))
 
-  ggplot(sca_data, aes(x=.data[[metric]], y=coef, color=sig.level)) +
-    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5) +
-    geom_point(size=2) +
-    scale_color_manual(values=sca_sig_colors(), drop=TRUE) +
+  ggplot(sca_data, aes(x=.data[[metric]], y=coef)) +
+    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5,
+               alpha=.4) +
+    geom_point(aes(fill=sig.level), shape=21, color="white", stroke=.3,
+               size=2.4) +
+    scale_fill_manual(values=sca_sig_colors(), drop=TRUE) +
     labs(title=title, x=axis_labels[[metric]], y="Coefficient") +
     theme_sca()
 }
@@ -1696,11 +1700,14 @@ plot_multi_se <- function(y, x, controls, data, types=c("iid", "HC3"),
     )
 
   ggplot(long, aes(x=index, y=coef)) +
-    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5) +
+    geom_hline(yintercept=0, color="red", linetype="dashed", linewidth=.5,
+               alpha=.4) +
     geom_errorbar(aes(ymin=lower, ymax=upper, color=sig.level), width=.25) +
-    geom_point(color="black", size=.9) +
+    geom_point(aes(fill=sig.level), shape=21, color="white", stroke=.3,
+               size=1.4) +
     facet_wrap(~se_type) +
-    scale_color_manual(values=sca_sig_colors(), drop=TRUE) +
+    scale_color_manual(values=sca_sig_colors(), drop=TRUE, guide="none") +
+    scale_fill_manual(values=sca_sig_colors(), drop=TRUE) +
     labs(title=title, x="", y="Coefficient") +
     theme_sca()
 }

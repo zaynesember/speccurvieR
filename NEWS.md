@@ -79,12 +79,19 @@ introduced this cycle continue to work (with a warning).
   coefficient's estimate with a confidence interval for every standard error
   type so the sensitivity of inference to the choice of standard error is easy
   to see.
-* Visualization overhaul: a shared, colour-blind-safe palette and an exported
-  `theme_sca()` are now applied across all plots; `plot_curve()` and the
-  model-fit plots combine their panels with `patchwork` (so the combined plot
-  is now customisable and panels align precisely); `plot_curve()` gains
-  `median_line` and `point_size` arguments; and `plot_control_distributions()`
-  gains a `zero_line` argument and a cohesive fill.
+* Visualization overhaul: a shared significance palette (a deep-purple to
+  teal/amber to muted-grey ramp, so the strength of evidence reads from the
+  colour) and an exported `theme_sca()` are now applied across all plots.
+  Specification-curve and standard-error points are filled by significance with
+  a thin white outline so they read as distinct markers against their own error
+  bars; the zero reference line is a softened red and gridlines are lighter.
+  `plot_curve()` and the model-fit plots combine their panels with `patchwork`
+  (so the combined plot is now customisable and panels align precisely);
+  `plot_curve()` gains `median_line` and `point_size` arguments; and
+  `plot_control_distributions()` gains a `zero_line` argument and a cohesive
+  fill. `theme_sca()` gains a `base_family` argument (defaulting to the
+  `speccurvieR.base_family` option, else the device font) for setting the plot
+  font without giving up portability.
 
 ## Modelling and interface
 

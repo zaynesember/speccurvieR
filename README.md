@@ -646,11 +646,11 @@ plot_sca_test_specs(result_fl)
 
 <img src="man/figures/README-unnamed-chunk-29-1.png" width="100%" />
 
-Here the correction changes the answer. Eight of the fifteen specifications
-survive it and seven don’t, and the split isn’t where the estimates
-alone would point you: the specifications that leave out phosphate
-(`PO4uM`) give the *largest* nitrate coefficients–around -2 to -3,
-against about -1 once phosphate is in–but those large estimates have
+Here the correction changes the answer. Eight of the fifteen
+specifications survive it and seven don’t, and the split isn’t where the
+estimates alone would point you: the specifications that leave out
+phosphate (`PO4uM`) give the *largest* nitrate coefficients–around -2 to
+-3, against about -1 once phosphate is in–but those large estimates have
 wide null bands and don’t hold up. The `Salnty + SiO3uM + T_degC` row is
 the one worth pausing on: its raw *p*-value is 0.036, individually
 significant, but corrected it’s 0.15. On its own it looks real; once you
@@ -658,12 +658,13 @@ account for having searched all fifteen specifications, it isn’t. The
 eight that survive are exactly the ones that control for phosphate, and
 they settle on a smaller, steadier estimate.
 
-That’s the division of labour worth keeping straight: the joint test says
-whether the curve as a whole beats chance, and the per-specification
-correction says *which* specifications you can quote on their own. Here
-they’re consistent–the curve is robust, and eight specifications carry
-it–but the correction adds the part a single *p*-value hides, that the
-biggest-looking estimates are the least trustworthy ones.
+That’s the division of labour worth keeping straight: the joint test
+says whether the curve as a whole beats chance, and the
+per-specification correction says *which* specifications you can quote
+on their own. Here they’re consistent–the curve is robust, and eight
+specifications carry it–but the correction adds the part a single
+*p*-value hides, that the biggest-looking estimates are the least
+trustworthy ones.
 
 `sca_minp()` recomputes the adjustment without re-running the
 permutations, if you want the more powerful Westfall-Young step-down
@@ -824,15 +825,15 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae[1:3]
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x12572ec78>
+#> <environment: 0x14584a948>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x12572ec78>
+#> <environment: 0x14584a948>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x12572ec78>
+#> <environment: 0x14584a948>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
