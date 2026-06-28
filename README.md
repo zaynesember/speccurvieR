@@ -1,5 +1,5 @@
 
-# What is `speccurvieR`?
+# What is `speccurvieR`? <img src="man/figures/logo.png" align="right" height="139" alt="speccurvieR hex sticker logo" />
 
 <!-- badges: start -->
 

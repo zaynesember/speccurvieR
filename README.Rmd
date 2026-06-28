@@ -22,7 +22,7 @@ devtools::load_all()
 load("data/bottles.RData")
 ```
 
-# What is `speccurvieR`?
+# What is `speccurvieR`? <img src="man/figures/logo.png" align="right" height="139" alt="speccurvieR hex sticker logo" />
 
 <!-- badges: start -->
 [![CRAN version](https://www.r-pkg.org/badges/version/speccurvieR)](https://cran.r-project.org/package=speccurvieR)
