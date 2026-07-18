@@ -8,23 +8,40 @@ se_compare(
   formula,
   data,
   weights = NULL,
+  family = "linear",
+  link = NULL,
   types = "all",
   cluster = NULL,
-  clusteredOnly = FALSE,
-  fixedEffectsOnly = FALSE,
-  bootSamples = NULL,
-  bootSampleSize = NULL
+  clustered_only = FALSE,
+  fixed_effects_only = FALSE,
+  boot_samples = NULL,
+  boot_sample_size = NULL,
+  ...
 )
 }
 \arguments{
-\item{formula}{A string containing a regression formula, with or without
-fixed effects.}
+\item{formula}{A regression formula, with or without fixed effects, given
+either as a string (`"y ~ x | fe"`) or as a formula object
+(`y ~ x | fe`).}
 
 \item{data}{A data frame containing the variables provided in `formula` and
 any clustering variables passed to `cluster`.}
 
 \item{weights}{Optional string with the column name in `data` that contains
 weights.}
+
+\item{family}{A string indicating the family of models to be used. Defaults
+to "linear" for OLS regression but supports all families
+supported by `glm()`. When a non-linear family is supplied the
+models are estimated with `glm()`; fixed effects are not
+supported in that case and are ignored with a warning.}
+
+\item{link}{A string specifying the link function to be used for the model.
+Defaults to `NULL`, using OLS regression via `lm()` (or
+`fixest::feols()` when fixed effects are supplied). For a
+non-linear `family` the canonical link is used when `link` is
+`NULL`. Supports all link functions supported by the family
+parameter of `glm()`.}
 
 \item{types}{A string or vector of strings specifying what types of
              standard errors are desired. Defaults to "all".
@@ -40,38 +57,53 @@ weights.}
 
              The following types are supported for fixed effects models:
 
-               With clustering: "CL_FE" (clustered by fixed effects, i.e.
-                                the default standard errors reported by
-                                `feols()` if no clusters are supplied), if
-                                clusters are supplied then the conventional
-                                clustered standard errors from `feols()` are
-                                estimated for each clustering variable. Two-
-                                way clustered standard errors are not
-                                supported at this time.
+               With clustering: "CL_FE" (standard errors clustered by the
+                                first fixed effect), if clusters are supplied
+                                then the conventional clustered standard
+                                errors from `feols()` are estimated for each
+                                clustering specification. Two-way (and
+                                multiway) clustering is supported; see the
+                                `cluster` argument.
 
                Without clustering: "HC0, "HC1", "HC2", "HC3",
                                    "HC4", "HC4m", "HC5",
                                    "bootstrapped".}
 
-\item{cluster}{A string or vector of strings specifying variables present in
-`data` to be used for clustering standard errors.}
+\item{cluster}{Variables in `data` to cluster the standard errors on. Either
+a character vector, in which case each element is used for a
+separate **one-way** clustering, or a list of character
+vectors, in which case each element is clustered on **jointly**
+(one-way when the element names a single variable, two-way or
+higher when it names several). For example
+`cluster = list("a", "b", c("a", "b"))` produces one-way SEs
+clustered by `a`, one-way by `b`, and two-way clustered by `a`
+and `b`. Multiway columns are labelled with the clustering
+dimensions joined by `_BY_` (e.g. `"HC1_a_BY_b"`, or
+`"CL_a_BY_b_FE"` for a fixed-effects model); the dimensions are
+sorted, so the label is the same regardless of the order they
+are listed in. Unknown variables are dropped with a warning.
+Defaults to `NULL` (no clustering).}
 
-\item{clusteredOnly}{A boolean indicating whether only standard errors with
+\item{clustered_only}{A boolean indicating whether only standard errors with
 clustering should be estimated, defaults to `FALSE`.}
 
-\item{fixedEffectsOnly}{A boolean indicating whether only standard errors for
+\item{fixed_effects_only}{A boolean indicating whether only standard errors for
 fixed effects models should be estimated, defaults to
 `FALSE`.}
 
-\item{bootSamples}{An integer or vector of integers indicating how many times
+\item{boot_samples}{An integer or vector of integers indicating how many times
 the model should be estimated with a random subset of the
-data. If a vector then every combination of `bootSamples`
-and `bootSampleSize` are estimated.}
+data. If a vector then every combination of `boot_samples`
+and `boot_sample_size` are estimated.}
 
-\item{bootSampleSize}{An integer or vector of integers indicating how many
+\item{boot_sample_size}{An integer or vector of integers indicating how many
 observations are in each random subset of the data.
-If a vector then every combination of `bootSamples`
-and `bootSampleSize` are estimated.}
+If a vector then every combination of `boot_samples`
+and `boot_sample_size` are estimated.}
+
+\item{...}{Deprecated camelCase arguments (`clusteredOnly`,
+`fixedEffectsOnly`, `bootSamples`, `bootSampleSize`); use the
+snake_case equivalents instead.}
 }
 \value{
 A data frame where row represents an independent variable in the
@@ -85,17 +117,20 @@ A data frame where row represents an independent variable in the
 
          "iid" = normal standard errors, i.e. assuming homoskedasticity
 
-         "CL_FE" = standard errors clustered by fixed effects
+         "CL_FE" = standard errors clustered by the first fixed effect
 
          "bootstrap_k8n300_FE" =  bootstrapped standard errors for a fixed
-                                  effects model where `bootSamples = 8` and
-                                  `bootSampleSize = 300`
+                                  effects model where `boot_samples = 8` and
+                                  `boot_sample_size = 300`
 
          "CL_Depth_ID_FE" = standard errors clustered by the variable
                               "Depth_ID" for a model with fixed effects
 
          "HC0_Sta_ID" = HC0 standard errors clustered by the variable
                           "Sta_ID"
+
+         "HC0_Depth_ID_BY_Sta_ID" = HC0 standard errors two-way clustered by
+                                      "Depth_ID" and "Sta_ID"
 
          Note: for fixed effects models the "(Intercept)" row will be all
          `NA` because the intercept is not reported by `feols()` when fixed
@@ -112,14 +147,27 @@ plotting.
 
 se_compare(formula = "Salnty ~ T_degC + ChlorA + O2Sat | Sta_ID",
            data = bottles, types = "all", cluster = c("Depth_ID", "Sta_ID"),
-           fixedEffectsOnly = FALSE, bootSamples=c(4, 8, 10),
-           bootSampleSize=c(300, 500))
+           fixed_effects_only = FALSE, boot_samples=c(4, 8, 10),
+           boot_sample_size=c(300, 500))
 
 se_compare(formula = "Salnty ~ T_degC + ChlorA + O2Sat", data = bottles,
-           types = "bootstrapped", bootSamples = c(8, 10),
-           bootSampleSize = c(300, 500))
+           types = "bootstrapped", boot_samples = c(8, 10),
+           boot_sample_size = c(300, 500))
 
 se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
            types = c("HC0", "HC1", "HC3"))
+
+# Two-way (and multiway) clustering: pass a list, where each element names
+# the dimensions to cluster on jointly. Here: one-way by Sta_ID, one-way by
+# Depth_ID, and two-way by both.
+se_compare(formula = "Salnty ~ T_degC + ChlorA", data = bottles,
+           types = "HC1",
+           cluster = list("Sta_ID", "Depth_ID", c("Sta_ID", "Depth_ID")))
+
+# Logistic regression: compare standard error types for a binary outcome.
+bottles$saline <- as.integer(bottles$Salnty >
+                               stats::median(bottles$Salnty, na.rm = TRUE))
+se_compare(formula = "saline ~ T_degC + ChlorA", data = bottles,
+           family = "binomial", types = c("iid", "HC0", "HC3"))
 
 }

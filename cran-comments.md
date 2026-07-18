@@ -1,14 +1,20 @@
 ## Release summary
 
-This is a minor release (0.5.0) adding input validation and more flexible
-family/link handling in sca(), fixing several latent bugs in se_compare(), and
-adding a testthat test suite. No reverse dependencies are affected.
+This is a major release (1.0.0). Since 0.5.0 it adds a permutation-based
+joint-inference test (`sca_test()`) with design-preserving nulls and a
+per-specification family-wise-error-rate correction (`sca_minp()`), a variance
+decomposition (`sca_variance()`), a reporting layer (`tidy()` / `glance()`
+methods, `sca_table()`, `sca_report()`), generalized-linear-model support and
+two-way / multiway clustered standard errors in `se_compare()`, a formula
+interface for `sca()`, and several bug fixes. The full list of changes is in
+NEWS.md. The public API is now considered stable; the camelCase function and
+argument names introduced in earlier versions remain available as deprecated
+aliases. The package has no reverse dependencies.
 
-## Maintainer email change
+## Test environments
 
-The maintainer (Zayne Sember) is unchanged; only the email address has changed,
-from zsember@ucsd.edu to zayne@mit.edu. Confirmation is being sent from the
-previous address to CRAN-submissions@R-project.org.
+* Local: macOS, R-release.
+* win-builder: R-release and R-devel.
 
 ## R CMD check results
 

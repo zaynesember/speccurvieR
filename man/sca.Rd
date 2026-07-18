@@ -12,16 +12,24 @@ sca(
   weights = NULL,
   family = "linear",
   link = NULL,
-  fixedEffects = NULL,
-  returnFormulae = FALSE,
-  progressBar = TRUE,
+  fixed_effects = NULL,
+  common_sample = FALSE,
+  return_formulae = FALSE,
+  progress_bar = TRUE,
   parallel = FALSE,
-  workers = 2
+  workers = 2,
+  ...
 )
 }
 \arguments{
 \item{y}{A string containing the column name of the dependent variable in
-data.}
+data. Alternatively, a two-sided formula specifying the whole model,
+e.g. `y ~ x + control1 + control2 | fixedEffect`. When a formula is
+supplied the first right-hand-side term is taken as the independent
+variable `x`, the remaining terms as `controls`, and anything after
+`|` as `fixed_effects`; the `x`, `controls`, and `fixed_effects`
+arguments are then taken from the formula. `data` may be passed
+positionally in this case, e.g. `sca(y ~ x + z, data)`.}
 
 \item{x}{A string containing the column name of the independent variable in
 data.}
@@ -45,16 +53,25 @@ Defaults to `NULL` for OLS regression using `lm()` or
 Supports all link functions supported by the family parameter of
 `glm()`.}
 
-\item{fixedEffects}{A string containing the column name of the variable
+\item{fixed_effects}{A string containing the column name of the variable
 in data desired for fixed effects. Defaults to NULL in
 which case no fixed effects are included.}
 
-\item{returnFormulae}{A boolean. When `TRUE` a list of model formula objects
+\item{common_sample}{A boolean. When `TRUE`, every specification is fit on the
+same sample: the rows that are complete across all model
+variables (the dependent, independent, control, fixed-
+effects, and weights variables). When `FALSE` (the
+default) each specification uses its own complete cases,
+so specifications with different controls may be fit on
+different samples; the returned `n_obs` column reveals
+this. See also [plot_samplesizes()].}
+
+\item{return_formulae}{A boolean. When `TRUE` a list of model formula objects
 is returned but the models are not estimated. Defaults
 to `FALSE` in which case a dataframe of model results
 is returned.}
 
-\item{progressBar}{A boolean indicating whether the user wants a progress bar
+\item{progress_bar}{A boolean indicating whether the user wants a progress bar
 for model estimation. Defaults to `TRUE`.}
 
 \item{parallel}{A boolean indicating whether to parallelize model estimation.
@@ -64,30 +81,38 @@ Parallelization only offers a speed advantage when a large
 
 \item{workers}{An integer indicating the number of workers to use for
 parallelization. Defaults to 2.}
+
+\item{...}{Deprecated camelCase arguments (`fixedEffects`, `returnFormulae`,
+`progressBar`); use the snake_case equivalents instead.}
 }
 \value{
-When `returnFormulae` is `FALSE`, a dataframe where each row contains
+When `return_formulae` is `FALSE`, a dataframe where each row contains
         the independent variable coefficient estimate, standard error,
-        test statistic, p-value, model specification, and measures of model
-        fit.
+        test statistic, p-value, model specification, measures of model fit,
+        and `n_obs`, the number of observations the specification was fit on.
 }
 \description{
 sca() is the workhorse function of the package--this estimates models with every
 possible combination of the controls supplied and returns a data frame
 where each row contains the pertinent information and parameters for a
-given model by default. This data frame can then be input to plotCurve()
+given model by default. This data frame can then be input to plot_curve()
 or any other plotting function in the package. Alternatively, if
-`returnFormulae = TRUE`, it returns a list of formula objects with every
+`return_formulae = TRUE`, it returns a list of formula objects with every
 possible combination of controls.
 }
 \examples{
 sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
-    data = bottles, progressBar = TRUE, parallel = FALSE);
+    data = bottles, progress_bar = TRUE, parallel = FALSE);
+# Equivalent call using the formula interface:
+sca(Salnty ~ T_degC + ChlorA + O2Sat, data = bottles, progress_bar = FALSE);
+# Formula interface with an interaction control and fixed effects:
+sca(Salnty ~ T_degC + ChlorA + ChlorA*O2Sat | Sta_ID, data = bottles,
+    progress_bar = FALSE);
 \donttest{
 sca(y = "Salnty", x = "T_degC", controls = c("ChlorA*NO3uM", "O2Sat*NO3uM"),
-    data = bottles, progressBar = TRUE, parallel = TRUE, workers = 2);
+    data = bottles, progress_bar = TRUE, parallel = TRUE, workers = 2);
 }
 sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat*NO3uM"),
-    data = bottles, progressBar = TRUE, parallel = FALSE,
-    returnFormulae = TRUE);
+    data = bottles, progress_bar = TRUE, parallel = FALSE,
+    return_formulae = TRUE);
 }

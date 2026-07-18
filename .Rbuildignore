@@ -7,3 +7,7 @@
 ^CRAN-SUBMISSION$
 ^README\.Rmd$
 ^revdep$
+^Rplots\.pdf$
+^figure$
+^AUDIT\.md$
+^handoff\.md$

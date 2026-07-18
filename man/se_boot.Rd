@@ -4,7 +4,15 @@
 \alias{se_boot}
 \title{Estimates bootstrapped standard errors for regression models}
 \usage{
-se_boot(data, formula, n_x, n_samples, sample_size, weights = NULL)
+se_boot(
+  data,
+  formula,
+  n_x,
+  n_samples,
+  sample_size,
+  weights = NULL,
+  fam_obj = NULL
+)
 }
 \arguments{
 \item{data}{A data frame containing the variables provided in `formula`.}
@@ -15,14 +23,20 @@ fixed effects.}
 \item{n_x}{An integer representing the number of independent variables in
 the regression.}
 
-\item{n_samples}{An integer indicating how many times the model should be
-estimated with a random subset of the data.}
+\item{n_samples}{An integer indicating how many bootstrap resamples to draw,
+i.e. how many times the model is refit.}
 
-\item{sample_size}{An integer indicating how many observations are in each
-random subset of the data.}
+\item{sample_size}{An integer indicating how many observations are drawn
+(with replacement) in each bootstrap resample.}
 
 \item{weights}{Optional string with the column name in `data` that contains
 weights.}
+
+\item{fam_obj}{Optional `family` object (as returned by e.g. `binomial()`)
+used to fit each resampled model with `glm()`. Defaults to
+`NULL`, fitting linear models with `lm()` (or `feols()` when
+the formula contains fixed effects). Fixed effects are not
+supported together with a `family` object.}
 }
 \value{
 A named list containing bootstrapped standard errors for each
@@ -31,7 +45,12 @@ A named list containing bootstrapped standard errors for each
 \description{
 Takes in a data frame, regression formula, and bootstrapping parameters and
 estimates bootstrapped standard errors for models with and without fixed
-effects.
+effects. The model is refit on `n_samples` resamples of `sample_size`
+observations drawn with replacement, and the standard deviation of the
+resampled coefficients is rescaled by `sqrt(sample_size / nrow(data))` to
+estimate the standard error of the full-sample estimator (an m-out-of-n
+bootstrap; when `sample_size` equals `nrow(data)` this is the ordinary
+nonparametric bootstrap).
 }
 \examples{
 
@@ -49,3 +68,4 @@ se_boot(data = data.frame(x1 = rnorm(50000, mean=4, sd=10),
 }
 
 }
+\keyword{internal}

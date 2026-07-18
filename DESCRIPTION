@@ -1,7 +1,7 @@
 Package: speccurvieR
 Type: Package
 Title: Easy, Fast, and Pretty Specification Curve Analysis
-Version: 0.5.0
+Version: 1.0.0
 Authors@R: person("Zayne", "Sember", email = "zayne@mit.edu",
   role = c("aut", "cre", "cph"))
 Description: Making specification curve analysis easy, fast, and pretty. It 
@@ -16,6 +16,7 @@ Depends:
   R (>= 3.5.0)
 Imports:
   ggplot2,
+  patchwork,
   magrittr,
   tidyr,
   dplyr,
@@ -25,11 +26,19 @@ Imports:
   pbapply,
   parallel,
   lmtest,
-  sandwich
+  sandwich,
+  generics
 Suggests:
-  testthat (>= 3.0.0)
+  testthat (>= 3.0.0),
+  knitr,
+  rmarkdown,
+  gt,
+  kableExtra,
+  flextable,
+  modelsummary
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3
 License: MIT + file LICENSE
 URL: https://github.com/zaynesember/speccurvieR
 BugReports: https://github.com/zaynesember/speccurvieR/issues
+VignetteBuilder: knitr
