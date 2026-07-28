@@ -1,5 +1,12 @@
 # speccurvieR (development version)
 
+* New `sca_voe()` and `plot_voe()`: the vibration-of-effects summary and
+  volcano plot of Patel, Burford, and Ioannidis (2015) computed over an
+  `sca()` curve -- the spread of the estimate between the 1st and 99th
+  percentile specifications (reported as a relative hazard ratio for Cox
+  models), the relative p-value `RP`, and a Janus-effect flag for when the
+  direction of the effect depends on the controls chosen.
+
 * `sca()` supports survival outcomes: `family = "cox"` estimates every
   specification with a Cox proportional-hazards model via `survival::coxph()`.
   The outcome is given as `y = c("time", "status")` or as a `Surv(time,
