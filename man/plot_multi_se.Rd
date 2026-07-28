@@ -24,7 +24,12 @@ supplied the first right-hand-side term is taken as the independent
 variable `x`, the remaining terms as `controls`, and anything after
 `|` as `fixed_effects`; the `x`, `controls`, and `fixed_effects`
 arguments are then taken from the formula. `data` may be passed
-positionally in this case, e.g. `sca(y ~ x + z, data)`.}
+positionally in this case, e.g. `sca(y ~ x + z, data)`.
+For survival outcomes (`family = "cox"`), `y` is instead the pair
+`c("time", "status")` naming the survival-time and event-status
+columns, or equivalently a formula with a `Surv()` response,
+e.g. `sca(Surv(time, status) ~ x + control1, data)` (which implies
+`family = "cox"`).}
 
 \item{x}{A string containing the column name of the independent variable in
 data.}

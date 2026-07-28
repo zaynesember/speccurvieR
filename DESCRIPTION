@@ -1,7 +1,7 @@
 Package: speccurvieR
 Type: Package
 Title: Easy, Fast, and Pretty Specification Curve Analysis
-Version: 1.0.0
+Version: 1.0.0.9000
 Authors@R: person("Zayne", "Sember", email = "zayne@mit.edu",
   role = c("aut", "cre", "cph"))
 Description: Making specification curve analysis easy, fast, and pretty. It 
@@ -27,7 +27,8 @@ Imports:
   parallel,
   lmtest,
   sandwich,
-  generics
+  generics,
+  survival
 Suggests:
   testthat (>= 3.0.0),
   knitr,

@@ -11,6 +11,7 @@
 #' @import sandwich
 #' @importFrom stats AIC coef deviance formula glm lag lm setNames terms as.formula sd
 #' @importFrom lmtest coeftest
+#' @importFrom survival coxph Surv
 #' @importFrom magrittr %>%
 #' @importFrom stringr str_detect
 #' @importFrom stringr str_split

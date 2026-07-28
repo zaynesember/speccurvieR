@@ -19,6 +19,11 @@
 #'          `|` as `fixed_effects`; the `x`, `controls`, and `fixed_effects`
 #'          arguments are then taken from the formula. `data` may be passed
 #'          positionally in this case, e.g. `sca(y ~ x + z, data)`.
+#'          For survival outcomes (`family = "cox"`), `y` is instead the pair
+#'          `c("time", "status")` naming the survival-time and event-status
+#'          columns, or equivalently a formula with a `Surv()` response,
+#'          e.g. `sca(Surv(time, status) ~ x + control1, data)` (which implies
+#'          `family = "cox"`).
 #' @param x A string containing the column name of the independent variable in
 #'          data.
 #' @param controls A vector of strings containing the column names of the
@@ -29,12 +34,14 @@
 #'                weights.
 #' @param family A string indicating the family of models to be used. Defaults
 #'               to "linear" for OLS regression but supports all families
-#'               supported by `glm()`.
+#'               supported by `glm()`, plus `"cox"` for Cox proportional-hazards
+#'               models estimated with `survival::coxph()` (see `y` for how to
+#'               specify the two-column survival outcome).
 #' @param link A string specifying the link function to be used for the model.
 #'             Defaults to `NULL` for OLS regression using `lm()` or
 #'             `fixest::feols()` depending on whether fixed effects are supplied.
 #'             Supports all link functions supported by the family parameter of
-#'             `glm()`.
+#'             `glm()`. Not used for `family = "cox"`.
 #' @param fixed_effects A string containing the column name of the variable
 #'                     in data desired for fixed effects. Defaults to NULL in
 #'                     which case no fixed effects are included.
@@ -65,12 +72,19 @@
 #'         the independent variable coefficient estimate, standard error,
 #'         test statistic, p-value, model specification, measures of model fit,
 #'         and `n_obs`, the number of observations the specification was fit on.
+#'         For `family = "cox"` the coefficient is the log hazard ratio; the
+#'         exponentiated hazard ratio is returned alongside it as `HR`, model
+#'         fit is summarised by `AIC` and `concordance`, and `n_events` gives
+#'         the number of events each specification was fit on.
 #'
 #' @export
 #'
 #' @examples
 #' sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
 #'     data = bottles, progress_bar = TRUE, parallel = FALSE);
+#' # Survival outcome: Cox proportional hazards over control combinations
+#' sca(Surv(time, status) ~ age + sex + ph.ecog, data = survival::lung,
+#'     progress_bar = FALSE);
 #' # Equivalent call using the formula interface:
 #' sca(Salnty ~ T_degC + ChlorA + O2Sat, data = bottles, progress_bar = FALSE);
 #' # Formula interface with an interaction control and fixed effects:
@@ -128,6 +142,38 @@ sca <- function(y, x, controls, data, weights=NULL,
   family <- resolved$family
   fam_obj <- resolved$fam_obj
 
+  # Survival outcomes. A Surv(time, status) response from the formula
+  # interface implies family = "cox" and is decomposed into the two column
+  # names; either way `y` must then be the pair c(time, status). Everything
+  # downstream treats the pair as ordinary data columns and rebuilds the
+  # Surv() response when the model formulae are assembled.
+  if(length(y) == 1 && grepl("^Surv\\(", y)){
+    surv_args <- trimws(strsplit(sub("^Surv\\((.*)\\)$", "\\1", y), ",")[[1]])
+    if(length(surv_args) != 2 || !all(nzchar(surv_args)) ||
+       any(grepl("[()]", surv_args))){
+      stop("A Surv() response must name exactly two columns, e.g. ",
+           "Surv(time, status).", call.=FALSE)
+    }
+    if(!family %in% c("linear", "cox")){
+      stop("A Surv() response requires family = \"cox\", not \"", family,
+           "\".", call.=FALSE)
+    }
+    family <- "cox"
+    y <- surv_args
+  }
+  if(family == "cox" && length(y) != 2){
+    stop("family = \"cox\" requires `y` to name the survival time and event ",
+         "status, e.g. y = c(\"time\", \"status\") or ",
+         "sca(Surv(time, status) ~ ...).", call.=FALSE)
+  }
+  if(family != "cox" && length(y) != 1){
+    stop("`y` must be a single variable name (a two-column survival outcome ",
+         "requires family = \"cox\").", call.=FALSE)
+  }
+
+  # The response used in model formulae: Surv(time, status) for Cox models.
+  y_lhs <- if(family == "cox") paste0("Surv(", y[1], ", ", y[2], ")") else y
+
   if(family!="linear" & !is.null(fixed_effects))
   {
     warning(paste0("Fixed effects unsupported for models other than OLS ",
@@ -140,11 +186,11 @@ sca <- function(y, x, controls, data, weights=NULL,
   # Just generate the formulae and return if desired
   if(return_formulae){
     if(!is.null(fixed_effects)){
-      return(formula_builder(y=y, x=x, controls=controls,
+      return(formula_builder(y=y_lhs, x=x, controls=controls,
                              fixed_effects=fixed_effects))
     }
     else{
-      return(formula_builder(y=y, x=x, controls=controls))
+      return(formula_builder(y=y_lhs, x=x, controls=controls))
     }
   }
 
@@ -170,10 +216,10 @@ sca <- function(y, x, controls, data, weights=NULL,
 
   # Build the model formulae (with or without fixed effects)
   if(is.null(fixed_effects)){
-    formulae <- formula_builder(y=y, x=x, controls=controls)
+    formulae <- formula_builder(y=y_lhs, x=x, controls=controls)
   }
   else{
-    formulae <- formula_builder(y=y, x=x, controls=controls,
+    formulae <- formula_builder(y=y_lhs, x=x, controls=controls,
                                 fixed_effects=fixed_effects)
   }
 
@@ -198,6 +244,20 @@ sca <- function(y, x, controls, data, weights=NULL,
         environment(f) <- environment()
         summary(lm(f, data=data, weights=get(weights)))
       }
+    }
+    else if(family=="cox"){
+      m <- if(is.null(weights)){
+        survival::coxph(f, data=data)
+      }
+      else{
+        environment(f) <- environment()
+        survival::coxph(f, data=data, weights=get(weights))
+      }
+      s <- summary(m)
+      # The summary drops the log-likelihood, so AIC is attached here while
+      # the model object is still in hand.
+      s$AIC <- stats::AIC(m)
+      s
     }
     else{
       if(is.null(weights)){
@@ -265,6 +325,7 @@ sca <- function(y, x, controls, data, weights=NULL,
   # degrees of freedom; for lm the rank plus residual degrees of freedom give n.
   n_obs <- vapply(models, function(m){
     if(!is.null(fixed_effects)) m$nobs
+    else if(family == "cox") m$n
     else if(family != "linear") m$df.null + 1
     else sum(m$df[1:2])
   }, numeric(1))
@@ -329,6 +390,55 @@ sca <- function(y, x, controls, data, weights=NULL,
       arrange(coef) %>%
       mutate(index=row_number())
 
+  }
+  # Cox proportional-hazards models. summary.coxph's coefficient matrix has
+  # its own layout -- coef, exp(coef), se(coef), [robust se,] z, Pr(>|z|),
+  # where the robust-SE column appears when the model was fit with weights --
+  # so columns are addressed by name and the SE reported is the one z and p
+  # were computed from. `coef` is the log hazard ratio (the natural curve
+  # scale, symmetric around zero); the exponentiated hazard ratio is carried
+  # alongside as `HR` for reporting.
+  else if(family=="cox"){
+    se_col <- if("robust se" %in% colnames(models[[1]]$coefficients))
+                "robust se" else "se(coef)"
+
+    # Get each value of interest across models
+    coef <- lapply(X=models, function(x2) x2$coefficients[x,"coef"])
+    HR <- lapply(X=models, function(x2) x2$coefficients[x,"exp(coef)"])
+    se <- lapply(X=models, function(x2) x2$coefficients[x,se_col])
+    statistic <- lapply(X=models, function(x2) x2$coefficients[x,"z"])
+    p <- lapply(X=models, function(x2) x2$coefficients[x,"Pr(>|z|)"])
+    terms <- lapply(X=models, FUN=function(x2) row.names(x2$coefficients))
+    AIC <- lapply(X=models, FUN=function(x2) x2$AIC)
+    concordance <- lapply(X=models, FUN=function(x2) x2$concordance[[1]])
+    n_events <- vapply(models, function(m) m$nevent, numeric(1))
+    control_coefs <- lapply(X=models,
+                            FUN=function(x2) control_extractor(x2, x))
+
+
+    # Store values in a data frame to be returned
+    retVal <- data.frame(coef=unlist(coef), HR=unlist(HR), se=unlist(se),
+                         statistic=unlist(statistic),
+                         p=unlist(p), AIC=unlist(AIC),
+                         concordance=unlist(concordance))
+
+    # R doesn't like it when these kinds of objects are assigned above
+    retVal$terms <- terms
+    retVal$control_coefs <- control_coefs
+    retVal$n_obs <- n_obs
+    retVal$n_events <- n_events
+
+    retVal <- retVal %>%
+      mutate(
+        sig.level=case_when(
+          p < .005 ~ "p < .005",
+          p < .05 ~ "p < .05",
+          p < .1 ~ "p < .1",
+          p >= .1 ~ "p >= .1",
+          TRUE ~ NA_character_
+        )) %>%
+      arrange(coef) %>%
+      mutate(index=row_number())
   }
   # glm models
   else{
@@ -1136,6 +1246,16 @@ se_compare <- function(formula, data, weights=NULL,
   resolved <- resolve_family(family, link)
   family <- resolved$family
   fam_obj <- resolved$fam_obj
+
+  # Cox models compare SEs through a different mechanism (coxph's robust and
+  # cluster() variances, not vcovHC/vcovCL), so they are rejected cleanly
+  # here rather than silently producing the wrong estimator.
+  if(family == "cox"){
+    stop("se_compare() does not support family = \"cox\" yet. Cox model ",
+         "standard errors can be compared via coxph()'s own robust = TRUE ",
+         "and cluster() options.", call.=FALSE)
+  }
+
   is_glm <- family != "linear"
 
   # Whether the formula specifies fixed effects (a pipe). Captured up front

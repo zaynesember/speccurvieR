@@ -1,3 +1,18 @@
+# speccurvieR (development version)
+
+* `sca()` supports survival outcomes: `family = "cox"` estimates every
+  specification with a Cox proportional-hazards model via `survival::coxph()`.
+  The outcome is given as `y = c("time", "status")` or as a `Surv(time,
+  status)` response in the formula interface (which implies `family = "cox"`).
+  The returned curve is on the log-hazard-ratio scale with the exponentiated
+  hazard ratio alongside as `HR`, model fit reported via `AIC` and
+  `concordance`, and an `n_events` column next to `n_obs` (in survival data,
+  power tracks the number of events rather than rows). Weighted specifications
+  report `coxph()`'s robust standard errors. `sca_test()` supports Cox curves
+  under the default `shuffle_x` null; the design-preserving nulls and
+  `se_compare()` remain linear/glm-only and reject `family = "cox"` with a
+  clear message.
+
 # speccurvieR 1.0.0
 
 First stable release. Since 0.5.0 the package has grown from a curve-plotting
