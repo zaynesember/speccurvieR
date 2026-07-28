@@ -4,6 +4,7 @@
 # columns naming each control, found by removing the known result columns.
 sca_control_cols <- function(sca_data){
   meta <- c("coef", "se", "statistic", "p", "RMSE", "adjR", "AIC", "deviance",
+            "HR", "concordance", "n_events",
             "terms", "control_coefs", "sig.level", "index", "n_obs")
   setdiff(names(sca_data), meta)
 }
@@ -90,12 +91,21 @@ normalize_cluster_spec <- function(cluster, data_cols){
 # Internal: resolve the `family`/`link` arguments shared by sca() and
 # se_compare() into a normalised family string and (for glm families) a family
 # object. Treats the common alias "gaussian" as ordinary least squares
-# ("linear"); for any other family it builds the family object, defaulting to
-# the family's canonical link when `link` is NULL and erroring clearly on an
-# unrecognised family. Returns a list with `family` (the normalised string) and
-# `fam_obj` (the family object, or NULL for the linear case).
+# ("linear"); "cox" selects Cox proportional-hazards estimation via
+# survival::coxph() (no family object, no link); for any other family it builds
+# the family object, defaulting to the family's canonical link when `link` is
+# NULL and erroring clearly on an unrecognised family. Returns a list with
+# `family` (the normalised string) and `fam_obj` (the family object, or NULL
+# for the linear and cox cases).
 resolve_family <- function(family, link){
   if(family=="gaussian") family <- "linear"
+
+  if(family=="cox"){
+    if(!is.null(link)){
+      warning("`link` is not used for family = \"cox\". Ignoring link.")
+    }
+    return(list(family="cox", fam_obj=NULL))
+  }
 
   fam_obj <- NULL
   if(family!="linear"){

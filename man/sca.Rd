@@ -29,7 +29,12 @@ supplied the first right-hand-side term is taken as the independent
 variable `x`, the remaining terms as `controls`, and anything after
 `|` as `fixed_effects`; the `x`, `controls`, and `fixed_effects`
 arguments are then taken from the formula. `data` may be passed
-positionally in this case, e.g. `sca(y ~ x + z, data)`.}
+positionally in this case, e.g. `sca(y ~ x + z, data)`.
+For survival outcomes (`family = "cox"`), `y` is instead the pair
+`c("time", "status")` naming the survival-time and event-status
+columns, or equivalently a formula with a `Surv()` response,
+e.g. `sca(Surv(time, status) ~ x + control1, data)` (which implies
+`family = "cox"`).}
 
 \item{x}{A string containing the column name of the independent variable in
 data.}
@@ -45,13 +50,15 @@ weights.}
 
 \item{family}{A string indicating the family of models to be used. Defaults
 to "linear" for OLS regression but supports all families
-supported by `glm()`.}
+supported by `glm()`, plus `"cox"` for Cox proportional-hazards
+models estimated with `survival::coxph()` (see `y` for how to
+specify the two-column survival outcome).}
 
 \item{link}{A string specifying the link function to be used for the model.
 Defaults to `NULL` for OLS regression using `lm()` or
 `fixest::feols()` depending on whether fixed effects are supplied.
 Supports all link functions supported by the family parameter of
-`glm()`.}
+`glm()`. Not used for `family = "cox"`.}
 
 \item{fixed_effects}{A string containing the column name of the variable
 in data desired for fixed effects. Defaults to NULL in
@@ -90,6 +97,10 @@ When `return_formulae` is `FALSE`, a dataframe where each row contains
         the independent variable coefficient estimate, standard error,
         test statistic, p-value, model specification, measures of model fit,
         and `n_obs`, the number of observations the specification was fit on.
+        For `family = "cox"` the coefficient is the log hazard ratio; the
+        exponentiated hazard ratio is returned alongside it as `HR`, model
+        fit is summarised by `AIC` and `concordance`, and `n_events` gives
+        the number of events each specification was fit on.
 }
 \description{
 sca() is the workhorse function of the package--this estimates models with every
@@ -103,6 +114,9 @@ possible combination of controls.
 \examples{
 sca(y = "Salnty", x = "T_degC", controls = c("ChlorA", "O2Sat"),
     data = bottles, progress_bar = TRUE, parallel = FALSE);
+# Survival outcome: Cox proportional hazards over control combinations
+sca(Surv(time, status) ~ age + sex + ph.ecog, data = survival::lung,
+    progress_bar = FALSE);
 # Equivalent call using the formula interface:
 sca(Salnty ~ T_degC + ChlorA + O2Sat, data = bottles, progress_bar = FALSE);
 # Formula interface with an interaction control and fixed effects:

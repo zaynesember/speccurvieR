@@ -77,7 +77,10 @@ tidy.sca <- function(x, ...){
                      function(t) paste(sort(setdiff(t, c("(Intercept)", focal))),
                                        collapse = " + "),
                      character(1))
-  is_glm <- !("RMSE" %in% names(x))
+  # The fit statistic identifies the model type: RMSE for OLS, concordance
+  # for Cox (which also carries an HR column), deviance for glm.
+  is_cox <- "concordance" %in% names(x)
+  is_glm <- !is_cox && !("RMSE" %in% names(x))
   out <- data.frame(
     term = focal,
     estimate = x$coef,
@@ -87,8 +90,9 @@ tidy.sca <- function(x, ...){
     spec_id = x$index,
     controls = controls,
     n_obs = x$n_obs,
-    fit_stat = if(is_glm) x$deviance else x$RMSE,
-    fit_stat_name = if(is_glm) "deviance" else "RMSE",
+    fit_stat = if(is_cox) x$concordance else if(is_glm) x$deviance else x$RMSE,
+    fit_stat_name = if(is_cox) "concordance"
+                    else if(is_glm) "deviance" else "RMSE",
     stringsAsFactors = FALSE)
   out <- out[order(out$spec_id), ]
   rownames(out) <- NULL                       # broom-conventional integer rows
