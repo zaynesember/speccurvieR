@@ -263,6 +263,47 @@ sca_report(result)
 Both `sca_table()` and `sca_report()` also accept an `sca()` curve, in which case
 they give a descriptive (non-inferential) summary.
 
+## Survival outcomes
+
+Everything above assumes an outcome you can put on the left of a `~`. Survival
+data is different–the response is a time and a censoring status, not a single
+column–and the standard model is Cox proportional hazards rather than `lm()` or
+`glm()`. The specification-curve question is unchanged: does a covariate's
+association with the outcome hold up across the controls you could have chosen?
+`sca()` answers it for Cox models with `family = "cox"`.
+
+Give `y` as `c("time", "status")`, or write the response as `Surv(time, status)`
+in the formula interface, which implies `family = "cox"` on its own:
+
+```{r}
+cox_s <- sca(Surv(time, status) ~ age + sex + ph.ecog + ph.karno + wt.loss,
+             data = survival::lung, progress_bar = FALSE)
+plot_curve(cox_s)
+```
+
+A Cox coefficient is a **log hazard ratio**, and the plotting and reporting
+layers account for that rather than treating it as an ordinary coefficient:
+`plot_curve()`, `plot_influence()`, and `plot_coef_fit()` label the axis "Log
+hazard ratio," and `sca_report()`/`sca_table()` report the hazard ratio
+alongside the log hazard ratio:
+
+```{r}
+sca_report(cox_s)
+```
+
+The output also carries `HR` (the exponentiated coefficient) and `n_events`
+(the number of events, as distinct from `n_obs`) as columns, since it is event
+count rather than sample size that drives precision in survival data.
+`sca_variance()` and the rest of the diagnostic tooling work on a Cox curve the
+same way they do on any other.
+
+Two pieces are not yet implemented for Cox models, and fail with an explicit
+error rather than a silently wrong answer: the `"freedman_lane"` and
+`"residual_bootstrap"` nulls in `sca_test()`, which are linear-model
+constructions, and `se_compare()`, since Cox has its own robust and clustered
+variance machinery in `coxph()`. The default `"shuffle_x"` null in `sca_test()`
+does work on Cox curves.
+
 ## References
 
 Simonsohn, U., Simmons, J. P., & Nelson, L. D. (2020). Specification curve

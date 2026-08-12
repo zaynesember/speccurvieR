@@ -790,6 +790,65 @@ with, so reading its sign or significance off any one specification
 claims more than the data support. Surfacing that, rather than hiding it
 behind a single chosen model, is the point of the package.
 
+# Survival outcomes
+
+Everything so far has had a response you can put on the left of a `~`.
+Survival data doesn’t work that way–the outcome is two columns, a time
+and a censoring status, and the usual model is Cox proportional hazards
+rather than `lm()` or `glm()`. The specification-curve question is the
+same one either way, though: does this covariate’s association hold up
+across the controls you could have chosen? `sca()` now answers it for
+Cox models too.
+
+Pass `family = "cox"` and give `y` as `c("time", "status")`, or, more
+naturally, write the response as `Surv(time, status)` in the
+formula–which implies `family = "cox"` on its own. Here it is on the
+`lung` data that ships with the `survival` package: does age predict
+survival in advanced lung cancer, across the clinical variables you
+might control for?
+
+``` r
+cox_s <- sca(Surv(time, status) ~ age + sex + ph.ecog + ph.karno + wt.loss,
+             data = survival::lung, progress_bar = FALSE)
+plot_curve(cox_s)
+```
+
+<img src="man/figures/README-unnamed-chunk-37-1.png" width="100%" />
+
+A Cox model’s coefficient is a log hazard ratio, and `plot_curve()`
+knows it–the axis says so instead of the generic “Coefficient.” Every
+specification here puts age’s log hazard ratio above zero, but whether
+it’s *significantly* above zero depends on what else is in the model:
+specifications missing `ph.karno` and `wt.loss` don’t clear *p* \< .05,
+the ones with both do. Read literally, that’s the performance-status and
+weight-loss variables soaking up some of what a naive age-only model
+would have credited to age.
+
+The reporting layer knows the scale too. `sca_report()` and
+`sca_table()` give you the hazard ratio along with the log hazard ratio,
+since the exponentiated number is the one you’d actually write in a
+paper:
+
+``` r
+sca_report(cox_s)
+#> [1] "A specification curve analysis estimated the effect of age across 15 specifications (N ranged from 213 to 228 across specifications; 151 to 165 events). The median estimate was a log hazard ratio of 0.0135 (hazard ratio 1.0136) (13.3% significant at p < .05), with hazard ratios from 1.0111 to 1.0219 and 100.0% sign agreement. This curve is descriptive; run sca_test() for joint inference."
+```
+
+`n_events`–the count of deaths, not just rows–rides alongside `n_obs`,
+because in survival data it’s event count, not sample size, that drives
+how much you can trust an estimate. `sca_variance()`,
+`plot_influence()`, and the rest of the diagnostic and reporting tooling
+all work on a Cox curve the same way they do on any other.
+
+Two things aren’t there yet. `sca_test()` runs under the default
+`shuffle_x` null, but the Freedman-Lane and residual-bootstrap nulls are
+linear-model machinery and don’t have a Cox analogue built yet, so
+they’ll tell you so rather than give you a wrong answer. `se_compare()`
+is in the same position–Cox has its own robust and clustered variance
+machinery in `coxph()` directly, and wiring that into `se_compare()` is
+still on the list. Both fail loudly instead of quietly returning
+something misleading.
+
 # Other features
 
 ## Fixed effects with `fixest::feols`
@@ -825,15 +884,15 @@ formulae <- sca(y = "T_degC", x = "Salnty",
 formulae[1:3]
 #> $`T_degC ~ Salnty + O2Sat`
 #> T_degC ~ Salnty + O2Sat
-#> <environment: 0x14584a948>
+#> <environment: 0x147edca90>
 #> 
 #> $`T_degC ~ Salnty + NO2uM`
 #> T_degC ~ Salnty + NO2uM
-#> <environment: 0x14584a948>
+#> <environment: 0x147edca90>
 #> 
 #> $`T_degC ~ Salnty + SiO3uM`
 #> T_degC ~ Salnty + SiO3uM
-#> <environment: 0x14584a948>
+#> <environment: 0x147edca90>
 ```
 
 Then it’s easy to estimate the models yourself with the pre-made
