@@ -9,7 +9,7 @@ plot_curve(
   title = "",
   show_index = TRUE,
   plot_vars = TRUE,
-  ylab = "Coefficient",
+  ylab = NULL,
   plot_se = "bar",
   median_line = FALSE,
   point_size = NULL
@@ -29,8 +29,10 @@ the x-axis. Defaults to `TRUE`.}
 showing which variables are present in each model. Defaults
 to `TRUE`.}
 
-\item{ylab}{A string to be used as the y-axis label. Defaults to
-`"Coefficient"`.}
+\item{ylab}{A string to be used as the y-axis label. Defaults to `NULL`,
+which labels the axis by the scale of the estimate:
+`"Log hazard ratio"` for a `family = "cox"` curve and
+`"Coefficient"` otherwise.}
 
 \item{plot_se}{A string indicating whether to display standard errors as
 bars or plots. For bars `plot_se = "bar"`, for ribbons

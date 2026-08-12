@@ -2,6 +2,15 @@
 
 # Internal: the control-indicator columns of an sca() data frame, i.e. the 0/1
 # columns naming each control, found by removing the known result columns.
+# Internal: the y-axis label for the focal estimate. Cox specifications are
+# estimated on the log-hazard-ratio scale, so plots of a Cox curve should say
+# so rather than the generic "Coefficient". `family` may be passed directly
+# (for objects that store it in a params list rather than an attribute).
+sca_coef_label <- function(sca_data, family = NULL){
+  if(is.null(family)) family <- attr(sca_data, "family", exact = TRUE)
+  if(identical(family, "cox")) "Log hazard ratio" else "Coefficient"
+}
+
 sca_control_cols <- function(sca_data){
   meta <- c("coef", "se", "statistic", "p", "RMSE", "adjR", "AIC", "deviance",
             "HR", "concordance", "n_events",

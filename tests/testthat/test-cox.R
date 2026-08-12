@@ -154,3 +154,53 @@ test_that("sca_test() runs a shuffle_x joint test on cox curves", {
              n_permutations = 9, progress_bar = FALSE),
     "linear")
 })
+
+test_that("reporting names the hazard-ratio scale for cox curves", {
+  s <- sca(y = c("time", "status"), x = "age",
+           controls = c("sex", "ph.ecog"),
+           data = lung_df, family = "cox", progress_bar = FALSE)
+
+  rep <- sca_report(s)
+  expect_match(rep, "log hazard ratio")
+  expect_match(rep, "hazard ratio")
+  expect_match(rep, "events")
+  # the exponentiated summary keeps enough precision to be readable
+  expect_match(rep, sca_fmt_num(exp(stats::median(s$coef)), 5), fixed = TRUE)
+
+  tb <- sca_table(s)
+  expect_true(all(c("Events", "Median log hazard ratio", "Median hazard ratio",
+                    "Hazard ratio range") %in% tb$label))
+  expect_identical(tb$value[tb$label == "Median hazard ratio"],
+                   sca_fmt_num(exp(stats::median(s$coef)), 5))
+
+  # linear curves are untouched
+  sl <- sca(y = "Salnty", x = "T_degC", controls = c("O2Sat", "ChlorA"),
+            data = bottles, progress_bar = FALSE)
+  expect_no_match(sca_report(sl), "hazard")
+  expect_false(any(grepl("hazard", sca_table(sl)$label, ignore.case = TRUE)))
+})
+
+test_that("plots label the estimate axis by its scale", {
+  s <- sca(y = c("time", "status"), x = "age",
+           controls = c("sex", "ph.ecog"),
+           data = lung_df, family = "cox", progress_bar = FALSE)
+  expect_identical(plot_curve(s, plot_vars = FALSE)$labels$y, "Log hazard ratio")
+  expect_identical(plot_influence(s)$labels$y, "Log hazard ratio")
+  # plot_coef_fit applies dplyr verbs that drop attributes; the label must be
+  # resolved before then
+  expect_identical(plot_coef_fit(s)$labels$y, "Log hazard ratio")
+
+  tt <- suppressWarnings(
+    sca_test(y = c("time", "status"), x = "age", controls = c("sex", "ph.ecog"),
+             data = lung_df, family = "cox", n_permutations = 9,
+             keep_curves = TRUE, progress_bar = FALSE, seed = 1))
+  expect_identical(plot_sca_test_specs(tt)$labels$y, "Log hazard ratio")
+
+  sl <- sca(y = "Salnty", x = "T_degC", controls = c("O2Sat", "ChlorA"),
+            data = bottles, progress_bar = FALSE)
+  expect_identical(plot_curve(sl, plot_vars = FALSE)$labels$y, "Coefficient")
+  expect_identical(plot_coef_fit(sl)$labels$y, "Coefficient")
+  # an explicit ylab still wins
+  expect_identical(plot_curve(sl, plot_vars = FALSE, ylab = "custom")$labels$y,
+                   "custom")
+})

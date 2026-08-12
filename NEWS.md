@@ -1,5 +1,13 @@
 # speccurvieR (development version)
 
+* Reporting and plotting label the scale of a Cox estimate rather than
+  calling it a generic coefficient: `sca_report()` and `sca_table()` give the
+  median and range as hazard ratios alongside the log hazard ratios and report
+  the event count, and `plot_curve()`, `plot_influence()`, `plot_coef_fit()`,
+  and `plot_sca_test_specs()` label the axis "Log hazard ratio". `plot_curve()`
+  gains `ylab = NULL` as its default, resolving the label from the model family;
+  an explicit `ylab` is unchanged.
+
 * New `sca_voe()` and `plot_voe()`: the vibration-of-effects summary and
   volcano plot of Patel, Burford, and Ioannidis (2015) computed over an
   `sca()` curve -- the spread of the estimate between the 1st and 99th

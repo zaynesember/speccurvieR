@@ -902,6 +902,9 @@ plot_sca_test_specs <- function(test_result, level = 0.95, title = ""){
     stop("`level` must be between 0 and 1.", call. = FALSE)
   }
 
+  # Label the estimate axis by its scale (Cox curves are log hazard ratios).
+  y_lab <- sca_coef_label(NULL, family = test_result$params$family)
+
   a <- (1 - level) / 2
   null_coef <- nc$null_coef
   df <- nc$spec
@@ -973,7 +976,7 @@ plot_sca_test_specs <- function(test_result, level = 0.95, title = ""){
                                      fwer_significant = 2.6),
                           guide = "none") +
         labs(x = "Specification (ranked by estimate)",
-             y = "Focal coefficient", title = title) +
+             y = y_lab, title = title) +
         theme_sca())
   }
 
@@ -992,7 +995,7 @@ plot_sca_test_specs <- function(test_result, level = 0.95, title = ""){
                        drop = TRUE,
                        name = "Observed estimate") +
     labs(x = "Specification (ranked by estimate)",
-         y = "Focal coefficient",
+         y = y_lab,
          title = title) +
     theme_sca()
 }
