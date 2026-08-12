@@ -412,6 +412,6 @@ coef(summary(my_own_models[[1]]))
 
 Feel free to contact me at [zayne@mit.edu](mailto:zayne@mit.edu) to let me know of features you would find useful. Some directions I may add next:
 
-* Support for pre-fitted models and custom estimators (e.g. instrumental-variables, survival, and mixed models)
+* Support for pre-fitted models and custom estimators (e.g. instrumental-variables and mixed models)
 
 If you find a bug please create an issue on GitHub and I'll work to fix it ASAP.

@@ -143,19 +143,52 @@ sca_report.sca_test <- function(x, digits = 3, ...){
 #' @export
 sca_report.sca <- function(x, digits = 3, ...){
   g <- glance.sca(x)
+  is_cox <- identical(attr(x, "family", exact = TRUE), "cox")
+
   n_clause <- if(g$common_sample){
     sprintf("N = %d", g$n_obs_min)
   } else {
     sprintf("N ranged from %d to %d across specifications", g$n_obs_min,
             g$n_obs_max)
   }
+  # For survival curves the event count drives precision, so report it
+  # alongside N.
+  if(is_cox && "n_events" %in% names(x)){
+    ev <- range(x$n_events, na.rm = TRUE)
+    n_clause <- paste0(n_clause, "; ",
+                       if(ev[1] == ev[2]) sprintf("%d events", ev[1])
+                       else sprintf("%d to %d events", ev[1], ev[2]))
+  }
+
+  # Cox coefficients are log hazard ratios. Name the scale and give the
+  # exponentiated value, which is the one readers interpret.
+  # Hazard ratios cluster just above or below 1, so `digits` significant
+  # digits would round an HR of 1.0136 to 1.01 and hide the effect. Carry two
+  # extra significant digits for the exponentiated scale.
+  hr_digits <- digits + 2
+  estimate_clause <- if(is_cox){
+    sprintf(paste0("The median estimate was a log hazard ratio of %s ",
+                   "(hazard ratio %s)"),
+            sca_fmt_num(g$median_estimate, digits),
+            sca_fmt_num(exp(g$median_estimate), hr_digits))
+  } else {
+    sprintf("The median estimate was %s", sca_fmt_num(g$median_estimate, digits))
+  }
+  range_clause <- if(is_cox){
+    sprintf("with hazard ratios from %s to %s",
+            sca_fmt_num(exp(g$estimate_min), hr_digits),
+            sca_fmt_num(exp(g$estimate_max), hr_digits))
+  } else {
+    sprintf("with estimates from %s to %s",
+            sca_fmt_num(g$estimate_min, digits),
+            sca_fmt_num(g$estimate_max, digits))
+  }
+
   sprintf(paste0("A specification curve analysis estimated the effect of %s ",
-                 "across %d specifications (%s). The median estimate was %s ",
-                 "(%s significant at p < .05), with estimates from %s to %s and ",
-                 "%s sign agreement. This curve is descriptive; run sca_test() ",
-                 "for joint inference."),
-          g$focal, g$n_specs, n_clause, sca_fmt_num(g$median_estimate, digits),
-          sca_fmt_pct(g$share_significant), sca_fmt_num(g$estimate_min, digits),
-          sca_fmt_num(g$estimate_max, digits),
+                 "across %d specifications (%s). %s (%s significant at ",
+                 "p < .05), %s and %s sign agreement. This curve is ",
+                 "descriptive; run sca_test() for joint inference."),
+          g$focal, g$n_specs, n_clause, estimate_clause,
+          sca_fmt_pct(g$share_significant), range_clause,
           sca_fmt_pct(max(g$share_positive, g$share_negative)))
 }

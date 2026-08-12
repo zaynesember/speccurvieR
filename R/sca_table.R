@@ -161,6 +161,7 @@ sca_table.sca <- function(x, format = c("data.frame", "markdown", "latex", "gt",
                           digits = 3, ...){
   format <- match.arg(format)
   g <- glance.sca(x)
+  is_cox <- identical(attr(x, "family", exact = TRUE), "cox")
   sig_pos <- mean(x$coef > 0 & x$p < 0.05, na.rm = TRUE)
   sig_neg <- mean(x$coef < 0 & x$p < 0.05, na.rm = TRUE)
   obs_str <- if(g$common_sample){
@@ -172,15 +173,44 @@ sca_table.sca <- function(x, format = c("data.frame", "markdown", "latex", "gt",
   rows <- list(
     c("Focal variable", g$focal),
     c("Specifications", as.character(g$n_specs)),
-    c("Observations", obs_str),
-    c("Median estimate", sca_fmt_num(g$median_estimate, digits)),
-    c("Estimate range",
+    c("Observations", obs_str))
+
+  # Survival curves: precision is driven by the event count, and the
+  # estimate is a log hazard ratio, so label the scale and add the
+  # exponentiated summary readers actually interpret.
+  if(is_cox && "n_events" %in% names(x)){
+    ev <- range(x$n_events, na.rm = TRUE)
+    rows <- c(rows, list(c("Events",
+                           if(ev[1] == ev[2]) as.character(ev[1])
+                           else paste0(ev[1], "-", ev[2],
+                                       " (varies by specification)"))))
+  }
+
+  est_label <- if(is_cox) "Median log hazard ratio" else "Median estimate"
+  range_label <- if(is_cox) "Log hazard ratio range" else "Estimate range"
+
+  rows <- c(rows, list(
+    c(est_label, sca_fmt_num(g$median_estimate, digits)),
+    c(range_label,
       paste0("[", sca_fmt_num(g$estimate_min, digits), ", ",
-             sca_fmt_num(g$estimate_max, digits), "]")),
+             sca_fmt_num(g$estimate_max, digits), "]"))))
+
+  if(is_cox){
+    # Hazard ratios sit close to 1, where `digits` significant digits would
+    # round 1.0136 to 1.01; carry two more on the exponentiated scale.
+    hr_digits <- digits + 2
+    rows <- c(rows, list(
+      c("Median hazard ratio", sca_fmt_num(exp(g$median_estimate), hr_digits)),
+      c("Hazard ratio range",
+        paste0("[", sca_fmt_num(exp(g$estimate_min), hr_digits), ", ",
+               sca_fmt_num(exp(g$estimate_max), hr_digits), "]"))))
+  }
+
+  rows <- c(rows, list(
     c("Share significant (p<.05)", sca_fmt_pct(g$share_significant)),
     c("Share significant, positive", sca_fmt_pct(sig_pos)),
     c("Share significant, negative", sca_fmt_pct(sig_neg)),
-    c("Sign agreement", sca_fmt_pct(max(g$share_positive, g$share_negative))))
+    c("Sign agreement", sca_fmt_pct(max(g$share_positive, g$share_negative)))))
 
   df <- data.frame(label = vapply(rows, `[`, character(1), 1),
                    value = vapply(rows, `[`, character(1), 2),

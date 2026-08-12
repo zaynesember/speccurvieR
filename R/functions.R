@@ -531,8 +531,10 @@ sca <- function(y, x, controls, data, weights=NULL,
 #' @param plot_vars A boolean indicating whether to include a panel on the plot
 #'                 showing which variables are present in each model. Defaults
 #'                 to `TRUE`.
-#' @param ylab A string to be used as the y-axis label. Defaults to
-#'             `"Coefficient"`.
+#' @param ylab A string to be used as the y-axis label. Defaults to `NULL`,
+#'             which labels the axis by the scale of the estimate:
+#'             `"Log hazard ratio"` for a `family = "cox"` curve and
+#'             `"Coefficient"` otherwise.
 #' @param plot_se A string indicating whether to display standard errors as
 #'               bars or plots. For bars `plot_se = "bar"`, for ribbons
 #'               `plot_se = "ribbon"`. If any other value is supplied then no
@@ -569,13 +571,17 @@ sca <- function(y, x, controls, data, weights=NULL,
 #'           plot_se="");
 #' }
 plot_curve <- function(sca_data, title="", show_index=TRUE, plot_vars=TRUE,
-                         ylab="Coefficient", plot_se="bar", median_line=FALSE,
+                         ylab=NULL, plot_se="bar", median_line=FALSE,
                          point_size=NULL){
 
   if(!all(c("coef", "index", "sig.level") %in% names(sca_data))){
     stop("`sca_data` does not look like sca() output (missing one of the ",
          "`coef`, `index`, or `sig.level` columns).", call.=FALSE)
   }
+
+  # Default the axis label to the estimate's scale: Cox curves are on the
+  # log-hazard-ratio scale, everything else is a plain coefficient.
+  if(is.null(ylab)) ylab <- sca_coef_label(sca_data)
 
   if("control_coefs" %in% names(sca_data)){
     sca_data <- sca_data %>% select(-control_coefs)
@@ -1681,7 +1687,7 @@ plot_influence <- function(sca_data, title=""){
     facet_wrap(~control) +
     scale_fill_manual(values=c("Excluded"=sca_sig_colors()[["p >= .1"]],
                                "Included"=sca_sig_colors()[["p < .005"]])) +
-    labs(title=title, x="", y="Coefficient") +
+    labs(title=title, x="", y=sca_coef_label(sca_data)) +
     theme_sca() +
     theme(legend.position="none")
 }
@@ -1725,6 +1731,10 @@ plot_coef_fit <- function(sca_data, metric=NULL, title=""){
   axis_labels <- c(RMSE="RMSE", adjR="Adjusted R-squared", AIC="AIC",
                    deviance="Deviance")
 
+  # Resolve the estimate's axis label before the dplyr verbs below, which drop
+  # the `family` attribute sca() attaches.
+  y_lab <- sca_coef_label(sca_data)
+
   sca_data <- sca_data %>%
     mutate(sig.level = factor(sig.level, levels = names(sca_sig_colors())))
 
@@ -1734,7 +1744,7 @@ plot_coef_fit <- function(sca_data, metric=NULL, title=""){
     geom_point(aes(fill=sig.level), shape=21, color="white", stroke=.3,
                size=2.4) +
     scale_fill_manual(values=sca_sig_colors(), drop=TRUE) +
-    labs(title=title, x=axis_labels[[metric]], y="Coefficient") +
+    labs(title=title, x=axis_labels[[metric]], y=y_lab) +
     theme_sca()
 }
 
